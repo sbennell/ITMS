@@ -286,13 +286,40 @@ router.post('/:id/unverify/:assetId', async (req: Request, res: Response) => {
 });
 
 // Quick verify by item number or barcode scan
+// Supports both plain item numbers and QR codes with full label info
 router.post('/:id/quick-verify', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
-  const { itemNumber, newCondition } = req.body;
+  const { itemNumber: rawInput, newCondition } = req.body;
 
-  if (!itemNumber) {
+  if (!rawInput) {
     return res.status(400).json({ error: 'Item number is required' });
+  }
+
+  // Parse the input - could be plain item number or QR code content
+  // QR format with newlines: "Name\nItem:AST-001\nModel\nS/N:123\nOrg"
+  // Scanners may strip newlines: "NameItem:AST-001ModelS/N:123Org"
+  let itemNumber = rawInput.trim();
+
+  if (rawInput.includes('Item:')) {
+    // Extract item number using regex for common formats
+    // Supports: AST-001, ASSET123, or just numbers like 1008
+    // Handles optional space after colon (Item: 1008 or Item:1008)
+    // This handles scanners that strip newlines from QR codes
+    const match = rawInput.match(/Item:\s?([A-Z]+-\d+|[A-Z]+\d+|\d+)/i);
+    if (match) {
+      itemNumber = match[1];
+    } else {
+      // Fallback: line-based parsing if input has newlines
+      const lines = rawInput.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('Item:')) {
+          itemNumber = trimmed.substring(5).trim();
+          break;
+        }
+      }
+    }
   }
 
   try {

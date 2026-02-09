@@ -75,7 +75,7 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
   if (opts.showAssignedTo && asset.assignedTo) {
     lines.push(asset.assignedTo);
   }
-  lines.push(`Item:${asset.itemNumber}`);
+  lines.push(`Item: ${asset.itemNumber}`);
   if (opts.showModel && asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
@@ -83,7 +83,7 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
     lines.push(modelText);
   }
   if (opts.showSerialNumber && asset.serialNumber) {
-    lines.push(`S/N:${asset.serialNumber}`);
+    lines.push(`S/N: ${asset.serialNumber}`);
   }
   if (asset.organizationName) {
     lines.push(asset.organizationName);
