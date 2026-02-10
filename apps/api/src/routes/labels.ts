@@ -45,7 +45,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
-    const { copies = 1, showAssignedTo, showModel, showSerialNumber } = req.body;
+    const { copies = 1, showAssignedTo, showHostname, showIpAddress } = req.body;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -59,7 +59,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showModel', 'label.showHostname', 'label.showSerialNumber', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -73,8 +73,8 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const finalSettings = {
       ...settings,
       ...(showAssignedTo !== undefined && { showAssignedTo }),
-      ...(showModel !== undefined && { showModel }),
-      ...(showSerialNumber !== undefined && { showSerialNumber }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
     };
 
     // Generate and print label
@@ -102,7 +102,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 router.post('/print-batch', requireAuth, async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
-    const { assetIds, copies = 1 } = req.body;
+    const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress } = req.body;
 
     if (!Array.isArray(assetIds) || assetIds.length === 0) {
       return res.status(400).json({ error: 'assetIds array is required' });
@@ -111,7 +111,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showModel', 'label.showHostname', 'label.showSerialNumber', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -120,6 +120,14 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     });
     const settings = parseSettings(settingsMap);
     const organizationName = settingsMap['organization'] || null;
+
+    // Override settings from request body if provided
+    const finalSettings = {
+      ...settings,
+      ...(showAssignedTo !== undefined && { showAssignedTo }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
+    };
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -134,7 +142,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     for (const asset of assets) {
       try {
         const labelAsset: LabelAsset = { ...asset, organizationName };
-        const pdfBytes = await createLabelPDF(labelAsset, settings);
+        const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
           await printLabel(pdfBytes, settings.printerName);
         }
@@ -162,6 +170,77 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
   } catch (error) {
     console.error('Batch print error:', error);
     res.status(500).json({ error: 'Failed to print labels' });
+  }
+});
+
+// Download batch of labels as combined PDF
+router.get('/download-batch', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+    const assetIdsParam = req.query.assetIds as string;
+
+    if (!assetIdsParam) {
+      return res.status(400).json({ error: 'assetIds parameter is required' });
+    }
+
+    const assetIds = assetIdsParam.split(',');
+
+    // Get optional query params for settings override
+    const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
+    const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
+    const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
+
+    // Get label settings and organization name
+    const settingsRecords = await prisma.settings.findMany({
+      where: {
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
+      },
+    });
+    const settingsMap: Record<string, string> = {};
+    settingsRecords.forEach((s: { key: string; value: string }) => {
+      settingsMap[s.key] = s.value;
+    });
+    const settings = parseSettings(settingsMap);
+    const organizationName = settingsMap['organization'] || null;
+
+    // Override settings from query params if provided
+    const finalSettings = {
+      ...settings,
+      ...(showAssignedTo !== undefined && { showAssignedTo }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
+    };
+
+    // Fetch all assets
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: assetIds } },
+      include: { manufacturer: true },
+    });
+
+    if (assets.length === 0) {
+      return res.status(404).json({ error: 'No assets found' });
+    }
+
+    // Generate all label PDFs and combine them
+    const { PDFDocument } = await import('pdf-lib');
+    const combinedPdf = await PDFDocument.create();
+
+    for (const asset of assets) {
+      const labelAsset: LabelAsset = { ...asset, organizationName };
+      const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+      const labelPdf = await PDFDocument.load(pdfBytes);
+      const [page] = await combinedPdf.copyPages(labelPdf, [0]);
+      combinedPdf.addPage(page);
+    }
+
+    const combinedBytes = await combinedPdf.save();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="labels-batch-${assets.length}.pdf"`);
+    res.send(Buffer.from(combinedBytes));
+  } catch (error) {
+    console.error('Batch download error:', error);
+    res.status(500).json({ error: 'Failed to generate batch PDF' });
   }
 });
 
@@ -245,8 +324,8 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 
     // Get optional query params for settings override
     const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
-    const showModel = req.query.showModel !== undefined ? req.query.showModel === 'true' : undefined;
-    const showSerialNumber = req.query.showSerialNumber !== undefined ? req.query.showSerialNumber === 'true' : undefined;
+    const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
+    const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -260,7 +339,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showModel', 'label.showHostname', 'label.showSerialNumber', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -274,8 +353,8 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     const finalSettings = {
       ...settings,
       ...(showAssignedTo !== undefined && { showAssignedTo }),
-      ...(showModel !== undefined && { showModel }),
-      ...(showSerialNumber !== undefined && { showSerialNumber }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
     };
 
     const labelAsset: LabelAsset = { ...asset, organizationName };

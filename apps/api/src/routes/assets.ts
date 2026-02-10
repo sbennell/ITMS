@@ -362,6 +362,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
+    // Delete related records that don't have cascade delete
+    await prisma.stocktakeRecord.deleteMany({ where: { assetId: id } });
+
+    // Now delete the asset (auditLogs and attachments have cascade delete)
     await prisma.asset.delete({ where: { id } });
 
     res.json({ success: true, message: 'Asset deleted' });

@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   createColumnHelper
 } from '@tanstack/react-table';
-import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer, Loader2 } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer } from 'lucide-react';
 import { api, Asset } from '../lib/api';
 import { cn, STATUS_LABELS, STATUS_COLORS } from '../lib/utils';
+import BatchPrintModal from '../components/BatchPrintModal';
 
 const columnHelper = createColumnHelper<Asset>();
 
@@ -67,15 +68,10 @@ export default function AssetList() {
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  const batchPrintMutation = useMutation({
-    mutationFn: (assetIds: string[]) => api.printLabelsBatch(assetIds),
-    onSuccess: () => {
-      setSelectedIds(new Set());
-    },
-  });
+  const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
   const category = searchParams.get('category') || '';
@@ -85,8 +81,8 @@ export default function AssetList() {
   const sortOrder = searchParams.get('sortOrder') || '';
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['assets', { page, search, status, category, manufacturer, location, sortBy, sortOrder }],
-    queryFn: () => api.getAssets({ page, search, status, category, manufacturer, location, sortBy, sortOrder })
+    queryKey: ['assets', { page, limit, search, status, category, manufacturer, location, sortBy, sortOrder }],
+    queryFn: () => api.getAssets({ page, limit, search, status, category, manufacturer, location, sortBy, sortOrder })
   });
 
   const handleSort = (column: string) => {
@@ -179,7 +175,7 @@ export default function AssetList() {
 
   const handleBatchPrint = () => {
     if (selectedIds.size === 0) return;
-    batchPrintMutation.mutate(Array.from(selectedIds));
+    setShowBatchPrintModal(true);
   };
 
   return (
@@ -197,20 +193,10 @@ export default function AssetList() {
           {selectedIds.size > 0 && (
             <button
               onClick={handleBatchPrint}
-              disabled={batchPrintMutation.isPending}
               className="btn btn-secondary"
             >
-              {batchPrintMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Printing...
-                </>
-              ) : (
-                <>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Labels ({selectedIds.size})
-                </>
-              )}
+              <Printer className="w-4 h-4 mr-2" />
+              Print Labels ({selectedIds.size})
             </button>
           )}
           <Link to="/assets/new" className="btn btn-primary">
@@ -219,24 +205,6 @@ export default function AssetList() {
           </Link>
         </div>
       </div>
-
-      {/* Batch print result */}
-      {batchPrintMutation.isSuccess && (
-        <div className={cn(
-          "p-3 rounded text-sm",
-          batchPrintMutation.data.success
-            ? "bg-green-50 border border-green-200 text-green-700"
-            : "bg-yellow-50 border border-yellow-200 text-yellow-700"
-        )}>
-          Printed {batchPrintMutation.data.printed} labels
-          {batchPrintMutation.data.failed > 0 && `, ${batchPrintMutation.data.failed} failed`}
-        </div>
-      )}
-      {batchPrintMutation.isError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-          {batchPrintMutation.error instanceof Error ? batchPrintMutation.error.message : 'Print failed'}
-        </div>
-      )}
 
       {/* Search and Filters */}
       <div className="card p-4 space-y-4">
@@ -428,30 +396,60 @@ export default function AssetList() {
         )}
 
         {/* Pagination */}
-        {data && data.pagination.totalPages > 1 && (
+        {data && (
           <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <div className="text-sm text-gray-500">
-              Page {data.pagination.page} of {data.pagination.totalPages}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                {data.pagination.totalPages > 1
+                  ? `Page ${data.pagination.page} of ${data.pagination.totalPages}`
+                  : `${data.pagination.total} assets`}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500">Show:</span>
+                <select
+                  value={limit}
+                  onChange={(e) => updateParams({ limit: e.target.value, page: '1' })}
+                  className="input py-1 px-2 text-sm w-20"
+                >
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="200">200</option>
+                  <option value="500">500</option>
+                  <option value="1000">1000</option>
+                  <option value="10000">All</option>
+                </select>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => updateParams({ page: String(page - 1) })}
-                disabled={page <= 1}
-                className="btn btn-secondary"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => updateParams({ page: String(page + 1) })}
-                disabled={page >= data.pagination.totalPages}
-                className="btn btn-secondary"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            {data.pagination.totalPages > 1 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => updateParams({ page: String(page - 1) })}
+                  disabled={page <= 1}
+                  className="btn btn-secondary"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => updateParams({ page: String(page + 1) })}
+                  disabled={page >= data.pagination.totalPages}
+                  className="btn btn-secondary"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Batch Print Modal */}
+      {showBatchPrintModal && (
+        <BatchPrintModal
+          assetIds={Array.from(selectedIds)}
+          onClose={() => setShowBatchPrintModal(false)}
+          onSuccess={() => setSelectedIds(new Set())}
+        />
+      )}
     </div>
   );
 }

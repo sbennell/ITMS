@@ -17,6 +17,7 @@ export interface LabelAsset {
   serialNumber?: string | null;
   model?: string | null;
   hostname?: string | null;
+  ipAddress?: string | null;
   assignedTo?: string | null;
   manufacturer?: { name: string } | null;
   organizationName?: string | null;
@@ -25,17 +26,16 @@ export interface LabelAsset {
 export interface LabelSettings {
   printerName: string;
   showAssignedTo: boolean;
-  showModel: boolean;
   showHostname: boolean;
-  showSerialNumber: boolean;
+  showIpAddress: boolean;
+  // Note: Item Number, Model, and Serial Number are always shown
 }
 
 const DEFAULT_SETTINGS: LabelSettings = {
   printerName: 'Brother QL-500',
   showAssignedTo: true,
-  showModel: true,
   showHostname: true,
-  showSerialNumber: true,
+  showIpAddress: true,
 };
 
 /**
@@ -76,14 +76,23 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
     lines.push(asset.assignedTo);
   }
   lines.push(`Item: ${asset.itemNumber}`);
-  if (opts.showModel && asset.model) {
+  // Model is always included
+  if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
     lines.push(modelText);
   }
-  if (opts.showSerialNumber && asset.serialNumber) {
+  // Serial Number is always included (under Model)
+  if (asset.serialNumber) {
     lines.push(`S/N: ${asset.serialNumber}`);
+  }
+  // Hostname and IP on separate lines
+  if (opts.showHostname && asset.hostname) {
+    lines.push(asset.hostname);
+  }
+  if (opts.showIpAddress && asset.ipAddress) {
+    lines.push(asset.ipAddress);
   }
   if (asset.organizationName) {
     lines.push(asset.organizationName);
@@ -111,15 +120,14 @@ export async function createLabelPDF(
   const doc = await PDFDocument.create();
   const page = doc.addPage([LABEL_WIDTH_PT, LABEL_HEIGHT_PT]);
 
-  // Embed fonts
-  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  // Embed font
   const regularFont = await doc.embedFont(StandardFonts.Helvetica);
 
   // Embed QR code image
   const qrImage = await doc.embedPng(qrBuffer);
 
   // Layout: Landscape - QR on left, text on right
-  const margin = 4;
+  const margin = 3
   const qrSize = 48; // ~17mm - compact to maximize text space
   const bottomMargin = 14; // Space for organization name
 
@@ -135,67 +143,96 @@ export async function createLabelPDF(
   });
 
   // Text starts after QR code
-  const textX = qrX + qrSize + 6;
+  const textX = qrX + qrSize + 1;
   let textY = LABEL_HEIGHT_PT - 14;
 
-  // Assigned To name (bold, at top)
+  // All text uses same font (regular) and color (black)
+  const fontSize = 8;
+  const lineHeight = 10;
+
+  // Assigned To name
   if (opts.showAssignedTo && asset.assignedTo) {
-    page.drawText(truncateText(asset.assignedTo, 20), {
+    page.drawText(truncateText(asset.assignedTo, 30), {
       x: textX,
       y: textY,
-      size: 10,
-      font: boldFont,
+      size: fontSize,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
-    textY -= 12;
+    textY -= lineHeight;
   }
 
   // Item Number with prefix
-  page.drawText(truncateText(`Item:${asset.itemNumber}`, 22), {
+  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 30), {
     x: textX,
     y: textY,
-    size: 9,
-    font: boldFont,
+    size: fontSize,
+    font: regularFont,
     color: rgb(0, 0, 0),
   });
-  textY -= 12;
+  textY -= lineHeight;
 
-  // Model (with manufacturer if available)
-  if (opts.showModel && asset.model) {
+  // Model (always shown)
+  if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    page.drawText(truncateText(modelText, 24), {
+    page.drawText(truncateText(modelText, 32), {
       x: textX,
       y: textY,
-      size: 8,
+      size: fontSize,
       font: regularFont,
       color: rgb(0, 0, 0),
     });
-    textY -= 11;
+    textY -= lineHeight;
   }
 
-  // Serial Number
-  if (opts.showSerialNumber && asset.serialNumber) {
-    page.drawText(truncateText(`S/N:${asset.serialNumber}`, 24), {
+  // Serial Number (always shown, under Model)
+  if (asset.serialNumber) {
+    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 30), {
       x: textX,
       y: textY,
-      size: 8,
+      size: fontSize,
+      font: regularFont,
+      color: rgb(0, 0, 0),
+    });
+    textY -= lineHeight;
+  }
+
+  // Hostname on its own line
+  if (opts.showHostname && asset.hostname) {
+    page.drawText(truncateText(asset.hostname, 30), {
+      x: textX,
+      y: textY,
+      size: fontSize,
+      font: regularFont,
+      color: rgb(0, 0, 0),
+    });
+    textY -= lineHeight;
+  }
+
+  // IP Address on its own line
+  if (opts.showIpAddress && asset.ipAddress) {
+    page.drawText(truncateText(asset.ipAddress, 30), {
+      x: textX,
+      y: textY,
+      size: fontSize,
       font: regularFont,
       color: rgb(0, 0, 0),
     });
   }
 
-  // Organization Name - centered at bottom, full width
+  // Organization Name - centered at bottom, full width, larger font
   if (asset.organizationName) {
-    const orgText = truncateText(asset.organizationName, 38);
-    const orgWidth = regularFont.widthOfTextAtSize(orgText, 8);
+    const orgFontSize = 8
+    const orgText = truncateText(asset.organizationName, 44);
+    const orgWidth = regularFont.widthOfTextAtSize(orgText, orgFontSize);
     page.drawText(orgText, {
       x: (LABEL_WIDTH_PT - orgWidth) / 2,
       y: 4,
-      size: 8,
+      size: orgFontSize,
       font: regularFont,
-      color: rgb(0.3, 0.3, 0.3),
+      color: rgb(0, 0, 0),
     });
   }
 
@@ -299,9 +336,8 @@ export function parseSettings(
   return {
     printerName: get('label.printerName') || DEFAULT_SETTINGS.printerName,
     showAssignedTo: get('label.showAssignedTo') !== 'false',
-    showModel: get('label.showModel') !== 'false',
     showHostname: get('label.showHostname') !== 'false',
-    showSerialNumber: get('label.showSerialNumber') !== 'false',
+    showIpAddress: get('label.showIpAddress') !== 'false',
   };
 }
 
@@ -317,14 +353,11 @@ export function settingsToKeyValue(settings: Partial<LabelSettings>): Record<str
   if (settings.showAssignedTo !== undefined) {
     result['label.showAssignedTo'] = String(settings.showAssignedTo);
   }
-  if (settings.showModel !== undefined) {
-    result['label.showModel'] = String(settings.showModel);
-  }
   if (settings.showHostname !== undefined) {
     result['label.showHostname'] = String(settings.showHostname);
   }
-  if (settings.showSerialNumber !== undefined) {
-    result['label.showSerialNumber'] = String(settings.showSerialNumber);
+  if (settings.showIpAddress !== undefined) {
+    result['label.showIpAddress'] = String(settings.showIpAddress);
   }
 
   return result;

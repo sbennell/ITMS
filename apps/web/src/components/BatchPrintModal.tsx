@@ -1,24 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Printer, Download, Loader2, Settings } from 'lucide-react';
-import { api, Asset, LabelSettings } from '../lib/api';
+import { api, LabelSettings } from '../lib/api';
 
-interface LabelPreviewModalProps {
-  asset: Asset;
+interface BatchPrintModalProps {
+  assetIds: string[];
   onClose: () => void;
+  onSuccess: () => void;
 }
 
-export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalProps) {
+export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchPrintModalProps) {
   const [showOptions, setShowOptions] = useState(false);
   const [labelOptions, setLabelOptions] = useState<Partial<LabelSettings>>({
     showAssignedTo: true,
     showHostname: true,
     showIpAddress: true,
-  });
-
-  const { data: orgData } = useQuery({
-    queryKey: ['settings', 'organization'],
-    queryFn: () => api.getSetting('organization'),
   });
 
   // Load default settings
@@ -39,9 +35,10 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
   }, [defaultSettings]);
 
   const printMutation = useMutation({
-    mutationFn: () => api.printLabel(asset.id, 1, labelOptions),
+    mutationFn: () => api.printLabelsBatch(assetIds, 1, labelOptions),
     onSuccess: (result) => {
       if (result.success) {
+        onSuccess();
         onClose();
       }
     },
@@ -49,11 +46,11 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
 
   const handleDownload = () => {
     const params = new URLSearchParams();
+    params.set('assetIds', assetIds.join(','));
     if (labelOptions.showAssignedTo !== undefined) params.set('showAssignedTo', String(labelOptions.showAssignedTo));
     if (labelOptions.showHostname !== undefined) params.set('showHostname', String(labelOptions.showHostname));
     if (labelOptions.showIpAddress !== undefined) params.set('showIpAddress', String(labelOptions.showIpAddress));
-    const queryString = params.toString();
-    window.open(`${api.downloadLabelUrl(asset.id)}${queryString ? '?' + queryString : ''}`, '_blank');
+    window.open(`/api/labels/download-batch?${params.toString()}`, '_blank');
   };
 
   const toggleOption = (key: keyof LabelSettings) => {
@@ -65,7 +62,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Print Label</h2>
+          <h2 className="text-lg font-semibold">Print {assetIds.length} Labels</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded"
@@ -76,45 +73,6 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Preview - Landscape layout matching actual print */}
-          <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
-            <div
-              className="bg-white border border-gray-400 rounded shadow-sm flex flex-col justify-between"
-              style={{ width: '300px', minHeight: '120px' }}
-            >
-              <div className="flex items-start gap-2 p-2">
-                <img
-                  src={api.getLabelPreviewUrl(asset.id)}
-                  alt="QR Code"
-                  className="w-14 h-14 flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0 overflow-hidden leading-tight">
-                  {labelOptions.showAssignedTo && asset.assignedTo && (
-                    <p className="text-xs font-medium truncate">{asset.assignedTo}</p>
-                  )}
-                  <p className="text-xs truncate">Item: {asset.itemNumber}</p>
-                  {asset.model && (
-                    <p className="text-xs text-gray-700 truncate">
-                      {asset.manufacturer?.name} {asset.model}
-                    </p>
-                  )}
-                  {asset.serialNumber && (
-                    <p className="text-xs text-gray-700 truncate">S/N: {asset.serialNumber}</p>
-                  )}
-                  {labelOptions.showHostname && asset.hostname && (
-                    <p className="text-xs text-gray-700 truncate">{asset.hostname}</p>
-                  )}
-                  {labelOptions.showIpAddress && asset.ipAddress && (
-                    <p className="text-xs text-gray-700 truncate">{asset.ipAddress}</p>
-                  )}
-                </div>
-              </div>
-              <p className="text-xs text-gray-600 text-center truncate border-t border-gray-300 py-1 px-2">
-                {orgData?.value || 'Organization Name'}
-              </p>
-            </div>
-          </div>
-
           {/* Label Options Toggle */}
           <button
             onClick={() => setShowOptions(!showOptions)}
@@ -167,7 +125,8 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
           {/* Success message */}
           {printMutation.isSuccess && printMutation.data.success && (
             <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-              {printMutation.data.message}
+              Printed {printMutation.data.printed} labels
+              {printMutation.data.failed > 0 && `, ${printMutation.data.failed} failed`}
             </div>
           )}
         </div>

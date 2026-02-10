@@ -190,7 +190,10 @@ export default function AssetDetail() {
           <div className="mt-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Changes</h3>
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {(asset as any).auditLogs.slice(0, 10).map((log: any) => {
+              {(asset as any).auditLogs
+                .filter((log: any) => log.action !== 'PRINT_LABEL')
+                .slice(0, 10)
+                .map((log: any) => {
                 const changes = log.changes ? JSON.parse(log.changes) : null;
                 const changedFields = changes?.before && changes?.after
                   ? Object.keys(changes.after).filter(key => {

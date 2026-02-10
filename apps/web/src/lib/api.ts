@@ -121,9 +121,9 @@ export interface ImportResult {
 export interface LabelSettings {
   printerName: string;
   showAssignedTo: boolean;
-  showModel: boolean;
   showHostname: boolean;
-  showSerialNumber: boolean;
+  showIpAddress: boolean;
+  // Note: Item Number, Model, and Serial Number are always shown
 }
 
 export interface PrintResult {
@@ -316,10 +316,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ copies: copies || 1, ...settings })
     }),
-  printLabelsBatch: (assetIds: string[], copies?: number) =>
+  printLabelsBatch: (assetIds: string[], copies?: number, settings?: Partial<LabelSettings>) =>
     fetchJson<BatchPrintResult>('/labels/print-batch', {
       method: 'POST',
-      body: JSON.stringify({ assetIds, copies: copies || 1 })
+      body: JSON.stringify({ assetIds, copies: copies || 1, ...settings })
     }),
   getPrinters: () => fetchJson<string[]>('/labels/printers'),
   getLabelSettings: () => fetchJson<LabelSettings>('/labels/settings'),
