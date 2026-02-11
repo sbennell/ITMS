@@ -1,181 +1,214 @@
-# Asset System
+# Asset Management System
 
-A web-based IT Asset Management System built with React, Express, and MySQL.
+**Version 1.0.0**
+
+A web-based IT asset management system for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
 
 ## Features
 
-- Full asset lifecycle management (create, read, update, delete)
-- Search and filter assets by status, category, manufacturer, location
-- Generate barcode labels (QR Code, Data Matrix, Code128, Aztec)
-- Print-ready label templates
-- Manage categories, manufacturers, suppliers, and locations
-- Audit trail for all changes
-- Simple password-based authentication
+### Asset Management
+- **Asset Tracking**: Track IT assets including computers, monitors, printers, and other equipment
+- **Detailed Records**: Store item numbers, serial numbers, models, manufacturers, and more
+- **Custom Fields**: Track hostname, IP address, assigned users, and locations
+- **Status Tracking**: Monitor asset status (In Use, In Storage, Retired, etc.)
+- **Condition Tracking**: Track asset condition (Excellent, Good, Fair, Poor)
+- **Audit History**: View complete change history for each asset
 
-## Tech Stack
+### Label Printing
+- **QR Code Labels**: Generate labels with QR codes for easy asset identification
+- **Brother QL-500 Support**: Direct printing to Brother QL label printers (DK-22211 29mm tape)
+- **Batch Printing**: Print labels for multiple assets at once
+- **PDF Download**: Download labels as PDF for manual printing
+- **Customizable Content**: Choose which fields to display on labels (Assigned To, Hostname, IP Address)
 
-- **Frontend**: React 18, Vite, TailwindCSS, TanStack Query, TanStack Table
-- **Backend**: Node.js, Express, Prisma ORM
-- **Database**: MySQL 8.0+
-- **Barcodes**: bwip-js
+### Stocktake
+- **Inventory Audits**: Create stocktake sessions to verify asset locations
+- **QR Code Scanning**: Quickly verify assets by scanning QR codes
+- **Progress Tracking**: Monitor verification progress in real-time
+- **Condition Updates**: Update asset condition during stocktake
 
-## Prerequisites
+### Data Management
+- **Import/Export**: Import assets from Excel/CSV, export to Excel
+- **Bulk Operations**: Perform batch updates on multiple assets
+- **Search & Filter**: Find assets by any field with advanced filtering
+- **Sorting**: Sort by any column with natural number ordering
+- **Pagination**: Configurable page sizes (50, 100, 200, 500, 1000, All)
 
-- Node.js 20+ LTS
-- MySQL 8.0+
+### Lookup Tables
+- **Categories**: Organize assets by type (Laptop, Desktop, Monitor, etc.)
+- **Manufacturers**: Track device manufacturers
+- **Locations**: Define physical locations for assets
+- **Suppliers**: Manage vendor/supplier information
 
-## Setup
+### User Management
+- **Authentication**: Secure login with session management
+- **Role-Based Access**: Admin and User roles
+- **User Administration**: Create, edit, and disable user accounts
+- **Password Management**: Secure password hashing with bcrypt
 
-### 1. Clone and Install Dependencies
+## Technology Stack
 
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **TailwindCSS** - Styling
+- **TanStack Query** - Data fetching and caching
+- **TanStack Table** - Data tables
+- **React Router** - Navigation
+- **React Hook Form** - Form handling
+- **Lucide React** - Icons
+
+### Backend
+- **Node.js** - Runtime
+- **Express** - Web framework
+- **TypeScript** - Type safety
+- **Prisma** - Database ORM
+- **SQLite** - Database
+- **bcryptjs** - Password hashing
+- **express-session** - Session management
+
+### Label Generation
+- **pdf-lib** - PDF generation
+- **bwip-js** - Barcode/QR code generation
+- **pdf-to-printer** - Windows printing support
+
+## Installation
+
+### Prerequisites
+- Node.js 18+
+- npm 9+
+
+### Setup
+
+1. Clone the repository:
 ```bash
-cd Asset_System
+git clone https://github.com/your-repo/asset-system.git
+cd asset-system
+```
+
+2. Install dependencies:
+```bash
 npm install
 ```
 
-### 2. Set Up MySQL Database
-
-Create a new MySQL database:
-
-```sql
-CREATE DATABASE asset_system;
-```
-
-### 3. Configure Environment
-
-Create the API environment file:
-
-```bash
-cp apps/api/.env.example apps/api/.env
-```
-
-Edit `apps/api/.env` with your MySQL credentials:
-
-```
-DATABASE_URL="mysql://root:yourpassword@localhost:3306/asset_system"
-SESSION_SECRET="change-this-to-a-random-string"
-```
-
-### 4. Initialize Database
-
+3. Initialize the database:
 ```bash
 cd apps/api
-npm run db:push
+npx prisma generate
+npx prisma db push
 ```
 
-This creates all the database tables.
-
-### 5. Start Development Servers
-
-From the root directory:
-
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-This starts both the API (port 3001) and the web app (port 5173).
+5. Open http://localhost:5173 in your browser
 
-Open http://localhost:5173 in your browser.
+### Default Login
+- **Username**: admin
+- **Password**: admin123
 
-### 6. First Login
+*Change the default password after first login!*
 
-On your first login, enter a password of your choice. This will be saved as your application password.
+## Configuration
 
-## Docker Deployment
+### Organization Name
+Set your organization name in Settings > Organization. This appears on printed labels.
 
-### Quick Start with Docker
+### Label Printer
+Configure your label printer in Settings > Label Settings:
+- Select printer from available Windows printers
+- Configure default field visibility
 
-Build and run the application:
-
-```bash
-docker-compose up --build
-```
-
-Run in background:
-
-```bash
-docker-compose up -d
-```
-
-The API will be available at http://localhost:3001
-
-### Configuration
-
-Set environment variables in `docker-compose.yml` or create a `.env` file:
-
-```
-SESSION_SECRET=your-secure-secret-here
-```
-
-### Data Persistence
-
-SQLite data is persisted in a Docker volume (`asset_data`). To backup:
-
-```bash
-docker cp $(docker-compose ps -q app):/app/data/asset_system.db ./backup.db
-```
-
-### Stopping
-
-```bash
-docker-compose down
-```
-
-To remove data volume as well:
-
-```bash
-docker-compose down -v
-```
+### Database
+The SQLite database is stored at `apps/api/prisma/dev.db`. Back up this file regularly.
 
 ## Project Structure
 
 ```
 Asset_System/
 ├── apps/
-│   ├── api/                  # Express backend
-│   │   ├── prisma/           # Database schema
+│   ├── api/                 # Backend Express API
+│   │   ├── prisma/          # Database schema and migrations
 │   │   └── src/
-│   │       ├── routes/       # API endpoints
-│   │       └── index.ts      # Server entry
-│   └── web/                  # React frontend
+│   │       ├── routes/      # API endpoints
+│   │       └── services/    # Business logic
+│   └── web/                 # Frontend React app
 │       └── src/
-│           ├── components/   # Reusable components
-│           ├── pages/        # Page components
-│           └── lib/          # Utilities & API client
-├── package.json              # Workspace root
-└── README.md
+│           ├── components/  # Reusable UI components
+│           ├── lib/         # Utilities and API client
+│           └── pages/       # Page components
+└── package.json             # Root workspace config
 ```
 
 ## API Endpoints
+
+### Assets
+- `GET /api/assets` - List assets (with pagination, filtering, sorting)
+- `GET /api/assets/:id` - Get single asset
+- `POST /api/assets` - Create asset
+- `PUT /api/assets/:id` - Update asset
+- `DELETE /api/assets/:id` - Delete asset
+
+### Labels
+- `GET /api/labels/preview/:assetId` - Get QR code preview
+- `GET /api/labels/download/:assetId` - Download label PDF
+- `POST /api/labels/print/:assetId` - Print single label
+- `POST /api/labels/print-batch` - Print multiple labels
+- `GET /api/labels/download-batch` - Download batch PDF
+
+### Stocktake
+- `GET /api/stocktakes` - List stocktakes
+- `POST /api/stocktakes` - Create stocktake
+- `POST /api/stocktakes/:id/quick-verify` - Verify asset by QR scan
+
+### Lookups
+- `GET /api/lookups/categories` - List categories
+- `GET /api/lookups/manufacturers` - List manufacturers
+- `GET /api/lookups/locations` - List locations
+- `GET /api/lookups/suppliers` - List suppliers
 
 ### Authentication
 - `POST /api/auth/login` - Login
 - `POST /api/auth/logout` - Logout
 - `GET /api/auth/status` - Check auth status
 
-### Assets
-- `GET /api/assets` - List assets (with pagination, search, filters)
-- `GET /api/assets/:id` - Get single asset
-- `POST /api/assets` - Create asset
-- `PUT /api/assets/:id` - Update asset
-- `DELETE /api/assets/:id` - Delete asset
+## Label Format
 
-### Lookups
-- `GET /api/lookups/categories` - List categories
-- `POST /api/lookups/categories` - Create category
-- `GET /api/lookups/manufacturers` - List manufacturers
-- `GET /api/lookups/suppliers` - List suppliers
-- `GET /api/lookups/locations` - List locations
+Labels are designed for Brother QL-500 printers with DK-22211 (29mm continuous tape):
 
-### Labels
-- `GET /api/labels/barcode/:id` - Generate barcode image
-- `GET /api/labels/preview/:id` - Get label data
-- `POST /api/labels/batch` - Generate multiple labels
+```
+┌─────────────────────────────────────────┐
+│ [QR]  Assigned To Name                  │
+│ [QR]  Item: 1234                        │
+│ [QR]  Manufacturer Model                │
+│ [QR]  S/N: ABC123                       │
+│ [QR]  hostname                          │
+│ [QR]  192.168.1.100                     │
+├─────────────────────────────────────────┤
+│         Organization Name               │
+└─────────────────────────────────────────┘
+```
 
-## Data Migration
+The QR code contains all label information for scanning during stocktake.
 
-To migrate data from the original Access database, a migration script will be provided. The script reads from `Asset_System.accdb` and imports records into MySQL.
+## Browser Support
+
+- Chrome (recommended)
+- Firefox
+- Edge
+- Safari
 
 ## License
 
-Private - Internal Use Only
+Proprietary - All rights reserved
+
+## Support
+
+For issues and feature requests, please contact your system administrator.
+
+---
+
+*Built with care for IT asset management*

@@ -115,6 +115,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
             </button>
           </div>
+
+          {/* Version */}
+          <div className="px-4 py-2 border-t border-gray-200">
+            <p className="text-xs text-gray-400 text-center">Version 1.0.0</p>
+          </div>
         </div>
       </div>
 
