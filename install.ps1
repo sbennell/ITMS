@@ -184,24 +184,56 @@ foreach ($dir in $directories) {
 # Clone repository
 Write-Step "Cloning repository from GitHub..."
 
+# Set up log file
+$logFile = "$InstallPath\logs\install.log"
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Starting installation" | Out-File -FilePath $logFile -Encoding UTF8 -Force
+
 if (Test-Path "$InstallPath\app") {
+    "Removing existing app directory..." | Out-File -FilePath $logFile -Append -Encoding UTF8
     Remove-Item "$InstallPath\app" -Recurse -Force
 }
 
-# Temporarily allow errors so git stderr progress output doesn't trigger catch
-$ErrorActionPreference = "Continue"
-$cloneOutput = git clone --branch $Branch --single-branch $RepoUrl "$InstallPath\app" 2>&1
-$cloneExitCode = $LASTEXITCODE
-$ErrorActionPreference = "Stop"
+$cloneCmd = "git clone --branch $Branch --single-branch $RepoUrl `"$InstallPath\app`""
+Write-Host "   Running: $cloneCmd" -ForegroundColor Gray
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Running: $cloneCmd" | Out-File -FilePath $logFile -Append -Encoding UTF8
 
-if ($cloneExitCode -ne 0) {
-    Write-Error "Failed to clone repository!"
+# Run git clone via Start-Process so we capture all output cleanly
+$stdoutLog = "$InstallPath\logs\_clone_stdout.tmp"
+$stderrLog = "$InstallPath\logs\_clone_stderr.tmp"
+$process = Start-Process -FilePath "git" -ArgumentList "clone --branch $Branch --single-branch $RepoUrl `"$InstallPath\app`"" -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+
+$stdoutContent = if (Test-Path $stdoutLog) { Get-Content $stdoutLog -Raw -ErrorAction SilentlyContinue } else { "" }
+$stderrContent = if (Test-Path $stderrLog) { Get-Content $stderrLog -Raw -ErrorAction SilentlyContinue } else { "" }
+
+# Log all output
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Exit code: $($process.ExitCode)" | Out-File -FilePath $logFile -Append -Encoding UTF8
+"STDOUT: $stdoutContent" | Out-File -FilePath $logFile -Append -Encoding UTF8
+"STDERR: $stderrContent" | Out-File -FilePath $logFile -Append -Encoding UTF8
+
+if ($process.ExitCode -ne 0) {
+    Write-Error "Failed to clone repository! (exit code: $($process.ExitCode))"
     Write-Host "   URL: $RepoUrl"
-    Write-Host "   Output: $cloneOutput"
-    Write-Host "   Check your internet connection and that the repository is accessible."
+    Write-Host "   Target: $InstallPath\app" -ForegroundColor Gray
+    if ($stderrContent) {
+        Write-Host "   Error: $stderrContent" -ForegroundColor Red
+    }
+    if ($stdoutContent) {
+        Write-Host "   Output: $stdoutContent" -ForegroundColor Gray
+    }
+    Write-Host "   Full log: $logFile" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "   Troubleshooting:" -ForegroundColor Yellow
+    Write-Host "     1. Test: git clone $RepoUrl `"$env:TEMP\test-clone`"" -ForegroundColor Gray
+    Write-Host "     2. Check: git config --global http.sslBackend" -ForegroundColor Gray
+    Write-Host "     3. Try:   git config --global http.sslBackend schannel" -ForegroundColor Gray
     exit 1
 }
+
+# Clean up temp files
+Remove-Item $stdoutLog, $stderrLog -Force -ErrorAction SilentlyContinue
+
 Write-Success "Repository cloned (branch: $Branch)"
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Clone successful" | Out-File -FilePath $logFile -Append -Encoding UTF8
 
 # Get version info
 $versionHistory = "$InstallPath\app\VERSION_HISTORY.md"
@@ -214,7 +246,7 @@ if (Test-Path $versionHistory) {
 }
 Write-Success "Version: $installedVersion"
 
-# Helper: run a command via cmd.exe, check exit code, ignore stderr warnings
+# Helper: run a command via cmd.exe, check exit code, log output
 # Uses cmd.exe /c so that .cmd batch files (npm, npx) work correctly on Windows
 function Invoke-NativeCommand {
     param(
@@ -222,13 +254,19 @@ function Invoke-NativeCommand {
         [string]$StepName,
         [string]$WorkDir
     )
+    "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Running: $Command (in $WorkDir)" | Out-File -FilePath $logFile -Append -Encoding UTF8
     $stdoutLog = "$InstallPath\logs\_install_stdout.tmp"
     $stderrLog = "$InstallPath\logs\_install_stderr.tmp"
     $process = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $Command" -WorkingDirectory $WorkDir -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+    $stdout = Get-Content $stdoutLog -Raw -ErrorAction SilentlyContinue
+    $stderr = Get-Content $stderrLog -Raw -ErrorAction SilentlyContinue
+    "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $StepName exit code: $($process.ExitCode)" | Out-File -FilePath $logFile -Append -Encoding UTF8
+    if ($stdout) { "STDOUT: $stdout" | Out-File -FilePath $logFile -Append -Encoding UTF8 }
+    if ($stderr) { "STDERR: $stderr" | Out-File -FilePath $logFile -Append -Encoding UTF8 }
     if ($process.ExitCode -ne 0) {
-        $stderr = Get-Content $stderrLog -Raw -ErrorAction SilentlyContinue
         Write-Error "$StepName failed (exit code $($process.ExitCode))"
         if ($stderr) { Write-Host "   $stderr" -ForegroundColor Red }
+        Write-Host "   See full log: $logFile" -ForegroundColor Gray
         return $false
     }
     return $true
@@ -397,6 +435,8 @@ Write-Success "Daily backup scheduled for 2:00 AM"
 
 # Get server IP for display
 $ipAddress = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.*" } | Select-Object -First 1).IPAddress
+
+"[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Installation complete (v$installedVersion)" | Out-File -FilePath $logFile -Append -Encoding UTF8
 
 # Complete
 Write-Host @"

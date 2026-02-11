@@ -100,14 +100,16 @@ Write-Host ""
 # Check for git
 Write-Step "Checking prerequisites..."
 
-try {
-    $gitVersion = git --version 2>$null
-    Write-Success "Git found: $gitVersion"
-} catch {
+$ErrorActionPreference = "Continue"
+$gitVersion = git --version 2>&1
+$ErrorActionPreference = "Stop"
+
+if ($LASTEXITCODE -ne 0 -or -not $gitVersion) {
     Write-Err "Git is not installed!"
     Write-Host "   Please install Git from https://git-scm.com/"
     exit 1
 }
+Write-Success "Git found: $gitVersion"
 
 # Check if it's a git repo
 if (-not (Test-Path "$AppPath\.git")) {
@@ -121,44 +123,52 @@ if (-not (Test-Path "$AppPath\.git")) {
 Write-Step "Checking for updates..."
 
 Push-Location $AppPath
-try {
-    git fetch origin $Branch 2>$null
 
-    $localHash = git rev-parse HEAD 2>$null
-    $remoteHash = git rev-parse "origin/$Branch" 2>$null
+$ErrorActionPreference = "Continue"
+git fetch origin $Branch 2>&1 | Out-Null
+$ErrorActionPreference = "Stop"
 
-    if ($localHash -eq $remoteHash) {
-        Write-Success "Already up to date (v$currentVersion)"
-        Write-Host ""
-        Pop-Location
-        exit 0
-    }
-
-    # Get new version from remote
-    $newVersion = "unknown"
-    $remoteVersionContent = git show "origin/${Branch}:VERSION_HISTORY.md" 2>$null
-    if ($remoteVersionContent) {
-        $versionMatch = $remoteVersionContent | Select-String -Pattern '##\s*\[(\d+\.\d+\.\d+)\]' | Select-Object -First 1
-        if ($versionMatch) {
-            $newVersion = $versionMatch.Matches[0].Groups[1].Value
-        }
-    }
-
-    Write-Success "Update available: v$currentVersion -> v$newVersion"
-
-    # Show commits to be applied
-    $commits = git log --oneline "$localHash..$remoteHash" 2>$null
-    if ($commits) {
-        Write-Host ""
-        Write-Host "   Changes:" -ForegroundColor Gray
-        $commits | ForEach-Object { Write-Host "     $_" -ForegroundColor Gray }
-        Write-Host ""
-    }
-} catch {
-    Write-Err "Failed to check for updates: $_"
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "Failed to fetch from remote. Check your internet connection."
     Pop-Location
     exit 1
 }
+
+$localHash = (git rev-parse HEAD 2>&1).Trim()
+$remoteHash = (git rev-parse "origin/$Branch" 2>&1).Trim()
+
+if ($localHash -eq $remoteHash) {
+    Write-Success "Already up to date (v$currentVersion)"
+    Write-Host ""
+    Pop-Location
+    exit 0
+}
+
+# Get new version from remote
+$newVersion = "unknown"
+$ErrorActionPreference = "Continue"
+$remoteVersionContent = git show "origin/${Branch}:VERSION_HISTORY.md" 2>&1
+$ErrorActionPreference = "Stop"
+if ($remoteVersionContent) {
+    $versionMatch = $remoteVersionContent | Select-String -Pattern '##\s*\[(\d+\.\d+\.\d+)\]' | Select-Object -First 1
+    if ($versionMatch) {
+        $newVersion = $versionMatch.Matches[0].Groups[1].Value
+    }
+}
+
+Write-Success "Update available: v$currentVersion -> v$newVersion"
+
+# Show commits to be applied
+$ErrorActionPreference = "Continue"
+$commits = git log --oneline "$localHash..$remoteHash" 2>&1
+$ErrorActionPreference = "Stop"
+if ($commits) {
+    Write-Host ""
+    Write-Host "   Changes:" -ForegroundColor Gray
+    $commits | ForEach-Object { Write-Host "     $_" -ForegroundColor Gray }
+    Write-Host ""
+}
+
 Pop-Location
 
 # Confirm update
@@ -209,33 +219,39 @@ if (-not $SkipService) {
 Write-Step "Pulling latest code from GitHub..."
 
 Push-Location $AppPath
-try {
-    # Stash any local changes (like .env)
-    $stashResult = git stash 2>&1
-    $hasStash = $stashResult -notlike "*No local changes*"
 
-    # Pull latest
-    git pull origin $Branch 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "Git pull failed. You may have local conflicts."
-        Write-Host "   Try resolving manually in: $AppPath"
-        if ($hasStash) { git stash pop 2>$null }
-        Pop-Location
-        exit 1
-    }
+# Stash any local changes (like .env)
+$ErrorActionPreference = "Continue"
+$stashResult = git stash 2>&1
+$hasStash = "$stashResult" -notlike "*No local changes*"
 
-    # Restore stashed changes
+# Pull latest
+$pullOutput = git pull origin $Branch 2>&1
+$pullExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+
+if ($pullExitCode -ne 0) {
+    Write-Err "Git pull failed. You may have local conflicts."
+    Write-Host "   Output: $pullOutput"
+    Write-Host "   Try resolving manually in: $AppPath"
     if ($hasStash) {
-        git stash pop 2>$null
-        Write-Success "Local configuration restored"
+        $ErrorActionPreference = "Continue"
+        git stash pop 2>&1 | Out-Null
+        $ErrorActionPreference = "Stop"
     }
-
-    Write-Success "Code updated"
-} catch {
-    Write-Err "Failed to pull updates: $_"
     Pop-Location
     exit 1
 }
+
+# Restore stashed changes
+if ($hasStash) {
+    $ErrorActionPreference = "Continue"
+    git stash pop 2>&1 | Out-Null
+    $ErrorActionPreference = "Stop"
+    Write-Success "Local configuration restored"
+}
+
+Write-Success "Code updated"
 Pop-Location
 
 # Install dependencies
