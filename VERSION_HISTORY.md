@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.2.0] - 2025-02-11
+
+### Security Enhancement
+
+- **Password Protection**: Device passwords on asset detail page now require account password verification before revealing
+  - Click Eye icon next to masked password to trigger verification prompt
+  - User must enter their own account password to confirm identity
+  - Password is re-hidden when clicking the EyeOff icon
+  - Added `/verify-password` API endpoint for secure password verification
+
+---
+
 ## [1.1.1] - 2025-02-11
 
 ### Bug Fixes

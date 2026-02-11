@@ -152,6 +152,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword })
     }),
+  verifyPassword: (password: string) =>
+    fetchJson<{ valid: boolean }>('/auth/verify-password', {
+      method: 'POST',
+      body: JSON.stringify({ password })
+    }),
 
   // Users (admin only)
   getUsers: () => fetchJson<User[]>('/auth/users'),

@@ -6,7 +6,8 @@
       "Bash(curl:*)",
       "Bash(npx prisma db push)",
       "Bash(npx prisma generate:*)",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

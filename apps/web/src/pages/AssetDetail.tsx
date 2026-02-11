@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit, Trash2, Printer } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Printer, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { formatDate, formatCurrency, STATUS_LABELS, STATUS_COLORS, CONDITION_LABELS, cn } from '../lib/utils';
 import LabelPreviewModal from '../components/LabelPreviewModal';
+import PasswordPromptModal from '../components/PasswordPromptModal';
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showLabelModal, setShowLabelModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
 
   const { data: asset, isLoading, error } = useQuery({
     queryKey: ['asset', id],
@@ -132,10 +135,31 @@ export default function AssetDetail() {
             <DetailRow label="LAN MAC Address" value={asset.lanMacAddress} />
             <DetailRow label="WLAN MAC Address" value={asset.wlanMacAddress} />
             <DetailRow label="Username" value={asset.deviceUsername} />
-            <DetailRow
-              label="Password"
-              value={asset.devicePassword ? '********' : null}
-            />
+            <div className="flex justify-between">
+              <dt className="text-sm font-medium text-gray-500">Password</dt>
+              <dd className="text-sm text-gray-900 flex items-center gap-2">
+                {asset.devicePassword ? (
+                  <>
+                    <span>{showPassword ? asset.devicePassword : '********'}</span>
+                    <button
+                      onClick={() => {
+                        if (showPassword) {
+                          setShowPassword(false);
+                        } else {
+                          setShowPasswordPrompt(true);
+                        }
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </>
+                ) : (
+                  <span>-</span>
+                )}
+              </dd>
+            </div>
           </dl>
         </div>
 
@@ -258,6 +282,17 @@ export default function AssetDetail() {
         <LabelPreviewModal
           asset={asset}
           onClose={() => setShowLabelModal(false)}
+        />
+      )}
+
+      {/* Password Prompt Modal */}
+      {showPasswordPrompt && (
+        <PasswordPromptModal
+          onSuccess={() => {
+            setShowPasswordPrompt(false);
+            setShowPassword(true);
+          }}
+          onClose={() => setShowPasswordPrompt(false)}
         />
       )}
     </div>

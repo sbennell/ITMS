@@ -1,6 +1,6 @@
 # Asset Management System
 
-**Version 1.0.0**
+**Version 1.2.0**
 
 A web-based IT asset management system for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
 
@@ -92,9 +92,32 @@ cd asset-system
 npm install
 ```
 
-3. Initialize the database:
+3. Configure environment variables:
 ```bash
 cd apps/api
+cp .env.example .env
+```
+
+Edit `apps/api/.env` with your settings:
+```env
+# Database connection string (SQLite)
+DATABASE_URL="file:./dev.db"
+
+# Server port
+PORT=3001
+
+# Session secret (change this in production!)
+SESSION_SECRET="your-secret-key-change-in-production"
+```
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | Database connection string | `file:./dev.db` (SQLite) |
+| `PORT` | API server port | `3001` |
+| `SESSION_SECRET` | Secret key for session encryption | Must be changed in production |
+
+4. Initialize the database:
+```bash
 npx prisma generate
 npx prisma db push
 ```

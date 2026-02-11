@@ -189,6 +189,33 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
   }
 });
 
+// Verify password (for revealing sensitive data)
+router.post('/verify-password', requireAuth, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const { password } = req.body;
+  const userId = req.session.userId;
+
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    res.json({ valid });
+  } catch (error) {
+    console.error('Verify password error:', error);
+    res.status(500).json({ error: 'Failed to verify password' });
+  }
+});
+
 // ============ USER MANAGEMENT (Admin only) ============
 
 // Get all users
