@@ -332,70 +332,69 @@ if ($firewallRule) {
     Write-Success "Firewall rule created for port $Port"
 }
 
-# Download and install NSSM
+# Install NSSM and configure Windows Service
 if (-not $SkipService) {
     Write-Step "Setting up Windows Service..."
 
-    $nssmPath = "$InstallPath\nssm.exe"
+    # Install NSSM via Chocolatey (reliable, unlike direct download from nssm.cc)
+    $ErrorActionPreference = "Continue"
+    $nssmPath = (Get-Command nssm -ErrorAction SilentlyContinue).Source
+    $ErrorActionPreference = "Stop"
 
-    if (-not (Test-Path $nssmPath)) {
-        Write-Host "   Downloading NSSM..."
-        $nssmUrl = "https://nssm.cc/release/nssm-2.24.zip"
-        $nssmZip = "$env:TEMP\nssm.zip"
-        $nssmExtract = "$env:TEMP\nssm-extract"
+    if (-not $nssmPath) {
+        Write-Host "   Installing NSSM via Chocolatey..."
+        $ErrorActionPreference = "Continue"
+        choco install nssm -y --no-progress 2>&1 | Out-Null
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $nssmPath = (Get-Command nssm -ErrorAction SilentlyContinue).Source
+        $ErrorActionPreference = "Stop"
 
-        try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            Invoke-WebRequest -Uri $nssmUrl -OutFile $nssmZip -UseBasicParsing
-            Expand-Archive -Path $nssmZip -DestinationPath $nssmExtract -Force
-            Copy-Item "$nssmExtract\nssm-2.24\win64\nssm.exe" $nssmPath
-            Remove-Item $nssmZip -Force
-            Remove-Item $nssmExtract -Recurse -Force
-            Write-Success "NSSM downloaded"
-        } catch {
-            Write-Warning "Could not download NSSM automatically"
-            Write-Host "   Please download NSSM from https://nssm.cc/download"
-            Write-Host "   Extract nssm.exe to: $nssmPath"
-            Write-Host "   Then run this script again or manually configure the service"
+        if ($nssmPath) {
+            Write-Success "NSSM installed: $nssmPath"
+        } else {
+            Write-Error "Failed to install NSSM!"
+            Write-Host "   Try manually: choco install nssm"
+            Write-Host "   Then re-run this script"
+            exit 1
         }
+    } else {
+        Write-Success "NSSM found: $nssmPath"
     }
 
-    if (Test-Path $nssmPath) {
-        # Check if service exists
-        $service = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
-        if ($service) {
-            Write-Warning "Service already exists, stopping and removing..."
-            Stop-Service -Name "AssetSystem" -Force -ErrorAction SilentlyContinue
-            & $nssmPath remove AssetSystem confirm 2>$null
-        }
+    # Check if service exists
+    $service = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+    if ($service) {
+        Write-Warning "Service already exists, stopping and removing..."
+        Stop-Service -Name "AssetSystem" -Force -ErrorAction SilentlyContinue
+        & $nssmPath remove AssetSystem confirm 2>$null
+    }
 
-        # Get Node.js path
-        $nodePath = (Get-Command node).Source
+    # Get Node.js path
+    $nodePath = (Get-Command node).Source
 
-        # Install service
-        & $nssmPath install AssetSystem $nodePath
-        & $nssmPath set AssetSystem AppDirectory "$InstallPath\app\apps\api"
-        & $nssmPath set AssetSystem AppParameters "dist\index.js"
-        & $nssmPath set AssetSystem AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
-        & $nssmPath set AssetSystem AppStdout "$InstallPath\logs\stdout.log"
-        & $nssmPath set AssetSystem AppStderr "$InstallPath\logs\stderr.log"
-        & $nssmPath set AssetSystem AppRotateFiles 1
-        & $nssmPath set AssetSystem AppRotateBytes 1048576
-        & $nssmPath set AssetSystem Start SERVICE_AUTO_START
-        & $nssmPath set AssetSystem Description "IT Asset Management System"
+    # Install service
+    & $nssmPath install AssetSystem $nodePath
+    & $nssmPath set AssetSystem AppDirectory "$InstallPath\app\apps\api"
+    & $nssmPath set AssetSystem AppParameters "dist\index.js"
+    & $nssmPath set AssetSystem AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
+    & $nssmPath set AssetSystem AppStdout "$InstallPath\logs\stdout.log"
+    & $nssmPath set AssetSystem AppStderr "$InstallPath\logs\stderr.log"
+    & $nssmPath set AssetSystem AppRotateFiles 1
+    & $nssmPath set AssetSystem AppRotateBytes 1048576
+    & $nssmPath set AssetSystem Start SERVICE_AUTO_START
+    & $nssmPath set AssetSystem Description "IT Asset Management System"
 
-        Write-Success "Windows service installed"
+    Write-Success "Windows service installed"
 
-        # Start service
-        Start-Service -Name "AssetSystem"
-        Start-Sleep -Seconds 2
+    # Start service
+    Start-Service -Name "AssetSystem"
+    Start-Sleep -Seconds 3
 
-        $service = Get-Service -Name "AssetSystem"
-        if ($service.Status -eq "Running") {
-            Write-Success "Service started successfully"
-        } else {
-            Write-Warning "Service may not have started. Check logs at $InstallPath\logs\"
-        }
+    $service = Get-Service -Name "AssetSystem"
+    if ($service.Status -eq "Running") {
+        Write-Success "Service started successfully"
+    } else {
+        Write-Warning "Service may not have started. Check logs at $InstallPath\logs\"
     }
 }
 
