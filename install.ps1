@@ -69,42 +69,91 @@ Write-Host ""
 # Check prerequisites
 Write-Step "Checking prerequisites..."
 
-# Check Git
-try {
-    $gitVersion = git --version 2>$null
-    if ($gitVersion) {
-        Write-Success "Git found: $gitVersion"
-    } else {
-        throw "Git not found"
-    }
-} catch {
-    Write-Error "Git is not installed!"
-    Write-Host "   Please install Git from https://git-scm.com/"
-    exit 1
+# Temporarily allow errors for prerequisite checks (native commands write to stderr)
+$ErrorActionPreference = "Continue"
+
+# Check/install Chocolatey
+$chocoInstalled = $false
+$chocoVersion = choco --version 2>&1
+if ($LASTEXITCODE -eq 0 -and $chocoVersion) {
+    Write-Success "Chocolatey found: v$chocoVersion"
+    $chocoInstalled = $true
 }
 
-# Check Node.js
-try {
-    $nodeVersion = node --version 2>$null
-    if ($nodeVersion) {
-        Write-Success "Node.js found: $nodeVersion"
-    } else {
-        throw "Node.js not found"
+if (-not $chocoInstalled) {
+    Write-Warning "Chocolatey not found, installing..."
+    $ErrorActionPreference = "Stop"
+    try {
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        Write-Success "Chocolatey installed"
+        $chocoInstalled = $true
+    } catch {
+        Write-Error "Failed to install Chocolatey: $_"
+        Write-Host "   Install manually from https://chocolatey.org/install"
+        exit 1
     }
-} catch {
-    Write-Error "Node.js is not installed!"
-    Write-Host "   Please install Node.js 20 LTS from https://nodejs.org/"
-    exit 1
+    $ErrorActionPreference = "Continue"
+}
+
+# Check/install Git
+$gitFound = $false
+$gitVersion = git --version 2>&1
+if ($LASTEXITCODE -eq 0 -and $gitVersion) {
+    Write-Success "Git found: $gitVersion"
+    $gitFound = $true
+}
+
+if (-not $gitFound) {
+    Write-Warning "Git not found, installing via Chocolatey..."
+    choco install git.install -y --no-progress 2>&1 | Out-Null
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $gitVersion = git --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Git installed: $gitVersion"
+    } else {
+        Write-Error "Failed to install Git!"
+        Write-Host "   Try manually: choco install git.install"
+        exit 1
+    }
+}
+
+# Check/install Node.js
+$nodeFound = $false
+$nodeVersion = node --version 2>&1
+if ($LASTEXITCODE -eq 0 -and $nodeVersion) {
+    Write-Success "Node.js found: $nodeVersion"
+    $nodeFound = $true
+}
+
+if (-not $nodeFound) {
+    Write-Warning "Node.js not found, installing via Chocolatey..."
+    choco install nodejs-lts -y --no-progress 2>&1 | Out-Null
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $nodeVersion = node --version 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Success "Node.js installed: $nodeVersion"
+    } else {
+        Write-Error "Failed to install Node.js!"
+        Write-Host "   Try manually: choco install nodejs-lts"
+        exit 1
+    }
 }
 
 # Check npm
-try {
-    $npmVersion = npm --version 2>$null
+$npmVersion = npm --version 2>&1
+if ($LASTEXITCODE -eq 0 -and $npmVersion) {
     Write-Success "npm found: v$npmVersion"
-} catch {
-    Write-Error "npm is not available!"
+} else {
+    Write-Error "npm is not available! Node.js may not have installed correctly."
+    Write-Host "   Try: choco install nodejs-lts --force"
     exit 1
 }
+
+# Restore strict error handling
+$ErrorActionPreference = "Stop"
 
 # Check if already installed
 if (Test-Path "$InstallPath\app\.git") {
@@ -139,18 +188,20 @@ if (Test-Path "$InstallPath\app") {
     Remove-Item "$InstallPath\app" -Recurse -Force
 }
 
-try {
-    git clone --branch $Branch --single-branch $RepoUrl "$InstallPath\app" 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        throw "git clone failed"
-    }
-    Write-Success "Repository cloned (branch: $Branch)"
-} catch {
+# Temporarily allow errors so git stderr progress output doesn't trigger catch
+$ErrorActionPreference = "Continue"
+$cloneOutput = git clone --branch $Branch --single-branch $RepoUrl "$InstallPath\app" 2>&1
+$cloneExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+
+if ($cloneExitCode -ne 0) {
     Write-Error "Failed to clone repository!"
     Write-Host "   URL: $RepoUrl"
+    Write-Host "   Output: $cloneOutput"
     Write-Host "   Check your internet connection and that the repository is accessible."
     exit 1
 }
+Write-Success "Repository cloned (branch: $Branch)"
 
 # Get version info
 $versionHistory = "$InstallPath\app\VERSION_HISTORY.md"
