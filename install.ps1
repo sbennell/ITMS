@@ -376,7 +376,7 @@ if (-not $SkipService) {
         & $nssmPath install AssetSystem $nodePath
         & $nssmPath set AssetSystem AppDirectory "$InstallPath\app\apps\api"
         & $nssmPath set AssetSystem AppParameters "dist\index.js"
-        & $nssmPath set AssetSystem AppEnvironmentExtra "NODE_ENV=production"
+        & $nssmPath set AssetSystem AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
         & $nssmPath set AssetSystem AppStdout "$InstallPath\logs\stdout.log"
         & $nssmPath set AssetSystem AppStderr "$InstallPath\logs\stderr.log"
         & $nssmPath set AssetSystem AppRotateFiles 1
