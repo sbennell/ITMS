@@ -109,7 +109,7 @@ export default function Login() {
           </button>
 
           <p className="text-center text-xs text-gray-500">
-            First time? Enter any username and password to create an admin account.
+            &copy; {new Date().getFullYear()} Asset Management System - Stewart Bennell
           </p>
         </form>
       </div>

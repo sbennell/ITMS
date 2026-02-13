@@ -75,114 +75,23 @@ A web-based IT asset management system for tracking hardware, software, and equi
 
 ## Installation
 
-### Prerequisites
-- Node.js 18+
-- npm 9+
+### Quick Install (Windows Server)
 
-### Setup
+Run the following command in PowerShell as Administrator:
 
-1. Clone the repository:
-```bash
-git clone https://github.com/your-repo/asset-system.git
-cd asset-system
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Configure environment variables:
-```bash
-cd apps/api
-cp .env.example .env
-```
-
-Edit `apps/api/.env` with your settings:
-```env
-# Database connection string (SQLite)
-DATABASE_URL="file:./dev.db"
-
-# Server port
-PORT=3001
-
-# Session secret (change this in production!)
-SESSION_SECRET="your-secret-key-change-in-production"
-```
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `file:./dev.db` (SQLite) |
-| `PORT` | API server port | `3001` |
-| `SESSION_SECRET` | Secret key for session encryption | Must be changed in production |
-
-4. Initialize the database:
-```bash
-npx prisma generate
-npx prisma db push
-```
-
-5. Start the development server:
-```bash
-npm run dev
-```
-
-6. Open http://localhost:5173 in your browser
-
-### Default Login
-- **Username**: admin
-- **Password**: admin123
-
-*Change the default password after first login!*
-
-## Updating
-
-### Automatic Update (Production)
-Run the update script as Administrator on the server:
 ```powershell
-.\update.ps1
+irm "https://raw.githubusercontent.com/sbennell/Asset_System/refs/heads/main/install.ps1" | iex
 ```
 
-The script will:
-- Check GitHub for available updates
-- Back up the database before updating
-- Pull latest code from GitHub
-- Install/update dependencies
-- Run database migrations
-- Rebuild the application
-- Restart the Windows service
+The script handles everything: directory setup, dependencies, build, database, Windows service, firewall, scheduled tasks, and backups.
 
-Options:
-```powershell
-.\update.ps1 -InstallPath "D:\AssetSystem"   # Custom install path
-.\update.ps1 -Branch "develop"                # Pull from a different branch
-.\update.ps1 -SkipBackup                      # Skip database backup
-.\update.ps1 -SkipService                     # Skip service restart
-```
+### Manual Installation
 
-### Manual Update (Development)
-```bash
-git pull origin main
-npm install
-cd apps/api
-npx prisma generate
-npx prisma db push
-cd ../..
-npm run build
-```
+For step-by-step manual installation instructions, see [Manual Installation Guide](doc/MANUAL_INSTALL.md).
 
-## Configuration
+### First Login
 
-### Organization Name
-Set your organization name in Settings > Organization. This appears on printed labels.
-
-### Label Printer
-Configure your label printer in Settings > Label Settings:
-- Select printer from available Windows printers
-- Configure default field visibility
-
-### Database
-The SQLite database is stored at `apps/api/prisma/dev.db`. Back up this file regularly.
+On first login, enter any username and password to create the initial admin account.
 
 ## Project Structure
 

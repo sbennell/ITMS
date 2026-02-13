@@ -66,7 +66,7 @@ New-Item -ItemType Directory -Path "C:\AssetSystem\logs" -Force
 
 ```powershell
 cd C:\AssetSystem
-git clone https://github.com/your-repo/asset-system.git app
+git clone https://github.com/sbennell/Asset_System.git app
 ```
 
 ## Step 4: Install Dependencies
@@ -144,33 +144,40 @@ New-NetFirewallRule -DisplayName "Asset System" -Direction Inbound -Protocol TCP
 
 We'll use NSSM (Non-Sucking Service Manager) to run the application as a Windows service.
 
-### Download NSSM
+### Install NSSM via Chocolatey
 
-1. Download NSSM from https://nssm.cc/download
-2. Extract `nssm.exe` to `C:\AssetSystem\nssm.exe`
+```powershell
+# Install Chocolatey if not already installed
+Set-ExecutionPolicy Bypass -Scope Process -Force
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install NSSM
+choco install nssm -y
+```
 
 ### Install the Service
 
 ```powershell
 # Install the service
-C:\AssetSystem\nssm.exe install AssetSystem "C:\Program Files\nodejs\node.exe"
+nssm install AssetSystem "C:\Program Files\nodejs\node.exe"
 
 # Configure service parameters
-C:\AssetSystem\nssm.exe set AssetSystem AppDirectory "C:\AssetSystem\app\apps\api"
-C:\AssetSystem\nssm.exe set AssetSystem AppParameters "dist\index.js"
-C:\AssetSystem\nssm.exe set AssetSystem AppEnvironmentExtra "NODE_ENV=production"
+nssm set AssetSystem AppDirectory "C:\AssetSystem\app\apps\api"
+nssm set AssetSystem AppParameters "dist\index.js"
+nssm set AssetSystem AppEnvironmentExtra "NODE_ENV=production"
 
 # Configure logging
-C:\AssetSystem\nssm.exe set AssetSystem AppStdout "C:\AssetSystem\logs\stdout.log"
-C:\AssetSystem\nssm.exe set AssetSystem AppStderr "C:\AssetSystem\logs\stderr.log"
-C:\AssetSystem\nssm.exe set AssetSystem AppRotateFiles 1
-C:\AssetSystem\nssm.exe set AssetSystem AppRotateBytes 1048576
+nssm set AssetSystem AppStdout "C:\AssetSystem\logs\stdout.log"
+nssm set AssetSystem AppStderr "C:\AssetSystem\logs\stderr.log"
+nssm set AssetSystem AppRotateFiles 1
+nssm set AssetSystem AppRotateBytes 1048576
 
 # Set service to start automatically
-C:\AssetSystem\nssm.exe set AssetSystem Start SERVICE_AUTO_START
+nssm set AssetSystem Start SERVICE_AUTO_START
 
 # Set service description
-C:\AssetSystem\nssm.exe set AssetSystem Description "IT Asset Management System"
+nssm set AssetSystem Description "IT Asset Management System"
 
 # Start the service
 Start-Service AssetSystem
@@ -185,11 +192,8 @@ Get-Service AssetSystem
 ## Step 10: Post-Installation Setup
 
 1. Open a browser and navigate to `http://your-server-ip:3001`
-2. Login with default credentials:
-   - **Username**: `admin`
-   - **Password**: `admin123`
-3. **Immediately change the default password** in Settings > Users
-4. Configure your organization name in Settings > Organization
+2. On first login, enter any username and password to create the initial admin account
+3. Configure your organization name in Settings > Organization
 
 ## Optional: IIS Reverse Proxy
 
@@ -252,6 +256,19 @@ $trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
 Register-ScheduledTask -TaskName "AssetSystem Backup" -Action $action -Trigger $trigger -Description "Daily backup of Asset System database"
 ```
 
+## Step 11: Create Web Update Scheduled Task
+
+This scheduled task allows admin users to trigger updates from the web interface. It runs independently of the NSSM service so the update survives the service being restarted.
+
+```powershell
+$updateAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"C:\AssetSystem\app\update.ps1`" -AutoUpdate -InstallPath `"C:\AssetSystem`""
+$updatePrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$updateSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName "AssetSystemWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for Asset System"
+```
+
+> **Note**: Adjust paths if using a custom install path.
+
 ## Service Management
 
 ### Common Commands
@@ -278,35 +295,59 @@ Get-Content "C:\AssetSystem\logs\stderr.log" -Tail 50
 
 ```powershell
 Stop-Service AssetSystem
-C:\AssetSystem\nssm.exe remove AssetSystem confirm
+nssm remove AssetSystem confirm
 ```
 
 ## Updating the Application
+
+### Option A: Web-Based Update (Recommended)
+
+Admin users can trigger updates directly from the web interface:
+
+1. When a new version is available, an "Update to vX.X.X" notification appears in the sidebar
+2. Click the notification to open the About dialog
+3. Click the **Update** button to start the update
+4. The system will back up the database, pull latest code, rebuild, and restart automatically
+
+This requires the `AssetSystemWebUpdate` scheduled task (see Step 11 below).
+
+### Option B: Update Script
+
+Run the update script from PowerShell as Administrator:
+
+```powershell
+cd C:\AssetSystem\app
+.\update.ps1 -InstallPath "C:\AssetSystem"
+```
+
+The script checks for updates, backs up the database, pulls code, rebuilds, and restarts the service.
+
+### Option C: Manual Update
 
 1. Stop the service:
    ```powershell
    Stop-Service AssetSystem
    ```
 
-2. Back up current installation:
+2. Back up the database:
    ```powershell
-   Copy-Item "C:\AssetSystem\app" "C:\AssetSystem\app_backup" -Recurse
+   $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
+   Copy-Item "C:\AssetSystem\data\asset_system.db" "C:\AssetSystem\backups\asset_system_$date.db"
    ```
 
-3. Deploy new version to `C:\AssetSystem\app`
-
-4. Install dependencies and rebuild:
+3. Pull latest code and rebuild:
    ```powershell
    cd C:\AssetSystem\app
+   git pull origin main
    npm install
    cd apps\api
    npx prisma generate
-   npx prisma db push
+   npx prisma db push --skip-generate
    cd ..\..
    npm run build
    ```
 
-5. Start the service:
+4. Start the service:
    ```powershell
    Start-Service AssetSystem
    ```
@@ -356,7 +397,7 @@ C:\AssetSystem\nssm.exe remove AssetSystem confirm
 
 ```
 C:\AssetSystem\
-├── app\                          # Application files
+├── app\                          # Application files (git repo)
 │   ├── apps\
 │   │   ├── api\
 │   │   │   ├── dist\             # Compiled backend
@@ -364,13 +405,14 @@ C:\AssetSystem\
 │   │   │   └── .env              # Environment config
 │   │   └── web\
 │   │       └── dist\             # Compiled frontend
+│   ├── update.ps1                # Update script
 │   └── package.json
 ├── data\
 │   └── asset_system.db           # SQLite database
 ├── logs\
 │   ├── stdout.log                # Application output
-│   └── stderr.log                # Application errors
+│   ├── stderr.log                # Application errors
+│   └── update.log                # Web update log
 ├── backups\                      # Database backups
-├── nssm.exe                      # Service manager
 └── backup.ps1                    # Backup script
 ```

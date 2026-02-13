@@ -467,14 +467,8 @@ Write-Host "Application URL: " -NoNewline
 Write-Host "http://${ipAddress}:$Port" -ForegroundColor Yellow
 
 Write-Host ""
-Write-Host "Default Login:"
-Write-Host "  Username: " -NoNewline
-Write-Host "admin" -ForegroundColor Yellow
-Write-Host "  Password: " -NoNewline
-Write-Host "admin123" -ForegroundColor Yellow
-
-Write-Host ""
-Write-Host "IMPORTANT: Change the default password after first login!" -ForegroundColor Red
+Write-Host "First Login:" -ForegroundColor Yellow
+Write-Host "  Enter any username and password to create the initial admin account."
 
 Write-Host ""
 Write-Host "Service Commands:"

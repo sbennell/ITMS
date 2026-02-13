@@ -14,10 +14,19 @@ All notable changes to the Asset Management System are documented in this file.
   - Admin users can trigger updates directly from the modal
   - Non-admin users see a link to GitHub releases
 
+### Bug Fixes
+
+- **Update Lock File**: Fixed `update.lock` not being deleted after web update completes
+  - Lock file now removed before service restart to avoid script-on-disk changes from `git pull` corrupting the `finally` block
+  - `finally` block retained as safety net for failure cases
+
 ### Changes
 
 - Sidebar version text is replaced by "Update to vX.X.X" notification when an update is available
 - Update confirmation moved from browser `confirm()` dialog to the About modal
+- Removed hardcoded default credentials from install script; first login creates the admin account
+- Updated README with one-line install command and link to manual install guide
+- Updated MANUAL_INSTALL.md with Chocolatey NSSM install, web update instructions, and scheduled task setup
 
 ---
 
