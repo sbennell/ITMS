@@ -12,19 +12,17 @@ const installPath = path.resolve(appRoot, '..');
 const logsDir = path.join(installPath, 'logs');
 const lockFile = path.join(logsDir, 'update.lock');
 
-// POST /api/system/update - trigger update from GitHub (admin only, production only)
+// POST /api/system/update - trigger update via pre-configured scheduled task
 router.post('/update', requireAdmin, async (req: Request, res: Response) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  if (!isProduction) {
+  if (process.env.NODE_ENV !== 'production') {
     return res.status(400).json({ error: 'Updates can only be triggered in production mode' });
   }
 
-  // Check if already updating
   if (existsSync(lockFile)) {
     return res.status(409).json({ error: 'Update already in progress' });
   }
 
-  // Ensure logs directory exists and write lock file
+  // Create lock file so frontend knows update is in progress
   try {
     if (!existsSync(logsDir)) {
       mkdirSync(logsDir, { recursive: true });
@@ -32,75 +30,18 @@ router.post('/update', requireAdmin, async (req: Request, res: Response) => {
     writeFileSync(lockFile, new Date().toISOString(), 'utf8');
   } catch (err: any) {
     console.error('Failed to create update lock file:', err);
-    return res.status(500).json({ error: `Failed to create update lock file: ${err.message}` });
+    return res.status(500).json({ error: `Failed to create lock file: ${err.message}` });
   }
 
-  const taskName = 'AssetSystemWebUpdate';
-  const updateScript = path.join(appRoot, 'update.ps1');
-
-  // Generate wrapper script that calls update.ps1 -AutoUpdate and ensures cleanup
-  const wrapperPath = path.join(logsDir, '_web_update.ps1');
-  const wrapperScript = [
-    '$ErrorActionPreference = "Continue"',
-    '',
-    '# Ensure full system PATH is available',
-    '$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")',
-    '',
-    'try {',
-    `    $proc = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File \`"${updateScript}\`" -AutoUpdate -InstallPath \`"${installPath}\`"" -Wait -PassThru -WindowStyle Hidden`,
-    '} catch {',
-    `    "[$([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss'))] Wrapper error: $_" | Out-File "${path.join(logsDir, 'update.log')}" -Append`,
-    '}',
-    '',
-    '# Ensure service is running after update',
-    '$svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue',
-    'if ($svc -and $svc.Status -ne "Running") {',
-    '    Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue',
-    '    Start-Sleep -Seconds 5',
-    '}',
-    '',
-    '# Remove lock file',
-    `Remove-Item "${lockFile}" -Force -ErrorAction SilentlyContinue`,
-    '',
-  ].join('\r\n');
-
+  // Run the pre-configured scheduled task (created by install.ps1).
+  // Task Scheduler runs under its own service, completely independent of NSSM,
+  // so the update process survives the service being stopped and restarted.
   try {
-    writeFileSync(wrapperPath, wrapperScript, 'utf8');
+    execSync('schtasks /Run /TN "AssetSystemWebUpdate"', { stdio: 'ignore', windowsHide: true });
   } catch (err: any) {
-    unlinkSync(lockFile);
-    return res.status(500).json({ error: `Failed to write update wrapper: ${err.message}` });
-  }
-
-  // Write launcher .cmd to avoid quoting issues with schtasks /TR
-  const launcherPath = path.join(logsDir, '_web_update_launcher.cmd');
-  try {
-    writeFileSync(launcherPath, [
-      '@echo off',
-      `powershell.exe -ExecutionPolicy Bypass -File "${wrapperPath}"`,
-      `schtasks /Delete /TN "${taskName}" /F >nul 2>&1`,
-    ].join('\r\n'), 'utf8');
-  } catch (err: any) {
-    unlinkSync(lockFile);
-    return res.status(500).json({ error: `Failed to write launcher: ${err.message}` });
-  }
-
-  // Use Windows Task Scheduler to run the update completely independent of NSSM.
-  // NSSM uses Job Objects to kill the entire process tree when stopping the service,
-  // so any child process (even detached or Start-Process) gets terminated.
-  // Task Scheduler runs under its own service, fully outside NSSM's job object.
-  try {
-    execSync(
-      `schtasks /Create /TN "${taskName}" /TR "${launcherPath}" /SC ONCE /ST 00:00 /F /RL HIGHEST /RU SYSTEM`,
-      { stdio: 'ignore', windowsHide: true }
-    );
-    execSync(
-      `schtasks /Run /TN "${taskName}"`,
-      { stdio: 'ignore', windowsHide: true }
-    );
-  } catch (err: any) {
-    unlinkSync(lockFile);
-    console.error('Failed to schedule update:', err);
-    return res.status(500).json({ error: `Failed to schedule update: ${err.message}` });
+    try { unlinkSync(lockFile); } catch {}
+    console.error('Failed to trigger update task:', err);
+    return res.status(500).json({ error: 'Failed to trigger update. Is the AssetSystemWebUpdate scheduled task configured?' });
   }
 
   res.json({ status: 'updating' });

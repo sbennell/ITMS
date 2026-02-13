@@ -4,11 +4,6 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
-## [1.3.3] - 2026-02-13
-
-### Update
-- **Test Update**
-
 
 ## [1.3.2] - 2026-02-13
 
@@ -18,7 +13,8 @@ All notable changes to the Asset Management System are documented in this file.
   - NSSM uses Windows Job Objects to kill the entire process tree when stopping the service
   - Update now runs via Windows Task Scheduler, fully independent of the NSSM service
   - Reuses existing `update.ps1` with new `-AutoUpdate` parameter (skips confirmation, logs to file)
-  - Wrapper script ensures service restart and lock file cleanup even on failure
+  - Scheduled task created during installation via `install.ps1`
+  - `update.ps1` try/finally block ensures service restart and lock file cleanup even on failure
 
 ---
 

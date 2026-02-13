@@ -66,12 +66,15 @@ function Invoke-NativeCommand {
     return $true
 }
 
-# Start logging for web-triggered updates
+# Web-triggered update setup
 if ($AutoUpdate) {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
     $logDir = "$InstallPath\logs"
     if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
     Start-Transcript -Path "$logDir\update.log" -Force | Out-Null
 }
+
+try {
 
 # Banner
 Write-Host @"
@@ -345,6 +348,16 @@ Write-Host "Logs:     $InstallPath\logs\"
 Write-Host "Backup:   $InstallPath\backups\"
 Write-Host ""
 
-if ($AutoUpdate) {
-    Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+} finally {
+    if ($AutoUpdate) {
+        # Ensure service is running (even if update failed after stopping it)
+        $svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+        if ($svc -and $svc.Status -ne "Running") {
+            Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 5
+        }
+        # Remove lock file so web UI knows update is done
+        Remove-Item "$InstallPath\logs\update.lock" -Force -ErrorAction SilentlyContinue
+        Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+    }
 }

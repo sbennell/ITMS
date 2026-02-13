@@ -432,6 +432,20 @@ $trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
 Register-ScheduledTask -TaskName "AssetSystem Backup" -Action $action -Trigger $trigger -Description "Daily backup of Asset System database" | Out-Null
 Write-Success "Daily backup scheduled for 2:00 AM"
 
+# Create web update scheduled task (used by web interface to trigger updates)
+Write-Step "Creating web update scheduled task..."
+
+$taskExists = Get-ScheduledTask -TaskName "AssetSystemWebUpdate" -ErrorAction SilentlyContinue
+if ($taskExists) {
+    Unregister-ScheduledTask -TaskName "AssetSystemWebUpdate" -Confirm:$false
+}
+
+$updateAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$InstallPath\app\update.ps1`" -AutoUpdate -InstallPath `"$InstallPath`""
+$updatePrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+$updateSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName "AssetSystemWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for Asset System" | Out-Null
+Write-Success "Web update task created (triggered from web interface)"
+
 # Get server IP for display
 $ipAddress = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.*" } | Select-Object -First 1).IPAddress
 
