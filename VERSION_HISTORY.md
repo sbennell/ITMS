@@ -4,21 +4,15 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
-## [1.3.4] - 2026-02-13
-
-### Changes
-
-- Version bump to test web-based update feature
-
----
-
 ## [1.3.2] - 2026-02-13
 
 ### Bug Fixes
 
 - **Web Update Process Fix**: Fixed update script being killed when NSSM stops the service
-  - Update process now spawns via `Start-Process` to create a fully independent process outside the service's process tree
-  - Previously, NSSM would terminate the entire process tree including the detached update script
+  - NSSM uses Windows Job Objects to kill the entire process tree when stopping the service
+  - Update now runs via Windows Task Scheduler, fully independent of the NSSM service
+  - Reuses existing `update.ps1` with new `-AutoUpdate` parameter (skips confirmation, logs to file)
+  - Wrapper script ensures service restart and lock file cleanup even on failure
 
 ---
 

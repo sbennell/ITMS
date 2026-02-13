@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requireAdmin } from './auth.js';
 import { existsSync, writeFileSync, unlinkSync, mkdirSync } from 'fs';
-import { spawn } from 'child_process';
+import { execSync } from 'child_process';
 import path from 'path';
 
 const router = Router();
@@ -9,8 +9,8 @@ const router = Router();
 // Derive paths from compiled output location (apps/api/dist/)
 const appRoot = path.resolve(__dirname, '../../..');
 const installPath = path.resolve(appRoot, '..');
-const lockFile = path.join(installPath, 'logs', 'update.lock');
-const updateLog = path.join(installPath, 'logs', 'update.log');
+const logsDir = path.join(installPath, 'logs');
+const lockFile = path.join(logsDir, 'update.lock');
 
 // POST /api/system/update - trigger update from GitHub (admin only, production only)
 router.post('/update', requireAdmin, async (req: Request, res: Response) => {
@@ -25,7 +25,6 @@ router.post('/update', requireAdmin, async (req: Request, res: Response) => {
   }
 
   // Ensure logs directory exists and write lock file
-  const logsDir = path.join(installPath, 'logs');
   try {
     if (!existsSync(logsDir)) {
       mkdirSync(logsDir, { recursive: true });
@@ -36,148 +35,73 @@ router.post('/update', requireAdmin, async (req: Request, res: Response) => {
     return res.status(500).json({ error: `Failed to create update lock file: ${err.message}` });
   }
 
-  // Build the PowerShell update script
-  const dbPath = path.join(installPath, 'data', 'asset_system.db');
-  const backupDir = path.join(installPath, 'backups');
-  const logPath = updateLog;
-  const lockPath = lockFile;
-  const appPath = appRoot;
+  const taskName = 'AssetSystemWebUpdate';
+  const updateScript = path.join(appRoot, 'update.ps1');
 
-  const script = `
-$ErrorActionPreference = "Continue"
-$logFile = "${logPath}"
+  // Generate wrapper script that calls update.ps1 -AutoUpdate and ensures cleanup
+  const wrapperPath = path.join(logsDir, '_web_update.ps1');
+  const wrapperScript = [
+    '$ErrorActionPreference = "Continue"',
+    '',
+    '# Ensure full system PATH is available',
+    '$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")',
+    '',
+    'try {',
+    `    $proc = Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File \`"${updateScript}\`" -AutoUpdate -InstallPath \`"${installPath}\`"" -Wait -PassThru -WindowStyle Hidden`,
+    '} catch {',
+    `    "[$([DateTime]::Now.ToString('yyyy-MM-dd HH:mm:ss'))] Wrapper error: $_" | Out-File "${path.join(logsDir, 'update.log')}" -Append`,
+    '}',
+    '',
+    '# Ensure service is running after update',
+    '$svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue',
+    'if ($svc -and $svc.Status -ne "Running") {',
+    '    Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue',
+    '    Start-Sleep -Seconds 5',
+    '}',
+    '',
+    '# Remove lock file',
+    `Remove-Item "${lockFile}" -Force -ErrorAction SilentlyContinue`,
+    '',
+  ].join('\r\n');
 
-function Log { param($msg)
-  $line = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $msg"
-  $line | Out-File -FilePath $logFile -Append -Encoding UTF8
-}
-
-function Run-Step {
-  param([string]$Command, [string]$StepName, [string]$WorkDir)
-  Log "Running: $StepName"
-  $stdout = "$env:TEMP\\_update_stdout.tmp"
-  $stderr = "$env:TEMP\\_update_stderr.tmp"
-  $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c $Command" -WorkingDirectory $WorkDir -NoNewWindow -Wait -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-  $out = Get-Content $stdout -Raw -ErrorAction SilentlyContinue
-  $err = Get-Content $stderr -Raw -ErrorAction SilentlyContinue
-  if ($out) { Log "  STDOUT: $out" }
-  if ($err) { Log "  STDERR: $err" }
-  Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
-  if ($proc.ExitCode -ne 0) {
-    Log "ERROR: $StepName failed (exit code $($proc.ExitCode))"
-    return $false
-  }
-  Log "$StepName completed"
-  return $true
-}
-
-try {
-  "========================================" | Out-File -FilePath $logFile -Encoding UTF8 -Force
-  Log "Web-triggered update started"
-
-  # Backup database
-  Log "Backing up database..."
-  $dbPath = "${dbPath}"
-  $backupDir = "${backupDir}"
-  if (-not (Test-Path $backupDir)) {
-    New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-  }
-  if (Test-Path $dbPath) {
-    $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
-    Copy-Item $dbPath "$backupDir\\asset_system_pre-update_$date.db"
-    Log "Database backed up"
-  }
-
-  # Stop service
-  Log "Stopping service..."
-  $svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
-  if ($svc -and $svc.Status -eq "Running") {
-    Stop-Service -Name "AssetSystem" -Force
-    Start-Sleep -Seconds 3
-    Log "Service stopped"
-  } else {
-    Log "Service not running"
-  }
-
-  # Pull latest code
-  Log "Pulling latest code..."
-  Push-Location "${appPath}"
-  $stashResult = git stash 2>&1
-  $hasStash = "$stashResult" -notlike "*No local changes*"
-  $pullOutput = git pull origin main 2>&1
-  $pullExit = $LASTEXITCODE
-  if ($hasStash) { git stash pop 2>&1 | Out-Null }
-  Pop-Location
-
-  if ($pullExit -ne 0) {
-    Log "ERROR: git pull failed: $pullOutput"
-    throw "git pull failed"
-  }
-  Log "Code updated"
-
-  # Install dependencies
-  if (-not (Run-Step -Command "npm install" -StepName "npm install" -WorkDir "${appPath}")) {
-    throw "npm install failed"
-  }
-
-  # Generate Prisma client
-  if (-not (Run-Step -Command "npx prisma generate" -StepName "prisma generate" -WorkDir "${appPath}\\apps\\api")) {
-    throw "prisma generate failed"
-  }
-
-  # Update database schema
-  if (-not (Run-Step -Command "npx prisma db push --skip-generate" -StepName "prisma db push" -WorkDir "${appPath}\\apps\\api")) {
-    throw "prisma db push failed"
-  }
-
-  # Build application
-  if (-not (Run-Step -Command "npm run build" -StepName "npm run build" -WorkDir "${appPath}")) {
-    throw "npm run build failed"
-  }
-
-  Log "Update completed successfully"
-
-} catch {
-  Log "Update failed: $_"
-} finally {
-  # Always remove lock file and restart service
-  Remove-Item "${lockPath}" -Force -ErrorAction SilentlyContinue
-  Log "Lock file removed"
-
-  Log "Starting service..."
-  Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
-  Start-Sleep -Seconds 3
-  $svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
-  if ($svc -and $svc.Status -eq "Running") {
-    Log "Service started successfully"
-  } else {
-    Log "WARNING: Service may not have started"
-  }
-  Log "Update process finished"
-}
-`;
-
-  // Write script to temp file
-  const scriptPath = path.join(installPath, 'logs', '_web_update.ps1');
   try {
-    writeFileSync(scriptPath, script, 'utf8');
+    writeFileSync(wrapperPath, wrapperScript, 'utf8');
   } catch (err: any) {
     unlinkSync(lockFile);
-    console.error('Failed to write update script:', err);
-    return res.status(500).json({ error: `Failed to write update script: ${err.message}` });
+    return res.status(500).json({ error: `Failed to write update wrapper: ${err.message}` });
   }
 
-  // Use WMI to create a process completely independent of the NSSM service.
-  // NSSM uses Windows Job Objects to track all child processes, so both
-  // detached spawns and Start-Process children get killed when the service stops.
-  // wmic process call create spawns via WmiPrvSE.exe, which is outside
-  // the NSSM job object, so the process survives service stop/restart.
-  const cmdLine = `powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File "${scriptPath}"`;
-  const child = spawn('wmic', ['process', 'call', 'create', cmdLine], {
-    stdio: 'ignore',
-    windowsHide: true,
-  });
-  child.unref();
+  // Write launcher .cmd to avoid quoting issues with schtasks /TR
+  const launcherPath = path.join(logsDir, '_web_update_launcher.cmd');
+  try {
+    writeFileSync(launcherPath, [
+      '@echo off',
+      `powershell.exe -ExecutionPolicy Bypass -File "${wrapperPath}"`,
+      `schtasks /Delete /TN "${taskName}" /F >nul 2>&1`,
+    ].join('\r\n'), 'utf8');
+  } catch (err: any) {
+    unlinkSync(lockFile);
+    return res.status(500).json({ error: `Failed to write launcher: ${err.message}` });
+  }
+
+  // Use Windows Task Scheduler to run the update completely independent of NSSM.
+  // NSSM uses Job Objects to kill the entire process tree when stopping the service,
+  // so any child process (even detached or Start-Process) gets terminated.
+  // Task Scheduler runs under its own service, fully outside NSSM's job object.
+  try {
+    execSync(
+      `schtasks /Create /TN "${taskName}" /TR "${launcherPath}" /SC ONCE /ST 00:00 /F /RL HIGHEST /RU SYSTEM`,
+      { stdio: 'ignore', windowsHide: true }
+    );
+    execSync(
+      `schtasks /Run /TN "${taskName}"`,
+      { stdio: 'ignore', windowsHide: true }
+    );
+  } catch (err: any) {
+    unlinkSync(lockFile);
+    console.error('Failed to schedule update:', err);
+    return res.status(500).json({ error: `Failed to schedule update: ${err.message}` });
+  }
 
   res.json({ status: 'updating' });
 });

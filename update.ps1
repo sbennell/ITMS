@@ -35,7 +35,8 @@ param(
     [string]$InstallPath = "C:\AssetSystem",
     [string]$Branch = "main",
     [switch]$SkipBackup,
-    [switch]$SkipService
+    [switch]$SkipService,
+    [switch]$AutoUpdate
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,6 +64,13 @@ function Invoke-NativeCommand {
         return $false
     }
     return $true
+}
+
+# Start logging for web-triggered updates
+if ($AutoUpdate) {
+    $logDir = "$InstallPath\logs"
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+    Start-Transcript -Path "$logDir\update.log" -Force | Out-Null
 }
 
 # Banner
@@ -172,10 +180,12 @@ if ($commits) {
 Pop-Location
 
 # Confirm update
-$confirm = Read-Host "Proceed with update? (Y/n)"
-if ($confirm -and $confirm -notin @("Y", "y", "Yes", "yes", "")) {
-    Write-Host "Update cancelled."
-    exit 0
+if (-not $AutoUpdate) {
+    $confirm = Read-Host "Proceed with update? (Y/n)"
+    if ($confirm -and $confirm -notin @("Y", "y", "Yes", "yes", "")) {
+        Write-Host "Update cancelled."
+        exit 0
+    }
 }
 
 # Backup database
@@ -334,3 +344,7 @@ Write-Host ""
 Write-Host "Logs:     $InstallPath\logs\"
 Write-Host "Backup:   $InstallPath\backups\"
 Write-Host ""
+
+if ($AutoUpdate) {
+    Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
+}
