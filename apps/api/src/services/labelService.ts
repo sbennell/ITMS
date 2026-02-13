@@ -6,8 +6,8 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { exec } from 'child_process';
 
-// DK-22211 label dimensions for Brother QL printers
-// For continuous 29mm tape, create landscape PDF and let driver rotate
+// DK-22211 label dimensions for Brother QL label printers
+// For continuous 29mm tape, create landscape PDF and let printer driver rotate
 // Width = print length (62mm), Height = tape width (29mm)
 const LABEL_WIDTH_PT = 176;  // 62mm (print length along tape)
 const LABEL_HEIGHT_PT = 82;  // 29mm (tape width)
@@ -32,7 +32,7 @@ export interface LabelSettings {
 }
 
 const DEFAULT_SETTINGS: LabelSettings = {
-  printerName: 'Brother QL-500',
+  printerName: '',
   showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,

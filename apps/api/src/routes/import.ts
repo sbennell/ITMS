@@ -14,21 +14,22 @@ router.use(requireAdmin);
 
 const VALID_STATUS = [
   'In Use',
+  'In Use - Infrastructure',
   'In Use - Loaned to student',
   'In Use - Loaned to staff',
   'Awaiting allocation',
   'Awaiting delivery',
   'Awaiting collection',
+  'Decommissioned',
   'Decommissioned - Beyond service age',
   'Decommissioned - Damaged',
   'Decommissioned - Stolen',
   'Decommissioned - In storage',
-  'Decommissioned - User left school',
+  'Decommissioned - User left',
   'Decommissioned - Written Off',
-  'Decommissioned - Unreturned',
-  'Retired - Uncollected',
-  'Retired - Lost'
+  'Decommissioned - Unreturned'
 ];
+
 const VALID_CONDITION = ['NEW', 'GOOD', 'FAIR', 'POOR', 'DAMAGED'];
 
 // Column configuration for Excel

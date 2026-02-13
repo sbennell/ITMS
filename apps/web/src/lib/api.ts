@@ -333,4 +333,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(settings)
     }),
+
+  // System
+  triggerUpdate: () =>
+    fetchJson<{ status: string }>('/system/update', { method: 'POST' }),
+  getUpdateStatus: () =>
+    fetchJson<{ updating: boolean }>('/system/update-status'),
 };

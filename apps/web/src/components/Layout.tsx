@@ -8,9 +8,11 @@ import {
   Menu,
   X,
   User,
-  ClipboardCheck
+  ClipboardCheck,
+  Download,
+  Loader2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
@@ -27,8 +29,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { data: versionCheck } = useVersionCheck();
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
 
   const logoutMutation = useMutation({
     mutationFn: api.logout,
@@ -37,6 +41,51 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       navigate('/login');
     }
   });
+
+  // Poll health endpoint after triggering update
+  const pollForRestart = useCallback(() => {
+    let attempts = 0;
+    const maxAttempts = 60; // 5 minutes at 5s intervals
+    let apiWentDown = false;
+
+    const poll = () => {
+      attempts++;
+      fetch('/api/health', { cache: 'no-store' })
+        .then(res => {
+          if (res.ok && apiWentDown) {
+            // API is back after going down - update complete
+            setTimeout(() => window.location.reload(), 1000);
+          } else if (res.ok && !apiWentDown) {
+            // API hasn't gone down yet, keep polling
+            if (attempts < maxAttempts) setTimeout(poll, 5000);
+          }
+        })
+        .catch(() => {
+          // API is down - expected during update
+          apiWentDown = true;
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 5000);
+          } else {
+            setUpdateError('Update is taking longer than expected. Check server logs.');
+          }
+        });
+    };
+
+    setTimeout(poll, 5000);
+  }, []);
+
+  const handleUpdate = async () => {
+    if (!confirm(`Update to v${versionCheck?.latestVersion}?\n\nThe system will restart automatically.`)) return;
+    setUpdating(true);
+    setUpdateError('');
+    try {
+      await api.triggerUpdate();
+      pollForRestart();
+    } catch (err: any) {
+      setUpdating(false);
+      setUpdateError(err.message || 'Failed to trigger update');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -124,18 +173,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               Version {APP_VERSION}
             </a>
             {versionCheck?.updateAvailable && (
-              <a
-                href="https://github.com/sbennell/Asset_System/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 flex items-center justify-center gap-1 text-xs text-amber-600 hover:text-amber-700 bg-amber-50 rounded-md px-2 py-1"
-              >
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-                v{versionCheck.latestVersion} available
-              </a>
+              isAdmin ? (
+                <button
+                  onClick={handleUpdate}
+                  disabled={updating}
+                  className="mt-1 w-full flex items-center justify-center gap-1 text-xs text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-md px-2 py-1 transition-colors"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <Download className="w-3 h-3" />
+                  Update to v{versionCheck.latestVersion}
+                </button>
+              ) : (
+                <a
+                  href="https://github.com/sbennell/Asset_System/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 flex items-center justify-center gap-1 text-xs text-amber-600 hover:text-amber-700 bg-amber-50 rounded-md px-2 py-1"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  v{versionCheck.latestVersion} available
+                </a>
+              )
             )}
           </div>
         </div>
@@ -159,6 +223,43 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Updating overlay */}
+      {updating && (
+        <div className="fixed inset-0 z-50 bg-gray-900/80 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm mx-4 text-center">
+            {updateError ? (
+              <>
+                <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                  <X className="w-6 h-6 text-red-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Update Issue</h2>
+                <p className="text-sm text-gray-600 mb-4">{updateError}</p>
+                <p className="text-xs text-gray-500">Check server logs for details.</p>
+                <button
+                  onClick={() => { setUpdating(false); setUpdateError(''); }}
+                  className="mt-4 btn btn-secondary"
+                >
+                  Close
+                </button>
+              </>
+            ) : (
+              <>
+                <Loader2 className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                  Updating to v{versionCheck?.latestVersion}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  The system is updating and will restart automatically.
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  This page will reload when the update is complete.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

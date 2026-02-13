@@ -1,6 +1,6 @@
 # Asset Management System
 
-**Version 1.2.1**
+**Version 1.3.0**
 
 A web-based IT asset management system for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
 
@@ -16,7 +16,7 @@ A web-based IT asset management system for tracking hardware, software, and equi
 
 ### Label Printing
 - **QR Code Labels**: Generate labels with QR codes for easy asset identification
-- **Brother QL-500 Support**: Direct printing to Brother QL label printers (DK-22211 29mm tape)
+- **Brother QL Printer Support**: Direct printing to Brother QL label printers (DK-22211 29mm tape)
 - **Batch Printing**: Print labels for multiple assets at once
 - **PDF Download**: Download labels as PDF for manual printing
 - **Customizable Content**: Choose which fields to display on labels (Assigned To, Hostname, IP Address)
@@ -236,7 +236,7 @@ Asset_System/
 
 ## Label Format
 
-Labels are designed for Brother QL-500 printers with DK-22211 (29mm continuous tape):
+Labels are designed for Brother QL label printers with DK-22211 (29mm continuous tape):
 
 ```
 ┌─────────────────────────────────────────┐

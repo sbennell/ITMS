@@ -4,6 +4,30 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.3.0] - 2025-02-11
+
+### New Features
+
+- **Web-Based Update**: Admins can trigger system updates directly from the web interface
+  - "Update to v{x.y.z}" button appears in sidebar when a new version is detected
+  - Shows full-page overlay with progress spinner during update
+  - Automatically reloads the page when the update completes and service restarts
+  - Backs up database, pulls code, rebuilds, and restarts service automatically
+  - Update logs saved to server logs directory
+  - Only available to admin users in production mode
+- **Brother QL Printer Support**: Updated from QL-500 only to support all Brother QL printer models
+  - Users select their specific printer model from the available printers list in Settings
+  - Label format unchanged (DK-22211, 29mm continuous tape)
+- **NSSM via Chocolatey**: Install script now uses `choco install nssm` instead of direct download from nssm.cc (more reliable)
+- **dotenv Support**: Production server now loads `.env` file via dotenv as fallback for environment variables
+
+### Changes
+
+- Default printer name no longer hardcoded to "Brother QL-500" - users must select their printer
+- Version bumped across all files (root package.json, README, useVersionCheck)
+
+---
+
 ## [1.2.1] - 2025-02-11
 
 ### New Features
@@ -98,7 +122,7 @@ First production release of the Asset Management System.
 
 #### Label Printing
 - Generate QR code labels for asset identification
-- Direct printing to Brother QL-500 label printers (DK-22211 29mm tape)
+- Direct printing to Brother QL label printers (DK-22211 29mm tape)
 - Print single labels from asset detail page
 - Batch print labels for multiple assets
 - Download labels as PDF for manual printing
