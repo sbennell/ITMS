@@ -299,11 +299,6 @@ if (-not (Invoke-NativeCommand -Command "npm run build" -StepName "npm run build
 }
 Write-Success "Application built successfully"
 
-# Remove lock file before restarting (in case script file changed during git pull)
-if ($AutoUpdate) {
-    Remove-Item "$InstallPath\logs\update.lock" -Force -ErrorAction SilentlyContinue
-}
-
 # Start service
 if (-not $SkipService) {
     Write-Step "Starting service..."
@@ -361,8 +356,6 @@ Write-Host ""
             Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 5
         }
-        # Remove lock file so web UI knows update is done
-        Remove-Item "$InstallPath\logs\update.lock" -Force -ErrorAction SilentlyContinue
         Stop-Transcript -ErrorAction SilentlyContinue | Out-Null
     }
 }

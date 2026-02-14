@@ -4,6 +4,25 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.6.0] - 2026-02-15
+
+### New Features
+
+- **Bulk Add Assets**: New dedicated page for adding multiple assets at once
+  - Enter serial numbers and assigned-to names as side-by-side lists (one per line)
+  - Shared fields (manufacturer, model, category, purchase info, etc.) apply to all assets
+  - Item numbers auto-generated sequentially
+  - Results summary shows created count and any per-asset errors
+  - Accessible via "Bulk Add" button on the asset list
+
+### Bug Fixes
+
+- **Update Status Detection**: Replaced `update.lock` file with Task Scheduler status check
+  - Update status now determined by querying if `AssetSystemWebUpdate` task is running
+  - Eliminates orphaned lock file issue where updates appeared stuck
+
+---
+
 ## [1.5.0] - 2026-02-14
 
 ### New Features

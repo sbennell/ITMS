@@ -7,7 +7,7 @@ import {
   useReactTable,
   createColumnHelper
 } from '@tanstack/react-table';
-import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer, Copy } from 'lucide-react';
 import { api, Asset } from '../lib/api';
 import { cn, STATUS_LABELS, STATUS_COLORS } from '../lib/utils';
 import BatchPrintModal from '../components/BatchPrintModal';
@@ -199,6 +199,10 @@ export default function AssetList() {
               Print Labels ({selectedIds.size})
             </button>
           )}
+          <Link to="/assets/bulk-add" className="btn btn-secondary">
+            <Copy className="w-4 h-4 mr-2" />
+            Bulk Add
+          </Link>
           <Link to="/assets/new" className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
             Add Asset

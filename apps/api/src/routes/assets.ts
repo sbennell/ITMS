@@ -153,6 +153,102 @@ router.get('/next-item-number', async (req: Request, res: Response) => {
   }
 });
 
+// Bulk create assets with shared fields and unique serial numbers
+router.post('/bulk', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const { sharedFields, serialNumbers, assignedToList } = req.body;
+
+    if (!serialNumbers || !Array.isArray(serialNumbers) || serialNumbers.length === 0) {
+      return res.status(400).json({ error: 'At least one serial number is required' });
+    }
+
+    if (serialNumbers.length > 100) {
+      return res.status(400).json({ error: 'Maximum 100 assets can be created at once' });
+    }
+
+    // Get next item number
+    const allAssets = await prisma.asset.findMany({
+      select: { itemNumber: true }
+    });
+
+    let maxNum = 0;
+    for (const asset of allAssets) {
+      const nums = asset.itemNumber.match(/\d+/g);
+      if (nums) {
+        const last = parseInt(nums[nums.length - 1], 10);
+        if (last > maxNum) maxNum = last;
+      }
+    }
+
+    const results: {
+      created: number;
+      failed: number;
+      errors: { serialNumber: string; message: string }[];
+    } = { created: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < serialNumbers.length; i++) {
+      const serialNumber = serialNumbers[i].trim();
+      if (!serialNumber) {
+        results.errors.push({ serialNumber: `(empty line ${i + 1})`, message: 'Serial number is empty' });
+        results.failed++;
+        continue;
+      }
+
+      const itemNumber = String(maxNum + 1 + results.created);
+
+      try {
+        const asset = await prisma.asset.create({
+          data: {
+            itemNumber,
+            serialNumber,
+            manufacturerId: sharedFields.manufacturerId || null,
+            model: sharedFields.model || null,
+            categoryId: sharedFields.categoryId || null,
+            description: sharedFields.description || null,
+            status: sharedFields.status || 'In Use',
+            condition: sharedFields.condition || 'GOOD',
+            acquiredDate: sharedFields.acquiredDate ? new Date(sharedFields.acquiredDate) : null,
+            purchasePrice: sharedFields.purchasePrice ? parseFloat(sharedFields.purchasePrice) : null,
+            supplierId: sharedFields.supplierId || null,
+            orderNumber: sharedFields.orderNumber || null,
+            assignedTo: (assignedToList && assignedToList[i]?.trim()) || sharedFields.assignedTo || null,
+            locationId: sharedFields.locationId || null,
+            warrantyExpiration: sharedFields.warrantyExpiration ? new Date(sharedFields.warrantyExpiration) : null,
+            endOfLifeDate: sharedFields.endOfLifeDate ? new Date(sharedFields.endOfLifeDate) : null,
+            comments: sharedFields.comments || null,
+          }
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            assetId: asset.id,
+            userId: req.session.userId,
+            action: 'CREATE',
+            changes: JSON.stringify({ ...sharedFields, serialNumber, itemNumber, bulkCreate: true }),
+            ipAddress: req.ip
+          }
+        });
+
+        results.created++;
+      } catch (error: any) {
+        results.failed++;
+        if (error.code === 'P2002') {
+          results.errors.push({ serialNumber, message: `Item number ${itemNumber} already exists` });
+        } else {
+          results.errors.push({ serialNumber, message: error.message || 'Unknown error' });
+        }
+      }
+    }
+
+    res.status(201).json(results);
+  } catch (error) {
+    console.error('Error bulk creating assets:', error);
+    res.status(500).json({ error: 'Failed to bulk create assets' });
+  }
+});
+
 // Get single asset
 router.get('/:id', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;

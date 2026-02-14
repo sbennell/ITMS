@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import AssetList from './pages/AssetList';
 import AssetDetail from './pages/AssetDetail';
 import AssetForm from './pages/AssetForm';
+import BulkAddAssets from './pages/BulkAddAssets';
 import Settings from './pages/Settings';
 import Stocktake from './pages/Stocktake';
 import { api, User } from './lib/api';
@@ -65,6 +66,7 @@ export default function App() {
                 <Route path="/" element={<Navigate to="/assets" replace />} />
                 <Route path="/assets" element={<AssetList />} />
                 <Route path="/assets/new" element={<AssetForm />} />
+                <Route path="/assets/bulk-add" element={<BulkAddAssets />} />
                 <Route path="/assets/:id" element={<AssetDetail />} />
                 <Route path="/assets/:id/edit" element={<AssetForm />} />
                 <Route path="/stocktake" element={<Stocktake />} />

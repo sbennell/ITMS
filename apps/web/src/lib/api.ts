@@ -118,6 +118,12 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+export interface BulkAddResult {
+  created: number;
+  failed: number;
+  errors: { serialNumber: string; message: string }[];
+}
+
 export interface LabelSettings {
   printerName: string;
   showAssignedTo: boolean;
@@ -215,6 +221,11 @@ export const api = {
   deleteAsset: (id: string) => fetchJson<{ success: boolean }>(`/assets/${id}`, {
     method: 'DELETE'
   }),
+  bulkCreateAssets: (data: { sharedFields: Partial<Asset>; serialNumbers: string[]; assignedToList?: string[] }) =>
+    fetchJson<BulkAddResult>('/assets/bulk', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
