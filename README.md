@@ -2,7 +2,7 @@
 
 **Version 1.7.1**
 
-A web-based IT Management System for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
+A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
 ## Features
 
