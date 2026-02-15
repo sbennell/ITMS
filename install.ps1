@@ -398,8 +398,11 @@ if (-not $SkipService) {
     # Prompt for password
     $password = Read-Host "Enter password for $currentUser" -AsSecureString
 
+    # Convert SecureString to plain text (compatible with PowerShell 5.1)
+    $plainTextPassword = [System.Net.NetworkCredential]::new('', $password).Password
+
     # Set the service to run as this user
-    & $nssmPath set AssetSystem ObjectName "$currentUser" (ConvertFrom-SecureString -SecureString $password -AsPlainText)
+    & $nssmPath set AssetSystem ObjectName "$currentUser" $plainTextPassword
     Write-Success "Service configured to run as: $currentUser"
     Write-Host ""
 
