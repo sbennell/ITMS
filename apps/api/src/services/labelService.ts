@@ -126,7 +126,7 @@ export async function createLabelPDF(
   const qrImage = await doc.embedPng(qrBuffer);
 
   // Layout: Landscape - QR on left, text on right
-  const margin = 3
+  const margin = 3;
   const qrSize = 48; // ~17mm - compact to maximize text space
 
   // QR code on LEFT, vertically centered on full label height
@@ -141,7 +141,7 @@ export async function createLabelPDF(
   });
 
   // Assigned To name - centered at top of label, auto-fit to fill width
-  const topMargin = 12; // Space for assigned to name at top
+  const topMargin = 12; // Space from top for assigned to name
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = asset.assignedTo;
     const availableWidth = LABEL_WIDTH_PT - (margin * 2);
@@ -305,12 +305,18 @@ export async function printLabel(
 
   try {
     // Use pdf-to-printer which works in SYSTEM user context (service)
-    // Falls back to default printer if specified printer not found
+    // Set paper size to match DK-22211 and use 'fit' scale to fill the label
+    const printOptions: any = {
+      paperSize: '29x62mm',
+      orientation: 'landscape',
+      scale: 'fit',
+    };
+
     if (printerName) {
-      await print(tempPath, { printer: printerName });
-    } else {
-      await print(tempPath);
+      printOptions.printer = printerName;
     }
+
+    await print(tempPath, printOptions);
   } finally {
     // Clean up temp file after a delay to allow printing to complete
     setTimeout(() => {

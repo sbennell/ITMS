@@ -12,6 +12,10 @@ All notable changes to the Asset Management System are documented in this file.
   - Replaced PowerShell-based printing (`Start-Process -Verb Print`) with native Windows printing API via `pdf-to-printer` library
   - PowerShell verb methods don't work in SYSTEM user context; direct API is more reliable for service-based deployments
 
+- **Label Layout and Margins**: Fixed text and QR code being cut off on printed labels
+  - Set explicit paper size to "29x62mm" format with "fit" scaling to use full label area
+  - Allows pdf-to-printer to scale content to fit label boundaries without cut-off
+
 ---
 
 ## [1.7.0] - 2026-02-15
