@@ -38,8 +38,4 @@ apps/api/prisma/dev.db
 # Uploaded files
 uploads/
 
-# Access database (original)
-*.accdb
-*.mdb
-*.laccdb
-Asset_System/csv-export/Assets*.csv
+.claude/
