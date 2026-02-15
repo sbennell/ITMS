@@ -1,10 +1,10 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Installs the Asset Management System on Windows Server.
+    Installs the IT Management System on Windows.
 
 .DESCRIPTION
-    This script automates the installation of the Asset Management System including:
+    This script automates the installation of the IT Management System including:
     - Cloning the repository from GitHub
     - Creating directory structure
     - Installing dependencies
@@ -14,7 +14,7 @@
     - Creating backup scripts
 
 .PARAMETER InstallPath
-    Base installation path. Default: C:\ICTMS
+    Base installation path. Default: C:\ITMS
 
 .PARAMETER Port
     Port for the application. Default: 3001
@@ -29,14 +29,14 @@
     .\install.ps1
 
 .EXAMPLE
-    .\install.ps1 -InstallPath "D:\ICTMS" -Port 8080
+    .\install.ps1 -InstallPath "D:\ITMS" -Port 8080
 
 .EXAMPLE
     .\install.ps1 -Branch "develop"
 #>
 
 param(
-    [string]$InstallPath = "C:\ICTMS",
+    [string]$InstallPath = "C:\ITMS",
     [int]$Port = 3001,
     [string]$Branch = "main",
     [switch]$SkipService
@@ -55,7 +55,7 @@ function Write-Error { param($msg) Write-Host "   $msg" -ForegroundColor Red }
 Write-Host @"
 
 ============================================
-  Asset Management System Installer
+  IT Management System Installer
 ============================================
 
 "@ -ForegroundColor Cyan
@@ -157,7 +157,7 @@ $ErrorActionPreference = "Stop"
 
 # Check if already installed
 if (Test-Path "$InstallPath\app\.git") {
-    Write-Error "Asset System is already installed at $InstallPath"
+    Write-Error "IT Management System is already installed at $InstallPath"
     Write-Host "   To update, run: .\update.ps1 -InstallPath `"$InstallPath`""
     Write-Host "   To reinstall, remove the directory first: Remove-Item `"$InstallPath`" -Recurse"
     exit 1
@@ -292,7 +292,7 @@ Write-Success "Prisma client generated"
 Write-Step "Creating environment configuration..."
 
 $sessionSecret = [guid]::NewGuid().ToString() + "-" + [guid]::NewGuid().ToString()
-$dbPath = "$InstallPath\data\asset_system.db" -replace "\\", "/"
+$dbPath = "$InstallPath\data\ITMS.db" -replace "\\", "/"
 
 $envContent = @"
 DATABASE_URL="file:$dbPath"
@@ -318,17 +318,17 @@ Write-Step "Initializing database..."
 if (-not (Invoke-NativeCommand -Command "npx prisma db push --skip-generate" -StepName "prisma db push" -WorkDir "$InstallPath\app\apps\api")) {
     exit 1
 }
-Write-Success "Database initialized: $InstallPath\data\asset_system.db"
+Write-Success "Database initialized: $InstallPath\data\itms.db"
 
 # Configure firewall
 Write-Step "Configuring Windows Firewall..."
 
-$firewallRule = Get-NetFirewallRule -DisplayName "Asset System" -ErrorAction SilentlyContinue
+$firewallRule = Get-NetFirewallRule -DisplayName "IT Management System" -ErrorAction SilentlyContinue
 if ($firewallRule) {
     Write-Warning "Firewall rule already exists, updating..."
-    Set-NetFirewallRule -DisplayName "Asset System" -LocalPort $Port
+    Set-NetFirewallRule -DisplayName "IT Management System" -LocalPort $Port
 } else {
-    New-NetFirewallRule -DisplayName "Asset System" -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow | Out-Null
+    New-NetFirewallRule -DisplayName "IT Management System" -Direction Inbound -Protocol TCP -LocalPort $Port -Action Allow | Out-Null
     Write-Success "Firewall rule created for port $Port"
 }
 
@@ -362,27 +362,27 @@ if (-not $SkipService) {
     }
 
     # Check if service exists
-    $service = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+    $service = Get-Service -Name "ITMS" -ErrorAction SilentlyContinue
     if ($service) {
         Write-Warning "Service already exists, stopping and removing..."
-        Stop-Service -Name "AssetSystem" -Force -ErrorAction SilentlyContinue
-        & $nssmPath remove AssetSystem confirm 2>$null
+        Stop-Service -Name "ITMS" -Force -ErrorAction SilentlyContinue
+        & $nssmPath remove ITMS confirm 2>$null
     }
 
     # Get Node.js path
     $nodePath = (Get-Command node).Source
 
     # Install service
-    & $nssmPath install AssetSystem $nodePath
-    & $nssmPath set AssetSystem AppDirectory "$InstallPath\app\apps\api"
-    & $nssmPath set AssetSystem AppParameters "dist\index.js"
-    & $nssmPath set AssetSystem AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
-    & $nssmPath set AssetSystem AppStdout "$InstallPath\logs\stdout.log"
-    & $nssmPath set AssetSystem AppStderr "$InstallPath\logs\stderr.log"
-    & $nssmPath set AssetSystem AppRotateFiles 1
-    & $nssmPath set AssetSystem AppRotateBytes 1048576
-    & $nssmPath set AssetSystem Start SERVICE_AUTO_START
-    & $nssmPath set AssetSystem Description "IT Asset Management System"
+    & $nssmPath install ITMS $nodePath
+    & $nssmPath set ITMS AppDirectory "$InstallPath\app\apps\api"
+    & $nssmPath set ITMS AppParameters "dist\index.js"
+    & $nssmPath set ITMS AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
+    & $nssmPath set ITMS AppStdout "$InstallPath\logs\stdout.log"
+    & $nssmPath set ITMS AppStderr "$InstallPath\logs\stderr.log"
+    & $nssmPath set ITMS AppRotateFiles 1
+    & $nssmPath set ITMS AppRotateBytes 1048576
+    & $nssmPath set ITMS Start SERVICE_AUTO_START
+    & $nssmPath set ITMS Description "IT Asset Management System"
 
     Write-Success "Windows service installed"
 
@@ -402,15 +402,15 @@ if (-not $SkipService) {
     $plainTextPassword = [System.Net.NetworkCredential]::new('', $password).Password
 
     # Set the service to run as this user
-    & $nssmPath set AssetSystem ObjectName "$currentUser" $plainTextPassword
+    & $nssmPath set ITMS ObjectName "$currentUser" $plainTextPassword
     Write-Success "Service configured to run as: $currentUser"
     Write-Host ""
 
     # Start service
-    Start-Service -Name "AssetSystem"
+    Start-Service -Name "ITMS"
     Start-Sleep -Seconds 3
 
-    $service = Get-Service -Name "AssetSystem"
+    $service = Get-Service -Name "ITMS"
     if ($service.Status -eq "Running") {
         Write-Success "Service started successfully"
     } else {
@@ -424,11 +424,11 @@ Write-Step "Creating backup script..."
 $backupScript = @'
 $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $backupDir = "INSTALLPATH\backups"
-$dbPath = "INSTALLPATH\data\asset_system.db"
+$dbPath = "INSTALLPATH\data\itms.db"
 
 if (Test-Path $dbPath) {
-    Copy-Item $dbPath "$backupDir\asset_system_$date.db"
-    Write-Host "Backup created: asset_system_$date.db"
+    Copy-Item $dbPath "$backupDir\ITMS_$date.db"
+    Write-Host "Backup created: ITMS_$date.db"
 
     # Keep only last 30 backups
     Get-ChildItem "$backupDir\*.db" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
@@ -442,28 +442,28 @@ Write-Success "Backup script created: $InstallPath\backup.ps1"
 # Create scheduled task for backups
 Write-Step "Creating daily backup scheduled task..."
 
-$taskExists = Get-ScheduledTask -TaskName "AssetSystem Backup" -ErrorAction SilentlyContinue
+$taskExists = Get-ScheduledTask -TaskName "ITMS Backup" -ErrorAction SilentlyContinue
 if ($taskExists) {
-    Unregister-ScheduledTask -TaskName "AssetSystem Backup" -Confirm:$false
+    Unregister-ScheduledTask -TaskName "ITMS Backup" -Confirm:$false
 }
 
 $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$InstallPath\backup.ps1`""
 $trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
-Register-ScheduledTask -TaskName "AssetSystem Backup" -Action $action -Trigger $trigger -Description "Daily backup of Asset System database" | Out-Null
+Register-ScheduledTask -TaskName "ITMS Backup" -Action $action -Trigger $trigger -Description "Daily backup of IT Management System database" | Out-Null
 Write-Success "Daily backup scheduled for 2:00 AM"
 
 # Create web update scheduled task (used by web interface to trigger updates)
 Write-Step "Creating web update scheduled task..."
 
-$taskExists = Get-ScheduledTask -TaskName "AssetSystemWebUpdate" -ErrorAction SilentlyContinue
+$taskExists = Get-ScheduledTask -TaskName "ITMSWebUpdate" -ErrorAction SilentlyContinue
 if ($taskExists) {
-    Unregister-ScheduledTask -TaskName "AssetSystemWebUpdate" -Confirm:$false
+    Unregister-ScheduledTask -TaskName "ITMSWebUpdate" -Confirm:$false
 }
 
 $updateAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$InstallPath\app\update.ps1`" -AutoUpdate -InstallPath `"$InstallPath`""
 $updatePrincipal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 $updateSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "AssetSystemWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for Asset System" | Out-Null
+Register-ScheduledTask -TaskName "ITMSWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for IT Management System" | Out-Null
 Write-Success "Web update task created (triggered from web interface)"
 
 # Get server IP for display
@@ -493,13 +493,13 @@ Write-Host "  Enter any username and password to create the initial admin accoun
 Write-Host ""
 Write-Host "Service Commands:"
 Write-Host "  Start:   " -NoNewline -ForegroundColor Gray
-Write-Host "Start-Service AssetSystem"
+Write-Host "Start-Service ITMS"
 Write-Host "  Stop:    " -NoNewline -ForegroundColor Gray
-Write-Host "Stop-Service AssetSystem"
+Write-Host "Stop-Service ITMS"
 Write-Host "  Restart: " -NoNewline -ForegroundColor Gray
-Write-Host "Restart-Service AssetSystem"
+Write-Host "Restart-Service ITMS"
 Write-Host "  Status:  " -NoNewline -ForegroundColor Gray
-Write-Host "Get-Service AssetSystem"
+Write-Host "Get-Service ITMS"
 
 Write-Host ""
 Write-Host "Update:   " -NoNewline -ForegroundColor Gray
@@ -507,5 +507,5 @@ Write-Host ".\update.ps1 -InstallPath `"$InstallPath`""
 
 Write-Host ""
 Write-Host "Logs:     $InstallPath\logs\"
-Write-Host "Database: $InstallPath\data\asset_system.db"
+Write-Host "Database: $InstallPath\data\itms.db"
 Write-Host ""

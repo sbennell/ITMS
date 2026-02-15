@@ -1,6 +1,6 @@
 # Windows Server 2025 Installation Guide
 
-This guide covers deploying the Asset Management System on Windows Server 2025 without Docker.
+This guide covers deploying the IT Management System on Windows Server 2025 without Docker.
 
 ## Quick Install (Automated)
 
@@ -11,7 +11,7 @@ For a fully automated installation, run the PowerShell script as Administrator:
 .\install.ps1
 
 # Or with custom options
-.\install.ps1 -InstallPath "D:\AssetSystem" -Port 8080
+.\install.ps1 -InstallPath "D:\ITMS" -Port 8080
 ```
 
 The script handles everything: directory setup, dependencies, build, database, service, firewall, and backups.
@@ -50,9 +50,9 @@ Open PowerShell as Administrator and run:
 
 ```powershell
 # Create application directories
-New-Item -ItemType Directory -Path "C:\ICTMS\app" -Force
-New-Item -ItemType Directory -Path "C:\ICTMS\data" -Force
-New-Item -ItemType Directory -Path "C:\ICTMS\logs" -Force
+New-Item -ItemType Directory -Path "C:\ITMS\app" -Force
+New-Item -ItemType Directory -Path "C:\ITMS\data" -Force
+New-Item -ItemType Directory -Path "C:\ITMS\logs" -Force
 ```
 
 ## Step 3: Deploy Application Files
@@ -60,38 +60,38 @@ New-Item -ItemType Directory -Path "C:\ICTMS\logs" -Force
 ### Option A: Download Release Archive
 
 1. Download the latest release archive
-2. Extract contents to `C:\ICTMS\app`
+2. Extract contents to `C:\ITMS\app`
 
 ### Option B: Clone from Git
 
 ```powershell
-cd C:\ICTMS
+cd C:\ITMS
 git clone https://github.com/sbennell/Asset_System.git app
 ```
 
 ## Step 4: Install Dependencies
 
 ```powershell
-cd C:\ICTMS\app
+cd C:\ITMS\app
 npm install
 ```
 
 ## Step 5: Configure Environment
 
-Create the environment file at `C:\ICTMS\app\apps\api\.env`:
+Create the environment file at `C:\ITMS\app\apps\api\.env`:
 
 ```powershell
 @"
-DATABASE_URL="file:C:/AssetSystem/data/asset_system.db"
+DATABASE_URL="file:C:/ITMS/data/ITMS.db"
 PORT=3001
 SESSION_SECRET="$(New-Guid)-$(New-Guid)"
-"@ | Out-File -FilePath "C:\ICTMS\app\apps\api\.env" -Encoding UTF8
+"@ | Out-File -FilePath "C:\ITMS\app\apps\api\.env" -Encoding UTF8
 ```
 
-Or manually create `C:\ICTMS\app\apps\api\.env` with:
+Or manually create `C:\ITMS\app\apps\api\.env` with:
 
 ```
-DATABASE_URL="file:C:/AssetSystem/data/asset_system.db"
+DATABASE_URL="file:C:/ITMS/data/ITMS.db"
 PORT=3001
 SESSION_SECRET="your-strong-random-secret-here"
 ```
@@ -104,7 +104,7 @@ SESSION_SECRET="your-strong-random-secret-here"
 ## Step 6: Build Application
 
 ```powershell
-cd C:\ICTMS\app
+cd C:\ITMS\app
 
 # Generate Prisma client
 cd apps\api
@@ -124,7 +124,7 @@ npx prisma db push
 Start the application to verify it works:
 
 ```powershell
-cd C:\ICTMS\app
+cd C:\ITMS\app
 npm run start
 ```
 
@@ -137,7 +137,7 @@ Press `Ctrl+C` to stop the application.
 Allow inbound connections on port 3001:
 
 ```powershell
-New-NetFirewallRule -DisplayName "Asset System" -Direction Inbound -Protocol TCP -LocalPort 3001 -Action Allow
+New-NetFirewallRule -DisplayName "IT Management System" -Direction Inbound -Protocol TCP -LocalPort 3001 -Action Allow
 ```
 
 ## Step 9: Install as Windows Service
@@ -162,18 +162,18 @@ For better security, create a dedicated user account to run the service:
 
 ```powershell
 # Create local user account
-$username = "AssetSystemSvc"
+$username = "ITMSSvc"
 $password = ConvertTo-SecureString "YourStrongPassword123!" -AsPlainText -Force
-New-LocalUser -Name $username -Password $password -Description "Asset System Service Account" -PasswordNeverExpires
+New-LocalUser -Name $username -Password $password -Description "IT Management System Service Account" -PasswordNeverExpires
 
 # Add user to local administrators (for service permissions)
 Add-LocalGroupMember -Group "Administrators" -Member $username
 
 # Grant permissions to application directories
-$acl = Get-Acl "C:\ICTMS"
+$acl = Get-Acl "C:\ITMS"
 $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($username, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow")
 $acl.SetAccessRule($rule)
-Set-Acl "C:\ICTMS" $acl
+Set-Acl "C:\ITMS" $acl
 ```
 
 Alternatively, use an existing domain user account.
@@ -182,36 +182,36 @@ Alternatively, use an existing domain user account.
 
 ```powershell
 # Install the service
-nssm install AssetSystem "C:\Program Files\nodejs\node.exe"
+nssm install ITMS "C:\Program Files\nodejs\node.exe"
 
 # Configure service parameters
-nssm set AssetSystem AppDirectory "C:\ICTMS\app\apps\api"
-nssm set AssetSystem AppParameters "dist\index.js"
-nssm set AssetSystem AppEnvironmentExtra "NODE_ENV=production"
+nssm set ITMS AppDirectory "C:\ITMS\app\apps\api"
+nssm set ITMS AppParameters "dist\index.js"
+nssm set ITMS AppEnvironmentExtra "NODE_ENV=production"
 
 # Configure logging
-nssm set AssetSystem AppStdout "C:\ICTMS\logs\stdout.log"
-nssm set AssetSystem AppStderr "C:\ICTMS\logs\stderr.log"
-nssm set AssetSystem AppRotateFiles 1
-nssm set AssetSystem AppRotateBytes 1048576
+nssm set ITMS AppStdout "C:\ITMS\logs\stdout.log"
+nssm set ITMS AppStderr "C:\ITMS\logs\stderr.log"
+nssm set ITMS AppRotateFiles 1
+nssm set ITMS AppRotateBytes 1048576
 
 # Set service to start automatically
-nssm set AssetSystem Start SERVICE_AUTO_START
+nssm set ITMS Start SERVICE_AUTO_START
 
 # Set service description
-nssm set AssetSystem Description "IT Asset Management System"
+nssm set ITMS Description "IT IT Management System"
 
 # Run service as a specific user (replace with your username)
-nssm set AssetSystem ObjectName ".\AssetSystemSvc" "YourStrongPassword123!"
+nssm set ITMS ObjectName ".\ITMSSvc" "YourStrongPassword123!"
 
 # Start the service
-Start-Service AssetSystem
+Start-Service ITMS
 ```
 
 ### Verify Service is Running
 
 ```powershell
-Get-Service AssetSystem
+Get-Service ITMS
 ```
 
 ## Step 10: Post-Installation Setup
@@ -263,22 +263,22 @@ The SQLite database is a single file. Create a scheduled task to back it up:
 # Create backup script
 @"
 `$date = Get-Date -Format "yyyy-MM-dd_HHmmss"
-Copy-Item "C:\ICTMS\data\asset_system.db" "C:\ICTMS\backups\asset_system_`$date.db"
+Copy-Item "C:\ITMS\data\ITMS.db" "C:\ITMS\backups\ITMS_`$date.db"
 
 # Keep only last 30 backups
-Get-ChildItem "C:\ICTMS\backups\*.db" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
-"@ | Out-File -FilePath "C:\ICTMS\backup.ps1" -Encoding UTF8
+Get-ChildItem "C:\ITMS\backups\*.db" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
+"@ | Out-File -FilePath "C:\ITMS\backup.ps1" -Encoding UTF8
 
 # Create backup directory
-New-Item -ItemType Directory -Path "C:\ICTMS\backups" -Force
+New-Item -ItemType Directory -Path "C:\ITMS\backups" -Force
 ```
 
 ### Schedule Daily Backups
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File C:\ICTMS\backup.ps1"
+$action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File C:\ITMS\backup.ps1"
 $trigger = New-ScheduledTaskTrigger -Daily -At 2:00AM
-Register-ScheduledTask -TaskName "AssetSystem Backup" -Action $action -Trigger $trigger -Description "Daily backup of Asset System database"
+Register-ScheduledTask -TaskName "ITMS Backup" -Action $action -Trigger $trigger -Description "Daily backup of IT Management System database"
 ```
 
 ## Step 11: Create Web Update Scheduled Task
@@ -286,13 +286,13 @@ Register-ScheduledTask -TaskName "AssetSystem Backup" -Action $action -Trigger $
 This scheduled task allows admin users to trigger updates from the web interface. It runs independently of the NSSM service so the update survives the service being restarted.
 
 ```powershell
-$updateAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"C:\ICTMS\app\update.ps1`" -AutoUpdate -InstallPath `"C:\ICTMS`""
+$updateAction = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"C:\ITMS\app\update.ps1`" -AutoUpdate -InstallPath `"C:\ITMS`""
 
 # Run as the service account user (use same account as service)
-$updatePrincipal = New-ScheduledTaskPrincipal -UserId ".\AssetSystemSvc" -LogonType Password -RunLevel Highest
+$updatePrincipal = New-ScheduledTaskPrincipal -UserId ".\ITMSSvc" -LogonType Password -RunLevel Highest
 
 $updateSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-Register-ScheduledTask -TaskName "AssetSystemWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for Asset System"
+Register-ScheduledTask -TaskName "ITMSWebUpdate" -Action $updateAction -Principal $updatePrincipal -Settings $updateSettings -Description "Web-triggered update for IT Management System"
 ```
 
 > **Note**: Adjust paths if using a custom install path.
@@ -303,27 +303,27 @@ Register-ScheduledTask -TaskName "AssetSystemWebUpdate" -Action $updateAction -P
 
 ```powershell
 # Check service status
-Get-Service AssetSystem
+Get-Service ITMS
 
 # Stop the service
-Stop-Service AssetSystem
+Stop-Service ITMS
 
 # Start the service
-Start-Service AssetSystem
+Start-Service ITMS
 
 # Restart the service
-Restart-Service AssetSystem
+Restart-Service ITMS
 
 # View recent logs
-Get-Content "C:\ICTMS\logs\stdout.log" -Tail 50
-Get-Content "C:\ICTMS\logs\stderr.log" -Tail 50
+Get-Content "C:\ITMS\logs\stdout.log" -Tail 50
+Get-Content "C:\ITMS\logs\stderr.log" -Tail 50
 ```
 
 ### Uninstall Service
 
 ```powershell
-Stop-Service AssetSystem
-nssm remove AssetSystem confirm
+Stop-Service ITMS
+nssm remove ITMS confirm
 ```
 
 ## Updating the Application
@@ -337,15 +337,15 @@ Admin users can trigger updates directly from the web interface:
 3. Click the **Update** button to start the update
 4. The system will back up the database, pull latest code, rebuild, and restart automatically
 
-This requires the `AssetSystemWebUpdate` scheduled task (see Step 11 below).
+This requires the `ITMSWebUpdate` scheduled task (see Step 11 below).
 
 ### Option B: Update Script
 
 Run the update script from PowerShell as Administrator:
 
 ```powershell
-cd C:\ICTMS\app
-.\update.ps1 -InstallPath "C:\ICTMS"
+cd C:\ITMS\app
+.\update.ps1 -InstallPath "C:\ITMS"
 ```
 
 The script checks for updates, backs up the database, pulls code, rebuilds, and restarts the service.
@@ -354,18 +354,18 @@ The script checks for updates, backs up the database, pulls code, rebuilds, and 
 
 1. Stop the service:
    ```powershell
-   Stop-Service AssetSystem
+   Stop-Service ITMS
    ```
 
 2. Back up the database:
    ```powershell
    $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
-   Copy-Item "C:\ICTMS\data\asset_system.db" "C:\ICTMS\backups\asset_system_$date.db"
+   Copy-Item "C:\ITMS\data\ITMS.db" "C:\ITMS\backups\ITMS_$date.db"
    ```
 
 3. Pull latest code and rebuild:
    ```powershell
-   cd C:\ICTMS\app
+   cd C:\ITMS\app
    git pull origin main
    npm install
    cd apps\api
@@ -377,28 +377,28 @@ The script checks for updates, backs up the database, pulls code, rebuilds, and 
 
 4. Start the service:
    ```powershell
-   Start-Service AssetSystem
+   Start-Service ITMS
    ```
 
 ## Troubleshooting
 
 ### Service Won't Start
 
-1. Check logs at `C:\ICTMS\logs\stderr.log`
+1. Check logs at `C:\ITMS\logs\stderr.log`
 2. Verify Node.js path: `C:\Program Files\nodejs\node.exe`
 3. Verify the application builds correctly:
    ```powershell
-   cd C:\ICTMS\app\apps\api
+   cd C:\ITMS\app\apps\api
    node dist\index.js
    ```
 
 ### Database Errors
 
-1. Verify the data directory exists: `C:\ICTMS\data`
-2. Check DATABASE_URL in `.env` uses forward slashes: `file:C:/AssetSystem/data/...`
+1. Verify the data directory exists: `C:\ITMS\data`
+2. Check DATABASE_URL in `.env` uses forward slashes: `file:C:/ITMS/data/...`
 3. Run database migration:
    ```powershell
-   cd C:\ICTMS\app\apps\api
+   cd C:\ITMS\app\apps\api
    npx prisma db push
    ```
 
@@ -416,7 +416,7 @@ The script checks for updates, backs up the database, pulls code, rebuilds, and 
 
 1. Verify firewall rule exists:
    ```powershell
-   Get-NetFirewallRule -DisplayName "Asset System"
+   Get-NetFirewallRule -DisplayName "IT Management System"
    ```
 2. Check the server is listening on all interfaces (0.0.0.0, not 127.0.0.1)
 3. Verify no other firewall (Windows Defender, third-party) is blocking
@@ -424,7 +424,7 @@ The script checks for updates, backs up the database, pulls code, rebuilds, and 
 ## Directory Reference
 
 ```
-C:\ICTMS\
+C:\ITMS\
 ├── app\                          # Application files (git repo)
 │   ├── apps\
 │   │   ├── api\
@@ -436,7 +436,7 @@ C:\ICTMS\
 │   ├── update.ps1                # Update script
 │   └── package.json
 ├── data\
-│   └── asset_system.db           # SQLite database
+│   └── ITMS.db           # SQLite database
 ├── logs\
 │   ├── stdout.log                # Application output
 │   ├── stderr.log                # Application errors
