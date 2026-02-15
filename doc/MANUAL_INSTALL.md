@@ -66,7 +66,7 @@ New-Item -ItemType Directory -Path "C:\ITMS\logs" -Force
 
 ```powershell
 cd C:\ITMS
-git clone https://github.com/sbennell/Asset_System.git app
+git clone https://github.com/sbennell/ITMS.git app
 ```
 
 ## Step 4: Install Dependencies

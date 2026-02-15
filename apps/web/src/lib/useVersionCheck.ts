@@ -51,7 +51,7 @@ function parseChangelog(text: string): ChangelogEntry[] {
 
 async function fetchLatestVersion(): Promise<VersionCheck> {
   const res = await fetch(
-    'https://raw.githubusercontent.com/sbennell/Asset_System/main/VERSION_HISTORY.md',
+    'https://raw.githubusercontent.com/sbennell/ITMS/main/VERSION_HISTORY.md',
     { cache: 'no-store' }
   );
   if (!res.ok) throw new Error('Failed to fetch version');

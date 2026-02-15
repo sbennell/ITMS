@@ -1,8 +1,8 @@
-# Asset Management System
+# IT Management System
 
 **Version 1.7.1**
 
-A web-based IT asset management system for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
+A web-based IT Management System for tracking hardware, software, and equipment inventory. Built with React, Express, and SQLite.
 
 ## Features
 
@@ -80,7 +80,7 @@ A web-based IT asset management system for tracking hardware, software, and equi
 Run the following command in PowerShell as Administrator:
 
 ```powershell
-irm "https://raw.githubusercontent.com/sbennell/Asset_System/refs/heads/main/install.ps1" | iex
+irm "https://raw.githubusercontent.com/sbennell/ITMS/refs/heads/main/install.ps1" | iex
 ```
 
 The script handles everything: directory setup, dependencies, build, database, Windows service, firewall, scheduled tasks, and backups.
@@ -178,5 +178,3 @@ Proprietary - All rights reserved
 For issues and feature requests, please contact your system administrator.
 
 ---
-
-*Built with care for IT asset management*

@@ -1,10 +1,10 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Updates the Asset Management System from GitHub.
+    Updates the IT Management System from GitHub.
 
 .DESCRIPTION
-    This script automates updating the Asset Management System:
+    This script automates updating the IT Management System:
     - Backs up the current database
     - Pulls latest code from GitHub
     - Installs/updates dependencies
@@ -80,7 +80,7 @@ try {
 Write-Host @"
 
 ============================================
-  Asset Management System Updater
+  IT Management System Updater
 ============================================
 
 "@ -ForegroundColor Cyan
@@ -126,7 +126,7 @@ Write-Success "Git found: $gitVersion"
 if (-not (Test-Path "$AppPath\.git")) {
     Write-Err "The app directory is not a git repository."
     Write-Host "   To enable updates, re-install by cloning from GitHub:"
-    Write-Host "   git clone https://github.com/sbennell/Asset_System.git `"$AppPath`""
+    Write-Host "   git clone https://github.com/sbennell/ITMS.git `"$AppPath`""
     exit 1
 }
 
@@ -195,7 +195,7 @@ if (-not $AutoUpdate) {
 if (-not $SkipBackup) {
     Write-Step "Backing up database..."
 
-    $dbPath = "$InstallPath\data\asset_system.db"
+    $dbPath = "$InstallPath\data\ITMS.db"
     $backupDir = "$InstallPath\backups"
 
     if (-not (Test-Path $backupDir)) {
@@ -204,7 +204,7 @@ if (-not $SkipBackup) {
 
     if (Test-Path $dbPath) {
         $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
-        $backupFile = "$backupDir\asset_system_pre-update_$date.db"
+        $backupFile = "$backupDir\ITMS_pre-update_$date.db"
         Copy-Item $dbPath $backupFile
         Write-Success "Database backed up: $backupFile"
     } else {
@@ -218,9 +218,9 @@ if (-not $SkipBackup) {
 if (-not $SkipService) {
     Write-Step "Stopping service..."
 
-    $service = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+    $service = Get-Service -Name "ITMS" -ErrorAction SilentlyContinue
     if ($service -and $service.Status -eq "Running") {
-        Stop-Service -Name "AssetSystem" -Force
+        Stop-Service -Name "ITMS" -Force
         Start-Sleep -Seconds 2
         Write-Success "Service stopped"
     } else {
@@ -303,12 +303,12 @@ Write-Success "Application built successfully"
 if (-not $SkipService) {
     Write-Step "Starting service..."
 
-    $service = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+    $service = Get-Service -Name "ITMS" -ErrorAction SilentlyContinue
     if ($service) {
-        Start-Service -Name "AssetSystem"
+        Start-Service -Name "ITMS"
         Start-Sleep -Seconds 3
 
-        $service = Get-Service -Name "AssetSystem"
+        $service = Get-Service -Name "ITMS"
         if ($service.Status -eq "Running") {
             Write-Success "Service started successfully"
         } else {
@@ -351,9 +351,9 @@ Write-Host ""
 } finally {
     if ($AutoUpdate) {
         # Ensure service is running (even if update failed after stopping it)
-        $svc = Get-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+        $svc = Get-Service -Name "ITMS" -ErrorAction SilentlyContinue
         if ($svc -and $svc.Status -ne "Running") {
-            Start-Service -Name "AssetSystem" -ErrorAction SilentlyContinue
+            Start-Service -Name "ITMS" -ErrorAction SilentlyContinue
             Start-Sleep -Seconds 5
         }
         Stop-Transcript -ErrorAction SilentlyContinue | Out-Null

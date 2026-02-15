@@ -43,7 +43,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RepoUrl = "https://github.com/sbennell/Asset_System.git"
+$RepoUrl = "https://github.com/sbennell/ITMS.git"
 
 # Colors for output
 function Write-Step { param($msg) Write-Host "`n>> $msg" -ForegroundColor Cyan }
