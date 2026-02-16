@@ -25,7 +25,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'asset-system-secret-change-in-production',
+  secret: process.env.SESSION_SECRET || 'itms-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -77,7 +77,7 @@ process.on('SIGINT', async () => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Asset System API running on http://localhost:${PORT}`);
+  console.log(`IT Management System (ITMS) API running on http://localhost:${PORT}`);
 });
 
 export { prisma };

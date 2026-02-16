@@ -34,7 +34,7 @@ export default function AboutModal({
           {/* Version */}
           <div className="text-center">
             <p className="text-2xl font-bold text-gray-900">v{APP_VERSION}</p>
-            <p className="text-sm text-gray-500">Asset Management System</p>
+            <p className="text-sm text-gray-500">IT Management System (ITMS)</p>
           </div>
 
           {/* Update banner */}
@@ -113,7 +113,7 @@ export default function AboutModal({
 
           {/* Copyright */}
           <p className="text-center text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} IT Management System - Stewart Bennell
+            &copy; {new Date().getFullYear()} IT Management System (ITMS) - Stewart Bennell
           </p>
         </div>
 

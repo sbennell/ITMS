@@ -112,7 +112,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
             <Link to="/" className="flex items-center space-x-2">
               <LayoutDashboard className="w-8 h-8 text-primary-600" />
-              <span className="text-xl font-bold text-gray-900">Asset System</span>
+              <span className="text-xl font-bold text-gray-900">ITMS</span>
             </Link>
             <button
               className="lg:hidden p-2 rounded-md hover:bg-gray-100"
@@ -207,7 +207,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           >
             <Menu className="w-6 h-6" />
           </button>
-          <span className="ml-4 text-lg font-semibold">Asset System</span>
+          <span className="ml-4 text-lg font-semibold">ITMS</span>
         </div>
 
         {/* Page content */}

@@ -73,7 +73,7 @@ router.get('/template', async (req: Request, res: Response) => {
     ]);
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Asset System';
+    workbook.creator = 'IT Management System (ITMS)';
     workbook.created = new Date();
 
     // Create main data sheet first (so it's the active sheet when opened)
@@ -561,7 +561,7 @@ router.get('/export', async (req: Request, res: Response) => {
     });
 
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = 'Asset System';
+    workbook.creator = 'IT Management System (ITMS)';
     workbook.created = new Date();
 
     const worksheet = workbook.addWorksheet('Assets');
