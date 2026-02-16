@@ -10,6 +10,7 @@ import BulkAddAssets from './pages/BulkAddAssets';
 import Settings from './pages/Settings';
 import Stocktake from './pages/Stocktake';
 import Reports from './pages/Reports';
+import Network from './pages/Network';
 import { api, User } from './lib/api';
 
 interface AuthContextType {
@@ -72,6 +73,7 @@ export default function App() {
                 <Route path="/assets/:id/edit" element={<AssetForm />} />
                 <Route path="/stocktake" element={<Stocktake />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/network" element={<Network />} />
                 <Route path="/settings" element={<Settings />} />
               </Routes>
             </Layout>

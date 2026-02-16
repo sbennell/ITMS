@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -38,6 +38,7 @@ export default function AssetForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isEditing = !!id;
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<AssetFormData>({
@@ -87,6 +88,16 @@ export default function AssetForm() {
       setValue('itemNumber', nextItemData.nextItemNumber);
     }
   }, [isEditing, nextItemData, setValue]);
+
+  // Prefill IP address from query parameter
+  useEffect(() => {
+    if (!isEditing) {
+      const ip = searchParams.get('ip');
+      if (ip) {
+        setValue('ipAddress', ip);
+      }
+    }
+  }, [isEditing, searchParams, setValue]);
 
   // Populate form when asset loads
   useEffect(() => {

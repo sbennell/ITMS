@@ -125,6 +125,16 @@ model Location {
   @@map("locations")
 }
 
+model Subnet {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  cidr      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("subnets")
+}
+
 // ============ ATTACHMENTS ============
 
 model Attachment {

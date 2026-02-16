@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.8.0**
+**Version 1.9.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -35,6 +35,14 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **Interactive Charts**: Visual analytics with bar charts, line charts, and data visualizations
 - **Filterable Reports**: Filter all reports by category, location, manufacturer, and report-specific criteria
 - **Summary Metrics**: Key performance indicators and summary statistics for each report
+
+### IP Address Manager
+- **Network Configuration**: Define and manage subnets with CIDR notation (e.g., `192.168.1.0/24`)
+- **IP Browser**: View all IP addresses in a subnet with real-time status (Linked/Free)
+- **Asset Linking**: Link existing assets to IP addresses or quickly create new assets with pre-filled IPs
+- **Hostname Discovery**: View device hostnames alongside IP addresses for network identification
+- **Search & Link Modal**: Debounced search to find and link assets to IP addresses
+- **Performance Optimized**: Support for large subnets up to /20 (4094 IPs)
 
 ### Data Management
 - **Import/Export**: Import assets from Excel/CSV, export to Excel
@@ -147,6 +155,13 @@ Asset_System/
 - `GET /api/reports/condition` - Asset condition distribution and fleet health
 - `GET /api/reports/value` - Asset financial value and cost analysis
 - `GET /api/reports/lifecycle` - Asset age and end-of-life tracking
+
+### Network / IP Address Manager
+- `GET /api/network/subnets` - List all configured subnets
+- `POST /api/network/subnets` - Create subnet (admin-only)
+- `PUT /api/network/subnets/:id` - Update subnet (admin-only)
+- `DELETE /api/network/subnets/:id` - Delete subnet (admin-only)
+- `GET /api/network/subnets/:id/ips` - Get all IPs in subnet with asset associations
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories

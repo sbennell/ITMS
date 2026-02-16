@@ -3,6 +3,70 @@
 All notable changes to the Asset Management System are documented in this file.
 
 ---
+
+## [1.9.0] - 2026-02-16
+
+### Added
+
+#### IP Address Manager
+- **Network Subnet Configuration** — New "Network Subnets" section in Settings (admin-only)
+  - Add, edit, and delete network subnets with CIDR notation (e.g., `192.168.1.0/24`)
+  - Subnet prefix validation: /20 to /32 (max 4094 host IPs per subnet to maintain performance)
+  - Unique subnet names and CIDR addresses prevent duplicates
+  - Clean, intuitive form-based management interface
+
+- **IP Address Browser** — New "IP Addresses" sidebar navigation item
+  - View all configured subnets as tabs
+  - Interactive table showing every IP in a subnet with real-time status
+  - Columns: IP Address, Hostname, Status, Asset, Actions
+  - Status badges: "Linked" (green) for IPs with assigned assets, "Free" (gray) for unassigned IPs
+
+- **Asset Linking & Discovery**
+  - **Link to Asset**: Search modal with debounced input to find and link existing assets to free IPs
+  - Shows matching asset details (Item Number, Model, Current IP if any) for quick identification
+  - Warning if selected asset already has a different IP assigned
+  - **Create Asset**: Direct link from free IPs to create new asset form with IP pre-filled
+  - Real-time table updates after linking or unlinking assets
+
+#### Hostname Display
+- Dedicated **Hostname** column in IP table for easy network identification
+- Shows linked asset's hostname if available, otherwise dash (—)
+- Simplified Asset column now shows only item number (linked to asset detail)
+
+#### Backend Enhancements
+- New `Subnet` Prisma model with CIDR validation
+- New `/api/network/subnets` endpoints:
+  - `GET /subnets` — List all configured subnets
+  - `POST /subnets` — Create subnet (admin-only)
+  - `PUT /subnets/:id` — Update subnet (admin-only)
+  - `DELETE /subnets/:id` — Delete subnet (admin-only)
+  - `GET /subnets/:id/ips` — Get all IPs in subnet with asset associations
+
+- **CIDR Processing**: Server-side IP range expansion with automatic host IP filtering
+  - Excludes network and broadcast addresses automatically
+  - Efficient SQLite `IN` queries for IP-asset correlation
+  - Fast computation for even large subnets (tested up to /20 with 4094 IPs)
+
+#### Asset Form Enhancement
+- Asset creation form now accepts `?ip=<address>` query parameter
+- IP field auto-populated when creating asset from IP manager "Create Asset" button
+- Streamlines workflow for assigning IPs to new assets
+
+### UI/UX Improvements
+- Network icon added to sidebar navigation
+- Clean tab interface for switching between subnets
+- Consistent styling with rest of application (TailwindCSS, Lucide icons)
+- Empty state messaging when no subnets configured
+
+### Technical Details
+- Type-safe CIDR validation using bitwise IP arithmetic (no external dependencies)
+- TanStack Query for efficient data fetching and cache invalidation
+- React Router integration for URL-driven state
+- All components follow existing design patterns and conventions
+- Database migration auto-applied on schema push
+
+---
+
 ## [1.8.0] - 2026-02-16
 
 ### Added

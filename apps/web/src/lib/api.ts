@@ -138,6 +138,34 @@ export interface LabelSettings {
   // Note: Item Number, Model, and Serial Number are always shown
 }
 
+export interface Subnet {
+  id: string;
+  name: string;
+  cidr: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubnetIPAsset {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  hostname: string | null;
+  assignedTo: string | null;
+  status: string;
+  ipAddress: string | null;
+}
+
+export interface SubnetIP {
+  ip: string;
+  asset: SubnetIPAsset | null;
+}
+
+export interface SubnetIPResponse {
+  subnet: Subnet;
+  ips: SubnetIP[];
+}
+
 export interface PrintResult {
   success: boolean;
   message: string;
@@ -593,4 +621,23 @@ export const api = {
     fetchJson<{ status: string }>('/system/update', { method: 'POST' }),
   getUpdateStatus: () =>
     fetchJson<{ updating: boolean }>('/system/update-status'),
+
+  // Network / Subnets
+  getSubnets: () => fetchJson<Subnet[]>('/network/subnets'),
+  createSubnet: (data: { name: string; cidr: string }) =>
+    fetchJson<Subnet>('/network/subnets', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  updateSubnet: (id: string, data: Partial<{ name: string; cidr: string }>) =>
+    fetchJson<Subnet>(`/network/subnets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+  deleteSubnet: (id: string) =>
+    fetchJson<{ success: boolean }>(`/network/subnets/${id}`, {
+      method: 'DELETE'
+    }),
+  getSubnetIPs: (id: string) =>
+    fetchJson<SubnetIPResponse>(`/network/subnets/${id}/ips`),
 };

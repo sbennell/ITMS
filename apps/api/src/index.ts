@@ -12,6 +12,7 @@ import importRoutes from './routes/import.js';
 import labelRoutes from './routes/labels.js';
 import systemRoutes from './routes/system.js';
 import reportRoutes from './routes/reports.js';
+import networkRoutes from './routes/network.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -47,6 +48,7 @@ app.use('/api/import', importRoutes);
 app.use('/api/labels', labelRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/network', networkRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

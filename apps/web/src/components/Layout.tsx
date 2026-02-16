@@ -11,7 +11,8 @@ import {
   ClipboardCheck,
   Download,
   Loader2,
-  BarChart2
+  BarChart2,
+  Network
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import AboutModal from './AboutModal';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Assets', href: '/assets', icon: Package },
   { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck },
   { name: 'Reports', href: '/reports', icon: BarChart2 },
+  { name: 'IP Addresses', href: '/network', icon: Network },
   { name: 'Settings', href: '/settings', icon: Settings }
 ];
 
