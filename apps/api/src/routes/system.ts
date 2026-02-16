@@ -6,7 +6,7 @@ const router = Router();
 
 function isTaskRunning(): boolean {
   try {
-    const output = execSync('schtasks /Query /TN "AssetSystemWebUpdate" /FO CSV /NH', {
+    const output = execSync('schtasks /Query /TN "ITMSWebUpdate" /FO CSV /NH', {
       encoding: 'utf8',
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -31,10 +31,10 @@ router.post('/update', requireAdmin, async (req: Request, res: Response) => {
   // Task Scheduler runs under its own service, completely independent of NSSM,
   // so the update process survives the service being stopped and restarted.
   try {
-    execSync('schtasks /Run /TN "AssetSystemWebUpdate"', { stdio: 'ignore', windowsHide: true });
+    execSync('schtasks /Run /TN "ITMSWebUpdate"', { stdio: 'ignore', windowsHide: true });
   } catch (err: any) {
     console.error('Failed to trigger update task:', err);
-    return res.status(500).json({ error: 'Failed to trigger update. Is the AssetSystemWebUpdate scheduled task configured?' });
+    return res.status(500).json({ error: 'Failed to trigger update. Is the ITMSWebUpdate scheduled task configured?' });
   }
 
   res.json({ status: 'updating' });

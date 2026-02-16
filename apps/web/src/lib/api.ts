@@ -150,6 +150,165 @@ export interface BatchPrintResult {
   errors?: string[];
 }
 
+export interface ReviewReportSummary {
+  totalAssets: number;
+  reviewedThisYear: number;
+  overdueCount: number;
+  neverReviewedCount: number;
+}
+
+export interface ReviewByYear {
+  year: number;
+  count: number;
+}
+
+export interface ReviewAssetRow {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  serialNumber: string | null;
+  category: { id: string; name: string } | null;
+  location: { id: string; name: string } | null;
+  manufacturer: { id: string; name: string } | null;
+  status: string;
+  lastReviewDate: string | null;
+  reviewYear: number | null;
+  reviewStatus: 'reviewed' | 'overdue' | 'never';
+  daysSinceReview: number | null;
+}
+
+export interface StocktakeReviewReport {
+  summary: ReviewReportSummary;
+  byYear: ReviewByYear[];
+  assets: ReviewAssetRow[];
+  meta: { overdueThresholdMonths: number; generatedAt: string };
+}
+
+export interface WarrantyReportSummary {
+  noWarranty: number;
+  expired: number;
+  expiringSoon: number;
+  ok: number;
+}
+
+export interface WarrantyAssetRow {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  serialNumber: string | null;
+  status: string;
+  manufacturer: { id: string; name: string } | null;
+  category: { id: string; name: string } | null;
+  location: { id: string; name: string } | null;
+  warrantyExpiration: string | null;
+  daysUntilExpiry: number | null;
+  warrantyStatus: 'no_warranty' | 'expired' | 'expiring_soon' | 'ok';
+}
+
+export interface WarrantyReport {
+  summary: WarrantyReportSummary;
+  byMonth: Array<{ month: string; count: number }>;
+  assets: WarrantyAssetRow[];
+  meta: { thresholdDays: number; generatedAt: string };
+}
+
+export interface ConditionReportSummary {
+  NEW: number;
+  EXCELLENT: number;
+  GOOD: number;
+  FAIR: number;
+  POOR: number;
+  NON_FUNCTIONAL: number;
+}
+
+export interface ConditionAssetRow {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  status: string;
+  condition: string;
+  category: { id: string; name: string } | null;
+  location: { id: string; name: string } | null;
+}
+
+export interface ConditionReport {
+  summary: ConditionReportSummary;
+  byCondition: Array<{ condition: string; count: number }>;
+  byCategory: Array<{
+    category: string;
+    NEW: number;
+    EXCELLENT: number;
+    GOOD: number;
+    FAIR: number;
+    POOR: number;
+    NON_FUNCTIONAL: number;
+    total: number;
+  }>;
+  assets: ConditionAssetRow[];
+  meta: { generatedAt: string };
+}
+
+export interface ValueReportSummary {
+  totalValue: number;
+  avgValue: number;
+  assetCount: number;
+  assetsWithPrice: number;
+  assetsWithoutPrice: number;
+  maxValue: number;
+  minValue: number;
+}
+
+export interface ValueAssetRow {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  status: string;
+  purchasePrice: number | null;
+  acquiredDate: string | null;
+  category: { id: string; name: string } | null;
+  location: { id: string; name: string } | null;
+  manufacturer: { id: string; name: string } | null;
+}
+
+export interface ValueReport {
+  summary: ValueReportSummary;
+  byCategory: Array<{ category: string; count: number; totalValue: number; avgValue: number }>;
+  byLocation: Array<{ location: string; count: number; totalValue: number }>;
+  byManufacturer: Array<{ manufacturer: string; count: number; totalValue: number; avgValue: number }>;
+  assets: ValueAssetRow[];
+  meta: { generatedAt: string };
+}
+
+export interface LifecycleReportSummary {
+  total: number;
+  avgAgeYears: number;
+  noAcquiredDate: number;
+  eolPassed: number;
+  eolUpcoming: number;
+}
+
+export interface LifecycleAssetRow {
+  id: string;
+  itemNumber: string;
+  model: string | null;
+  status: string;
+  category: { id: string; name: string } | null;
+  location: { id: string; name: string } | null;
+  acquiredDate: string | null;
+  endOfLifeDate: string | null;
+  ageYears: number | null;
+  ageGroup: string;
+  daysUntilEol: number | null;
+  eolStatus: 'no_eol_date' | 'passed' | 'upcoming' | 'ok';
+}
+
+export interface LifecycleReport {
+  summary: LifecycleReportSummary;
+  byAgeGroup: Array<{ ageGroup: string; count: number }>;
+  assets: LifecycleAssetRow[];
+  meta: { eolThresholdDays: number; generatedAt: string };
+}
+
 export const api = {
   // Auth
   getAuthStatus: () => fetchJson<AuthStatus>('/auth/status'),
@@ -356,6 +515,78 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(settings)
     }),
+
+  // Reports
+  getStocktakeReviewReport: (params?: {
+    year?: string;
+    status?: string;
+    category?: string;
+    location?: string;
+    overdueMonths?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') searchParams.set(key, value);
+      });
+    }
+    return fetchJson<StocktakeReviewReport>(`/reports/stocktake-review?${searchParams}`);
+  },
+
+  getWarrantyReport: (params?: {
+    days?: string;
+    category?: string;
+    location?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') searchParams.set(key, value);
+      });
+    }
+    return fetchJson<WarrantyReport>(`/reports/warranty?${searchParams}`);
+  },
+
+  getConditionReport: (params?: {
+    category?: string;
+    location?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') searchParams.set(key, value);
+      });
+    }
+    return fetchJson<ConditionReport>(`/reports/condition?${searchParams}`);
+  },
+
+  getValueReport: (params?: {
+    category?: string;
+    location?: string;
+    manufacturer?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') searchParams.set(key, value);
+      });
+    }
+    return fetchJson<ValueReport>(`/reports/value?${searchParams}`);
+  },
+
+  getLifecycleReport: (params?: {
+    category?: string;
+    location?: string;
+    eolDays?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') searchParams.set(key, value);
+      });
+    }
+    return fetchJson<LifecycleReport>(`/reports/lifecycle?${searchParams}`);
+  },
 
   // System
   triggerUpdate: () =>

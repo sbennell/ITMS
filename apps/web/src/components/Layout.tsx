@@ -10,7 +10,8 @@ import {
   User,
   ClipboardCheck,
   Download,
-  Loader2
+  Loader2,
+  BarChart2
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import AboutModal from './AboutModal';
@@ -22,6 +23,7 @@ import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 const navigation = [
   { name: 'Assets', href: '/assets', icon: Package },
   { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck },
+  { name: 'Reports', href: '/reports', icon: BarChart2 },
   { name: 'Settings', href: '/settings', icon: Settings }
 ];
 

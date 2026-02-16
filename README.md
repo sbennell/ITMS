@@ -1,6 +1,6 @@
 # IT Management System
 
-**Version 1.7.1**
+**Version 1.8.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -26,6 +26,15 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **QR Code Scanning**: Quickly verify assets by scanning QR codes
 - **Progress Tracking**: Monitor verification progress in real-time
 - **Condition Updates**: Update asset condition during stocktake
+
+### Reports & Analytics
+- **Warranty Expiry Report**: Track warranty expiration status with timeline charts and expiration alerts
+- **Fleet Health Report**: Analyze asset condition distribution across the fleet
+- **Asset Value Report**: Monitor total fleet value, cost per category, and financial breakdown
+- **Age & Lifecycle Report**: Track asset age, purchase history, and end-of-life dates
+- **Interactive Charts**: Visual analytics with bar charts, line charts, and data visualizations
+- **Filterable Reports**: Filter all reports by category, location, manufacturer, and report-specific criteria
+- **Summary Metrics**: Key performance indicators and summary statistics for each report
 
 ### Data Management
 - **Import/Export**: Import assets from Excel/CSV, export to Excel
@@ -58,6 +67,7 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **React Router** - Navigation
 - **React Hook Form** - Form handling
 - **Lucide React** - Icons
+- **Recharts** - Data visualization and charts
 
 ### Backend
 - **Node.js** - Runtime
@@ -131,6 +141,12 @@ Asset_System/
 - `GET /api/stocktakes` - List stocktakes
 - `POST /api/stocktakes` - Create stocktake
 - `POST /api/stocktakes/:id/quick-verify` - Verify asset by QR scan
+
+### Reports
+- `GET /api/reports/warranty` - Warranty expiration analytics
+- `GET /api/reports/condition` - Asset condition distribution and fleet health
+- `GET /api/reports/value` - Asset financial value and cost analysis
+- `GET /api/reports/lifecycle` - Asset age and end-of-life tracking
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories
