@@ -12,6 +12,11 @@ All notable changes to the Asset Management System are documented in this file.
   - Fixed TS6133 error that prevented npm build from succeeding
   - Import was declared but never used in the component
 
+- **Database Migration Timeout** — Fixed `prisma db push` hanging during installation
+  - Added `--accept-data-loss` flag to enable non-interactive mode
+  - Prevents timeout when migrating from single IP field to multi-IP AssetIP model
+  - Updated both install.ps1 and update.ps1 scripts
+
 ---
 
 ## [1.11.0] - 2026-02-17
