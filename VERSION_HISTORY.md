@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.12.1] - 2026-02-18
+
+### Fixed
+
+- **TypeScript Build Errors in SubnetIPTable.tsx**
+  - Removed unused `Link` import from react-router-dom (TS6133)
+  - Fixed type errors by adding explicit type casts for `cell.getValue()` calls (TS2322)
+  - Build now completes successfully with no TypeScript errors
+
+---
+
 ## [1.12.0] - 2026-02-18
 
 ### Added

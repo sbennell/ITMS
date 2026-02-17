@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { useReactTable, getCoreRowModel, createColumnHelper, getSortedRowModel, SortingState } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -110,7 +109,7 @@ export default function SubnetIPTable({ subnetId }: SubnetIPTableProps) {
                   <tr key={ipData.ip} className="hover:bg-gray-50">
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="py-3 px-4 font-mono text-gray-500">
-                        {cell.id.endsWith('ip') ? <span className="text-gray-900">{cell.getValue()}</span> : cell.getValue()}
+                        {cell.id.endsWith('ip') ? <span className="text-gray-900">{cell.getValue() as any}</span> : <span>{cell.getValue() as any}</span>}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right">
