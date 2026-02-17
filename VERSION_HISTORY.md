@@ -4,6 +4,48 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.12.0] - 2026-02-18
+
+### Added
+
+#### Interactive Table Features — Sorting & Pagination
+- **Click-to-Sort Column Headers** — Make all report tables fully sortable
+  - Click any column header to toggle ascending/descending sort
+  - Visual indicators (chevron icons) show sort state for each column
+  - Unsorted columns display dimmed chevron indicating they're clickable
+  - Custom sorting logic for object-based columns (Category, Location, Manufacturer sort by name)
+
+- **Client-Side Pagination** — Enhanced data table navigation
+  - Configurable page sizes: 10, 25, 50, 100 items per page
+  - Page navigation with Previous/Next buttons
+  - Page indicator showing current position (e.g., "Page 1 of 17")
+  - Automatic reset to page 1 when filters are applied
+  - Applied to all 5 report tabs and IP address table
+
+#### Reports Affected
+- Stocktake Review Report — Click headers to sort, paginate through assets
+- Warranty Expiry Report — Sort and navigate through warranty data
+- Asset Value Report — Sort by price, category, location
+- Age & Lifecycle Report — Sort by age, EOL status, acquisition date
+- Condition Report — Sort by condition, status, category
+- IP Address Table — Sort IPs, hostnames, status; paginate large subnets
+
+### Changed
+
+- **Table Interaction Model** — From static read-only to fully interactive
+  - Headers are now clickable with visual feedback
+  - Sorting state persists within page but resets with filter changes
+  - Improved user experience for navigating large datasets
+
+### Technical Details
+
+- Uses TanStack Table v8 `getSortedRowModel` for efficient client-side sorting
+- Implements React `useState` for sort state management (`SortingState`)
+- Custom `sortingFn` added to object-based columns for proper alphabetical sorting
+- All pagination logic client-side for immediate responsiveness
+
+---
+
 ## [1.11.1] - 2026-02-17
 
 ### Fixed

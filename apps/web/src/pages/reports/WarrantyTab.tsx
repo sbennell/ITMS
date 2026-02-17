@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useReactTable, getCoreRowModel, createColumnHelper } from '@tanstack/react-table';
+import { useReactTable, getCoreRowModel, createColumnHelper, getSortedRowModel, SortingState } from '@tanstack/react-table';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calendar, AlertTriangle, CheckCircle, HelpCircle, X, ExternalLink } from 'lucide-react';
+import { Calendar, AlertTriangle, CheckCircle, HelpCircle, X, ExternalLink, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, WarrantyAssetRow } from '../../lib/api';
 import { formatDate, STATUS_COLORS } from '../../lib/utils';
@@ -25,6 +25,9 @@ export default function WarrantyTab() {
   const [daysFilter, setDaysFilter] = useState('90');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['warranty-report', { daysFilter, categoryFilter, locationFilter }],
@@ -43,6 +46,7 @@ export default function WarrantyTab() {
     setDaysFilter('90');
     setCategoryFilter('');
     setLocationFilter('');
+    setPage(1);
   };
 
   const columnHelper = createColumnHelper<WarrantyAssetRow>();
@@ -57,8 +61,16 @@ export default function WarrantyTab() {
       )
     }),
     columnHelper.accessor('model', { header: 'Model', cell: (info: any) => info.getValue() || '-' }),
-    columnHelper.accessor('category', { header: 'Category', cell: (info: any) => info.getValue()?.name || '-' }),
-    columnHelper.accessor('manufacturer', { header: 'Manufacturer', cell: (info: any) => info.getValue()?.name || '-' }),
+    columnHelper.accessor('category', {
+      header: 'Category',
+      cell: (info: any) => info.getValue()?.name || '-',
+      sortingFn: (a, b) => (a.original.category?.name ?? '').localeCompare(b.original.category?.name ?? '')
+    }),
+    columnHelper.accessor('manufacturer', {
+      header: 'Manufacturer',
+      cell: (info: any) => info.getValue()?.name || '-',
+      sortingFn: (a, b) => (a.original.manufacturer?.name ?? '').localeCompare(b.original.manufacturer?.name ?? '')
+    }),
     columnHelper.accessor('status', {
       header: 'Status',
       cell: (info: any) => (
@@ -82,7 +94,18 @@ export default function WarrantyTab() {
     })
   ] as any;
 
-  const table = useReactTable({ data: data?.assets || [], columns, getCoreRowModel: getCoreRowModel() });
+  const allAssets = data?.assets || [];
+  const totalPages = Math.ceil(allAssets.length / limit);
+  const paginatedAssets = allAssets.slice((page - 1) * limit, page * limit);
+
+  const table = useReactTable({
+    data: paginatedAssets,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: { sorting },
+    onSortingChange: setSorting
+  });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
   if (error) return <div className="card p-8 text-center text-red-600 flex flex-col items-center gap-2"><AlertTriangle className="w-8 h-8" /><p>Failed to load report data.</p></div>;
@@ -132,15 +155,50 @@ export default function WarrantyTab() {
       </div>
 
       <div className="card overflow-hidden">
-        <div className="p-4 border-b border-gray-200"><p className="text-sm text-gray-600">{data.assets.length} assets shown</p></div>
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <p className="text-sm text-gray-600">{data.assets.length} assets shown</p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Show:</span>
+              <select
+                value={limit}
+                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                className="input text-sm h-9 w-16"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <th key={header.id} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {header.isPlaceholder ? null : typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : typeof header.column.columnDef.header === 'function' ? (header.column.columnDef.header as any)(header.getContext()) : null}
+                    <th
+                      key={header.id}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                      style={header.column.getCanSort() ? { cursor: 'pointer', userSelect: 'none' } : undefined}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <span className="inline-flex items-center gap-1">
+                          {typeof header.column.columnDef.header === 'string'
+                            ? header.column.columnDef.header
+                            : typeof header.column.columnDef.header === 'function'
+                            ? (header.column.columnDef.header as any)(header.getContext())
+                            : null}
+                          {header.column.getCanSort() && (
+                            header.column.getIsSorted() === 'asc' ? <ChevronUp className="w-3 h-3" /> :
+                            header.column.getIsSorted() === 'desc' ? <ChevronDown className="w-3 h-3" /> :
+                            <ChevronsUpDown className="w-3 h-3 opacity-40" />
+                          )}
+                        </span>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -160,6 +218,29 @@ export default function WarrantyTab() {
           </table>
         </div>
         {data.assets.length === 0 && <div className="p-8 text-center text-gray-500"><p>No assets match the selected filters.</p></div>}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-500">
+              Page {page} of {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage(page - 1)}
+                disabled={page <= 1}
+                className="btn btn-secondary"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage(page + 1)}
+                disabled={page >= totalPages}
+                className="btn btn-secondary"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
