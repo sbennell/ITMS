@@ -92,17 +92,22 @@ export default function LifecycleTab() {
   ] as any;
 
   const allAssets = data?.assets || [];
-  const totalPages = Math.ceil(allAssets.length / limit);
-  const paginatedAssets = allAssets.slice((page - 1) * limit, page * limit);
 
   const table = useReactTable({
-    data: paginatedAssets,
+    data: allAssets,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: { sorting },
-    onSortingChange: setSorting
+    onSortingChange: (updater) => {
+      setSorting(updater);
+      setPage(1);
+    }
   });
+
+  const allSortedRows = table.getRowModel().rows;
+  const totalPages = Math.ceil(allSortedRows.length / limit);
+  const displayRows = allSortedRows.slice((page - 1) * limit, page * limit);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
   if (error) return <div className="card p-8 text-center text-red-600 flex flex-col items-center gap-2"><AlertTriangle className="w-8 h-8" /><p>Failed to load report data.</p></div>;
@@ -201,7 +206,7 @@ export default function LifecycleTab() {
               ))}
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {table.getRowModel().rows.map((row) => (
+              {displayRows.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm">

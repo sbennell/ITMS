@@ -31,17 +31,22 @@ export default function SubnetIPTable({ subnetId }: SubnetIPTableProps) {
   ] as any;
 
   const allIps = data?.ips || [];
-  const totalPages = Math.ceil(allIps.length / limit);
-  const paginatedIps = allIps.slice((page - 1) * limit, page * limit);
 
   const table = useReactTable({
-    data: paginatedIps,
+    data: allIps,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: { sorting },
-    onSortingChange: setSorting
+    onSortingChange: (updater) => {
+      setSorting(updater);
+      setPage(1);
+    }
   });
+
+  const allSortedRows = table.getRowModel().rows;
+  const totalPages = Math.ceil(allSortedRows.length / limit);
+  const displayRows = allSortedRows.slice((page - 1) * limit, page * limit);
 
   if (isLoading) {
     return <div className="text-center text-gray-500">Loading IP addresses...</div>;
@@ -103,7 +108,7 @@ export default function SubnetIPTable({ subnetId }: SubnetIPTableProps) {
               ))}
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {table.getRowModel().rows.map((row) => {
+              {displayRows.map((row) => {
                 const ipData = row.original;
                 return (
                   <tr key={ipData.ip} className="hover:bg-gray-50">

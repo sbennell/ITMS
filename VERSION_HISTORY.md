@@ -4,6 +4,33 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.12.2] - 2026-02-18
+
+### Fixed
+
+- **Report Tables & IP Address Table Unresponsiveness**
+  - Fixed critical performance issue where sorting and pagination caused UI freezing
+  - **Root Cause**: Sorting was applied to paginated data (current page only) instead of the complete dataset
+  - **Solution**: Pass all data to TanStack Table for sorting, then paginate the sorted results
+  - **Impact**: All report tables and IP address browser now respond instantly to sort and pagination actions
+  - **Affected Components**:
+    - Stocktake Review Report
+    - Warranty Expiry Report
+    - Asset Value Report
+    - Age & Lifecycle Report
+    - Condition Report
+    - IP Address Browser
+  - **Bonus**: Sorting now automatically resets page to 1 for better UX
+
+### Technical Details
+
+- Modified sorting strategy to operate on complete dataset before pagination
+- Added page reset (`setPage(1)`) in `onSortingChange` callback for all tables
+- All tables now pass full data to TanStack `useReactTable()` instead of paginated slice
+- Extracted sorted rows and then applied pagination for rendering
+
+---
+
 ## [1.12.1] - 2026-02-18
 
 ### Fixed
