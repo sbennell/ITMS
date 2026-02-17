@@ -4,6 +4,16 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.11.1] - 2026-02-17
+
+### Fixed
+
+- **TypeScript Build Error** — Removed unused `useMutation` import from DataTab.tsx
+  - Fixed TS6133 error that prevented npm build from succeeding
+  - Import was declared but never used in the component
+
+---
+
 ## [1.11.0] - 2026-02-17
 
 ### Added
