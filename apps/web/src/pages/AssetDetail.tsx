@@ -270,9 +270,19 @@ export default function AssetDetail() {
                     {(log.action === 'UPDATE' || log.action === 'BULK_UPDATE') && changedFields.length > 0 && (
                       <div className="mt-2 pl-4 text-xs text-gray-600 space-y-1">
                         {changedFields.slice(0, 5).map(field => {
-                          const before = changes.before[field];
-                          const after = changes.after[field];
-                          const fieldLabel = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                          let before = changes.before[field];
+                          let after = changes.after[field];
+                          // Format field label: remove 'Id' suffix and add spaces before capitals
+                          let fieldLabel = field.replace(/Id$/, '').replace(/([A-Z])/g, ' $1').trim();
+                          fieldLabel = fieldLabel.replace(/^./, str => str.toUpperCase());
+
+                          // Mask sensitive fields
+                          const isSensitive = ['devicePassword'].includes(field);
+                          if (isSensitive) {
+                            before = before && before !== '(empty)' ? '••••••••••' : before;
+                            after = after && after !== '(empty)' ? '••••••••••' : after;
+                          }
+
                           return (
                             <div key={field} className="flex gap-1">
                               <span className="font-medium">{fieldLabel}:</span>

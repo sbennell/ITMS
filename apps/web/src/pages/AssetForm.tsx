@@ -24,7 +24,6 @@ type AssetFormData = {
   devicePassword: string;
   lanMacAddress: string;
   wlanMacAddress: string;
-  ipAddress: string;
   assignedTo: string;
   locationId: string;
   warrantyExpiration: string;
@@ -96,10 +95,10 @@ export default function AssetForm() {
     if (!isEditing) {
       const ip = searchParams.get('ip');
       if (ip) {
-        setValue('ipAddress', ip);
+        setNewIpAddress(ip);
       }
     }
-  }, [isEditing, searchParams, setValue]);
+  }, [isEditing, searchParams]);
 
   // Populate form when asset loads
   useEffect(() => {
@@ -122,9 +121,6 @@ export default function AssetForm() {
         devicePassword: asset.devicePassword || '',
         lanMacAddress: asset.lanMacAddress || '',
         wlanMacAddress: asset.wlanMacAddress || '',
-        ipAddress: asset.ipAddresses && asset.ipAddresses.length > 0
-          ? (asset.ipAddresses[0]?.ip || '')
-          : '',
         assignedTo: asset.assignedTo || '',
         locationId: asset.locationId || '',
         warrantyExpiration: asset.warrantyExpiration ? asset.warrantyExpiration.split('T')[0] : '',
@@ -396,7 +392,18 @@ export default function AssetForm() {
             </div>
             <div>
               <label className="label">Device Password</label>
-              <input {...register('devicePassword')} type="password" className="input" />
+              <input
+                {...register('devicePassword')}
+                type="password"
+                className="input"
+                placeholder={isEditing && asset?.devicePassword ? 'Modify or leave blank to keep existing' : 'Enter password'}
+                autoComplete={isEditing ? 'off' : 'new-password'}
+              />
+              {isEditing && asset?.devicePassword && (
+                <p className="mt-1 text-xs text-gray-500">
+                  ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
+                </p>
+              )}
             </div>
           </div>
         </div>

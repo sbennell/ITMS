@@ -666,16 +666,88 @@ router.put('/:id', async (req: Request, res: Response) => {
       }
     });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        assetId: id,
-        userId: req.session.userId,
-        action: 'UPDATE',
-        changes: JSON.stringify({ before: current, after: req.body }),
-        ipAddress: req.ip
+    // Create audit log - only log actual changes
+    const normalizeValue = (value: any): any => {
+      // Handle Date objects from database
+      if (value instanceof Date) {
+        return value.toISOString().split('T')[0];
       }
-    });
+      // Handle ISO timestamp strings
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+        return value.split('T')[0];
+      }
+      return value;
+    };
+
+    // Resolve lookup field IDs to friendly names
+    const resolveLookupValue = async (fieldName: string, fieldValue: any): Promise<string | null> => {
+      if (!fieldValue) return null;
+
+      if (fieldName === 'locationId') {
+        const location = await prisma.location.findUnique({ where: { id: fieldValue } });
+        return location?.name || fieldValue;
+      } else if (fieldName === 'categoryId') {
+        const category = await prisma.category.findUnique({ where: { id: fieldValue } });
+        return category?.name || fieldValue;
+      } else if (fieldName === 'manufacturerId') {
+        const manufacturer = await prisma.manufacturer.findUnique({ where: { id: fieldValue } });
+        return manufacturer?.name || fieldValue;
+      } else if (fieldName === 'supplierId') {
+        const supplier = await prisma.supplier.findUnique({ where: { id: fieldValue } });
+        return supplier?.name || fieldValue;
+      }
+      return fieldValue;
+    };
+
+    // Mask sensitive fields for audit log
+    const maskSensitiveValue = (fieldName: string, value: any): any => {
+      if (!value) return value;
+      // Mask password fields
+      if (['devicePassword'].includes(fieldName)) {
+        return typeof value === 'string' ? '••••••••••' : value;
+      }
+      return value;
+    };
+
+    // Build before/after objects with only changed fields
+    const beforeData: Record<string, any> = {};
+    const afterData: Record<string, any> = {};
+    let hasChanges = false;
+
+    for (const [key, value] of Object.entries(req.body)) {
+      if (key === 'ipAddress' || key === 'ipAddresses') continue; // Skip IPs, handled separately
+
+      const currentValue = normalizeValue((current as any)[key]);
+      const newValue = normalizeValue(value);
+
+      // Compare actual values
+      if (JSON.stringify(currentValue) !== JSON.stringify(newValue)) {
+        // Resolve lookup fields to friendly names
+        if (['locationId', 'categoryId', 'manufacturerId', 'supplierId'].includes(key)) {
+          beforeData[key] = await resolveLookupValue(key, (current as any)[key]);
+          afterData[key] = await resolveLookupValue(key, value);
+        } else {
+          // Store actual values (no masking) - masking happens on frontend for display
+          // This ensures the frontend can properly detect password changes
+          beforeData[key] = currentValue;
+          afterData[key] = newValue;
+        }
+        hasChanges = true;
+      }
+    }
+
+    // Only create audit log if there are actual changes
+    if (hasChanges) {
+      await prisma.auditLog.create({
+        data: {
+          assetId: id,
+          userId: req.session.userId,
+          action: 'UPDATE',
+          changes: JSON.stringify({ before: beforeData, after: afterData }),
+          ipAddress: req.ip
+        }
+      });
+    }
 
     res.json(updatedAsset);
   } catch (error: any) {
@@ -766,7 +838,10 @@ router.post('/:id/ips', async (req: Request, res: Response) => {
         assetId: id,
         userId: req.session.userId,
         action: 'UPDATE',
-        changes: JSON.stringify({ added_ip: { ip, label } }),
+        changes: JSON.stringify({
+          before: { ipAddresses: 'unchanged' },
+          after: { ipAddresses: `Added IP: ${ip}${label ? ` (${label})` : ''}` }
+        }),
         ipAddress: req.ip
       }
     });
@@ -798,6 +873,11 @@ router.put('/:id/ips/:ipId', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'IP entry not found' });
     }
 
+    // Build before state
+    const before = {
+      ipAddresses: `${assetIP.ip}${assetIP.label ? ` (${assetIP.label})` : ''}`
+    };
+
     // Update the IP entry
     const updatedIP = await prisma.assetIP.update({
       where: { id: ipId },
@@ -807,13 +887,18 @@ router.put('/:id/ips/:ipId', async (req: Request, res: Response) => {
       }
     });
 
+    // Build after state
+    const after = {
+      ipAddresses: `${updatedIP.ip}${updatedIP.label ? ` (${updatedIP.label})` : ''}`
+    };
+
     // Create audit log
     await prisma.auditLog.create({
       data: {
         assetId: id,
         userId: req.session.userId,
         action: 'UPDATE',
-        changes: JSON.stringify({ updated_ip: { ip, label } }),
+        changes: JSON.stringify({ before, after }),
         ipAddress: req.ip
       }
     });
@@ -853,7 +938,10 @@ router.delete('/:id/ips/:ipId', async (req: Request, res: Response) => {
         assetId: id,
         userId: req.session.userId,
         action: 'UPDATE',
-        changes: JSON.stringify({ removed_ip: assetIP.ip }),
+        changes: JSON.stringify({
+          before: { ipAddresses: `${assetIP.ip}${assetIP.label ? ` (${assetIP.label})` : ''}` },
+          after: { ipAddresses: 'removed' }
+        }),
         ipAddress: req.ip
       }
     });

@@ -4,6 +4,67 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.10.1] - 2026-02-17
+
+### Added
+
+#### Comprehensive Audit Logging for Asset Changes
+- **IP Address Audit Logging** — All IP address changes now tracked in Recent Changes
+  - Add IP address operations logged with before/after states
+  - Update IP address operations logged with old/new values
+  - Delete IP address operations logged showing removed IPs
+  - IP labels included in audit log entries for clarity
+
+- **Lookup Field Resolution** — Audit logs now show readable names for reference fields
+  - Location IDs resolved to Location names
+  - Category IDs resolved to Category names
+  - Manufacturer IDs resolved to Manufacturer names
+  - Supplier IDs resolved to Supplier names
+  - Prevents confusing UUID display in Recent Changes
+
+- **Password Audit Logging Improvements**
+  - Password modifications now properly detected and logged
+  - Masking strategy: Store actual passwords in audit log, mask on frontend display only
+  - Fixes issue where password changes weren't appearing in Recent Changes
+  - Frontend displays as `••••••••••` while maintaining backend integrity for change detection
+
+#### Stocktake Enhancement
+- **Extended Stocktake Eligibility** — Assets with awaiting statuses can now be included in stocktakes
+  - Stocktake creation now includes assets with:
+    - "Awaiting allocation" status
+    - "Awaiting delivery" status
+    - "Awaiting collection" status
+  - In addition to regular "In Use" status assets
+  - Allows inventory verification across all active asset statuses
+
+### Fixed
+
+- **Date Field False Positives in Audit Logs**
+  - Fixed issue where date fields appeared as changed when they weren't
+  - Root cause: Database returns Date objects, form sends date strings
+  - Solution: Normalize all dates to YYYY-MM-DD format before comparison
+  - Affected fields: Acquired Date, Warranty Expiration, Last Review Date
+
+- **Password Modification Detection**
+  - Fixed password modifications not appearing in Recent Changes
+  - Previous issue: Both old and new passwords masked before storage (appeared identical)
+  - Solution: Store actual passwords in audit log, mask only for display
+  - Password changes now correctly detected by frontend
+
+- **Empty Audit Log Entries**
+  - Fixed duplicate empty UPDATE entries appearing in Recent Changes
+  - Implementation: Smart comparison now only logs fields with actual changes
+
+### Technical Details
+
+- Audit logging enhanced with async lookup resolution for foreign keys
+- Date normalization utility function handles both Date objects and ISO strings
+- Password masking separated into display layer concern (frontend) vs data integrity concern (backend)
+- Stocktake asset filter uses Prisma AND/OR logic for status combinations
+- Build validates all type changes and dependencies
+
+---
+
 ## [1.10.0] - 2026-02-17
 
 ### Added

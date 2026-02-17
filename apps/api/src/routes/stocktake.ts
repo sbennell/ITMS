@@ -87,10 +87,21 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    // Build asset filter - include all "In Use" assets
-    const assetWhere: any = { status: { startsWith: 'In Use' } };
-    if (categoryId) assetWhere.categoryId = categoryId;
-    if (locationId) assetWhere.locationId = locationId;
+    // Build asset filter - include all "In Use" assets and awaiting statuses
+    const assetWhere: any = {
+      AND: [
+        {
+          OR: [
+            { status: { startsWith: 'In Use' } },
+            { status: 'Awaiting allocation' },
+            { status: 'Awaiting delivery' },
+            { status: 'Awaiting collection' }
+          ]
+        }
+      ]
+    };
+    if (categoryId) assetWhere.AND.push({ categoryId });
+    if (locationId) assetWhere.AND.push({ locationId });
 
     // Get all active assets matching filter
     const assets = await prisma.asset.findMany({
