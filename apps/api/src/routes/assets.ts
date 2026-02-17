@@ -89,7 +89,8 @@ router.get('/', async (req: Request, res: Response) => {
           category: true,
           manufacturer: true,
           supplier: true,
-          location: true
+          location: true,
+          ipAddresses: true
         }
       })
     ]);
@@ -389,6 +390,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         manufacturer: true,
         supplier: true,
         location: true,
+        ipAddresses: true,
         attachments: true,
         auditLogs: {
           orderBy: { timestamp: 'desc' },
@@ -437,6 +439,7 @@ router.post('/', async (req: Request, res: Response) => {
       lanMacAddress,
       wlanMacAddress,
       ipAddress,
+      ipAddresses,
       assignedTo,
       locationId,
       warrantyExpiration,
@@ -446,6 +449,16 @@ router.post('/', async (req: Request, res: Response) => {
 
     if (!itemNumber) {
       return res.status(400).json({ error: 'Item number is required' });
+    }
+
+    // Process IPs: accept either single ipAddress or ipAddresses array
+    interface IPData {
+      ip: string;
+      label?: string | null;
+    }
+    let ipsToCreate: IPData[] = ipAddresses && Array.isArray(ipAddresses) ? ipAddresses : [];
+    if (ipAddress && !ipAddresses) {
+      ipsToCreate = [{ ip: ipAddress }];
     }
 
     const asset = await prisma.asset.create({
@@ -467,18 +480,25 @@ router.post('/', async (req: Request, res: Response) => {
         devicePassword,
         lanMacAddress,
         wlanMacAddress,
-        ipAddress,
         assignedTo,
         locationId,
         warrantyExpiration: warrantyExpiration ? new Date(warrantyExpiration) : null,
         endOfLifeDate: endOfLifeDate ? new Date(endOfLifeDate) : null,
-        comments
+        comments,
+        ipAddresses: ipsToCreate.length > 0 ? {
+          create: ipsToCreate.map(ip => ({
+            ip: ip.ip,
+            label: ip.label || null,
+            // ip fields
+          }))
+        } : undefined
       },
       include: {
         category: true,
         manufacturer: true,
         supplier: true,
-        location: true
+        location: true,
+        ipAddresses: true
       }
     });
 
@@ -534,6 +554,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       lanMacAddress,
       wlanMacAddress,
       ipAddress,
+      ipAddresses,
       assignedTo,
       locationId,
       warrantyExpiration,
@@ -542,6 +563,40 @@ router.put('/:id', async (req: Request, res: Response) => {
       decommissionDate,
       comments
     } = req.body;
+
+    // Process IPs: accept either single ipAddress or ipAddresses array
+    interface IPData {
+      ip: string;
+      label?: string | null;
+    }
+    let ipsToUpdate: IPData[] | undefined;
+    if (ipAddresses && Array.isArray(ipAddresses)) {
+      ipsToUpdate = ipAddresses;
+    } else if (ipAddress) {
+      ipsToUpdate = [{ ip: ipAddress as string }];
+    }
+
+    // Only update IPs if explicitly provided (ipAddresses array)
+    // If only ipAddress (single field) is provided, only update the primary IP, don't wipe others
+    if (ipAddresses && Array.isArray(ipAddresses)) {
+      // Full replacement - delete existing and recreate
+      await prisma.assetIP.deleteMany({ where: { assetId: id } });
+    } else if (ipAddress) {
+      // Only update primary IP - find existing primary and update it, or create new one
+      const existingPrimary = await prisma.assetIP.findFirst({
+        where: { assetId: id }
+      });
+
+      if (existingPrimary) {
+        // Update existing primary IP
+        await prisma.assetIP.update({
+          where: { id: existingPrimary.id },
+          data: { ip: ipAddress as string }
+        });
+        ipsToUpdate = undefined; // Don't recreate
+      }
+      // else: let the create logic below handle it (no primary IP exists)
+    }
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -563,7 +618,6 @@ router.put('/:id', async (req: Request, res: Response) => {
         devicePassword,
         lanMacAddress,
         wlanMacAddress,
-        ipAddress,
         assignedTo,
         locationId,
         warrantyExpiration: warrantyExpiration ? new Date(warrantyExpiration) : null,
@@ -576,14 +630,46 @@ router.put('/:id', async (req: Request, res: Response) => {
         category: true,
         manufacturer: true,
         supplier: true,
-        location: true
+        location: true,
+        ipAddresses: true
+      }
+    });
+
+    // Handle IP creation if needed (only when doing full replacement)
+    if (ipsToUpdate && ipsToUpdate.length > 0) {
+      await prisma.assetIP.createMany({
+        data: ipsToUpdate.map((ipData: IPData) => ({
+          assetId: id,
+          ip: ipData.ip,
+          label: ipData.label || null
+        }))
+      });
+    } else if (ipAddress && !await prisma.assetIP.findFirst({ where: { assetId: id } })) {
+      // If single ipAddress provided and none exists, create one
+      await prisma.assetIP.create({
+        data: {
+          assetId: id,
+          ip: ipAddress as string
+        }
+      });
+    }
+
+    // Fetch updated asset with IPs
+    const updatedAsset = await prisma.asset.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        manufacturer: true,
+        supplier: true,
+        location: true,
+        ipAddresses: true
       }
     });
 
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        assetId: asset.id,
+        assetId: id,
         userId: req.session.userId,
         action: 'UPDATE',
         changes: JSON.stringify({ before: current, after: req.body }),
@@ -591,7 +677,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(asset);
+    res.json(updatedAsset);
   } catch (error: any) {
     console.error('Error updating asset:', error);
     if (error.code === 'P2002') {
@@ -645,6 +731,137 @@ router.get('/:id/history', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching asset history:', error);
     res.status(500).json({ error: 'Failed to fetch asset history' });
+  }
+});
+
+// Add IP to asset
+router.post('/:id/ips', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const { ip, label } = req.body;
+
+  try {
+    if (!ip) {
+      return res.status(400).json({ error: 'IP address is required' });
+    }
+
+    // Check if asset exists
+    const asset = await prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Create the new IP entry
+    const assetIP = await prisma.assetIP.create({
+      data: {
+        assetId: id,
+        ip,
+        label: label || null
+      }
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        assetId: id,
+        userId: req.session.userId,
+        action: 'UPDATE',
+        changes: JSON.stringify({ added_ip: { ip, label } }),
+        ipAddress: req.ip
+      }
+    });
+
+    res.status(201).json(assetIP);
+  } catch (error) {
+    console.error('Error adding IP to asset:', error);
+    res.status(500).json({ error: 'Failed to add IP to asset' });
+  }
+});
+
+// Update IP entry
+router.put('/:id/ips/:ipId', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const ipId = req.params.ipId as string;
+  const { ip, label } = req.body;
+
+  try {
+    // Check if asset exists
+    const asset = await prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Check if IP entry exists
+    const assetIP = await prisma.assetIP.findUnique({ where: { id: ipId } });
+    if (!assetIP || assetIP.assetId !== id) {
+      return res.status(404).json({ error: 'IP entry not found' });
+    }
+
+    // Update the IP entry
+    const updatedIP = await prisma.assetIP.update({
+      where: { id: ipId },
+      data: {
+        ip: ip !== undefined ? ip : undefined,
+        label: label !== undefined ? label : undefined
+      }
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        assetId: id,
+        userId: req.session.userId,
+        action: 'UPDATE',
+        changes: JSON.stringify({ updated_ip: { ip, label } }),
+        ipAddress: req.ip
+      }
+    });
+
+    res.json(updatedIP);
+  } catch (error) {
+    console.error('Error updating IP entry:', error);
+    res.status(500).json({ error: 'Failed to update IP entry' });
+  }
+});
+
+// Delete IP from asset
+router.delete('/:id/ips/:ipId', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const ipId = req.params.ipId as string;
+
+  try {
+    // Check if asset exists
+    const asset = await prisma.asset.findUnique({ where: { id } });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // Check if IP entry exists
+    const assetIP = await prisma.assetIP.findUnique({ where: { id: ipId } });
+    if (!assetIP || assetIP.assetId !== id) {
+      return res.status(404).json({ error: 'IP entry not found' });
+    }
+
+    // Delete the IP entry
+    await prisma.assetIP.delete({ where: { id: ipId } });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        assetId: id,
+        userId: req.session.userId,
+        action: 'UPDATE',
+        changes: JSON.stringify({ removed_ip: assetIP.ip }),
+        ipAddress: req.ip
+      }
+    });
+
+    res.json({ success: true, message: 'IP deleted' });
+  } catch (error) {
+    console.error('Error deleting IP:', error);
+    res.status(500).json({ error: 'Failed to delete IP' });
   }
 });
 

@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, Plus } from 'lucide-react';
 import { api, Asset } from '../lib/api';
 import { STATUS_LABELS, CONDITION_LABELS } from '../lib/utils';
 
@@ -49,6 +49,8 @@ export default function AssetForm() {
   });
 
   const status = watch('status');
+  const [newIpAddress, setNewIpAddress] = useState('');
+  const [newIpLabel, setNewIpLabel] = useState('');
 
   // Fetch asset if editing
   const { data: asset } = useQuery({
@@ -120,7 +122,9 @@ export default function AssetForm() {
         devicePassword: asset.devicePassword || '',
         lanMacAddress: asset.lanMacAddress || '',
         wlanMacAddress: asset.wlanMacAddress || '',
-        ipAddress: asset.ipAddress || '',
+        ipAddress: asset.ipAddresses && asset.ipAddresses.length > 0
+          ? (asset.ipAddresses[0]?.ip || '')
+          : '',
         assignedTo: asset.assignedTo || '',
         locationId: asset.locationId || '',
         warrantyExpiration: asset.warrantyExpiration ? asset.warrantyExpiration.split('T')[0] : '',
@@ -156,6 +160,39 @@ export default function AssetForm() {
       navigate(`/assets/${id}`);
     }
   });
+
+  const deleteIPMutation = useMutation({
+    mutationFn: (ipId: string) => api.deleteAssetIP(id!, ipId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['asset', id] });
+    }
+  });
+
+  const addIPMutation = useMutation({
+    mutationFn: (data: { ip: string; label?: string }) => api.addAssetIP(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['asset', id] });
+      setNewIpAddress('');
+      setNewIpLabel('');
+    }
+  });
+
+  const handleDeleteIP = (ipId: string, ip: string) => {
+    if (window.confirm(`Remove IP address ${ip}?`)) {
+      deleteIPMutation.mutate(ipId);
+    }
+  };
+
+  const handleAddIP = () => {
+    if (!newIpAddress.trim()) {
+      alert('Please enter an IP address');
+      return;
+    }
+    addIPMutation.mutate({
+      ip: newIpAddress,
+      label: newIpLabel || undefined
+    });
+  };
 
   const onSubmit = (data: AssetFormData) => {
     // Clean up empty strings to null
@@ -285,9 +322,65 @@ export default function AssetForm() {
               <label className="label">Hostname</label>
               <input {...register('hostname')} className="input" />
             </div>
-            <div>
-              <label className="label">IP Address</label>
-              <input {...register('ipAddress')} className="input" placeholder="192.168.1.1" />
+            <div className="md:col-span-2">
+              <label className="label">IP Addresses</label>
+              {/* Add New IP */}
+              {isEditing && (
+                <div className="mt-4 pt-4 border-t space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newIpAddress}
+                      onChange={(e) => setNewIpAddress(e.target.value)}
+                      placeholder="e.g., 192.168.1.100"
+                      className="input flex-1"
+                    />
+                    <input
+                      type="text"
+                      value={newIpLabel}
+                      onChange={(e) => setNewIpLabel(e.target.value)}
+                      placeholder="Label (optional)"
+                      className="input flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddIP}
+                      disabled={addIPMutation.isPending}
+                      className="btn btn-primary whitespace-nowrap"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Add IP
+                    </button>
+                  </div>
+                  {addIPMutation.error && (
+                    <p className="text-sm text-red-600">{(addIPMutation.error as Error).message}</p>
+                  )}
+                </div>
+              )}
+
+              {/* IPs List */}
+              {isEditing && asset?.ipAddresses && asset.ipAddresses.length > 0 && (
+                <div className="space-y-2 mt-3 pt-3 border-t">
+                  <p className="text-sm text-gray-600 font-medium">IP Addresses:</p>
+                  {asset.ipAddresses.map((ipEntry) => (
+                    <div key={ipEntry.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                      <div className="flex-1 flex items-center gap-2">
+                        <span className="text-sm font-mono text-gray-900">{ipEntry.ip}</span>
+                        {ipEntry.label && <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">{ipEntry.label}</span>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteIP(ipEntry.id, ipEntry.ip)}
+                        disabled={deleteIPMutation.isPending}
+                        className="ml-2 p-1 text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                        title="Remove this IP"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="label">LAN MAC Address</label>

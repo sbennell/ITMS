@@ -131,7 +131,25 @@ export default function AssetDetail() {
           <h2 className="text-lg font-semibold mb-4">Device Details</h2>
           <dl className="space-y-3">
             <DetailRow label="Hostname" value={asset.hostname} />
-            <DetailRow label="IP Address" value={asset.ipAddress} />
+
+            {/* IP Addresses Section */}
+            <div>
+              <dt className="text-sm font-medium text-gray-500">IP Addresses</dt>
+              <dd className="mt-1">
+                {asset.ipAddresses && asset.ipAddresses.length > 0 ? (
+                  <div className="space-y-1">
+                    {asset.ipAddresses.map((ipEntry) => (
+                      <div key={ipEntry.id} className="flex items-center gap-2">
+                        <span className="text-sm font-mono text-gray-900">{ipEntry.ip}</span>
+                        {ipEntry.label && <span className="text-xs text-gray-600">({ipEntry.label})</span>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-600">-</span>
+                )}
+              </dd>
+            </div>
             <DetailRow label="LAN MAC Address" value={asset.lanMacAddress} />
             <DetailRow label="WLAN MAC Address" value={asset.wlanMacAddress} />
             <DetailRow label="Username" value={asset.deviceUsername} />

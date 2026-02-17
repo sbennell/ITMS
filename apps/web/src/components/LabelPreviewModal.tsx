@@ -109,8 +109,10 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
                   {labelOptions.showHostname && asset.hostname && (
                     <p className="text-xs font-bold truncate">{asset.hostname}</p>
                   )}
-                  {labelOptions.showIpAddress && asset.ipAddress && (
-                    <p className="text-xs font-bold truncate">{asset.ipAddress}</p>
+                  {labelOptions.showIpAddress && asset.ipAddresses && asset.ipAddresses.length > 0 && (
+                    <p className="text-xs font-bold truncate">
+                      {asset.ipAddresses[0]?.ip}
+                    </p>
                   )}
                 </div>
               </div>

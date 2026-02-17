@@ -22,14 +22,17 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true },
+      include: { manufacturer: true, ipAddresses: true },
     });
 
     if (!asset) {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    const previewBuffer = await createLabelPreview(asset as LabelAsset);
+    // Resolve first IP (all IPs are equal now)
+    const primaryIP = asset.ipAddresses?.[0]?.ip;
+
+    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP } as LabelAsset);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `inline; filename="label-${asset.itemNumber}.png"`);
@@ -49,7 +52,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true },
+      include: { manufacturer: true, ipAddresses: true },
     });
 
     if (!asset) {
@@ -77,8 +80,11 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
       ...(showIpAddress !== undefined && { showIpAddress }),
     };
 
+    // Resolve first IP (all IPs are equal now)
+    const primaryIP = asset.ipAddresses?.[0]?.ip;
+
     // Generate and print label
-    const labelAsset: LabelAsset = { ...asset, organizationName };
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
@@ -132,7 +138,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
       where: { id: { in: assetIds } },
-      include: { manufacturer: true },
+      include: { manufacturer: true, ipAddresses: true },
     });
 
     let printed = 0;
@@ -141,7 +147,10 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
 
     for (const asset of assets) {
       try {
-        const labelAsset: LabelAsset = { ...asset, organizationName };
+        // Resolve first IP (all IPs are equal now)
+        const primaryIP = asset.ipAddresses?.[0]?.ip;
+
+        const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
         const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
           await printLabel(pdfBytes, settings.printerName);

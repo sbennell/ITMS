@@ -1,5 +1,13 @@
 const API_BASE = '/api';
 
+// ============ IP Address Types ============
+
+export interface AssetIPEntry {
+  id: string;
+  ip: string;
+  label: string | null;
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${url}`, {
     ...options,
@@ -40,7 +48,7 @@ export interface Asset {
   devicePassword: string | null;
   lanMacAddress: string | null;
   wlanMacAddress: string | null;
-  ipAddress: string | null;
+  ipAddresses: AssetIPEntry[];
   assignedTo: string | null;
   locationId: string | null;
   location: { id: string; name: string } | null;
@@ -159,6 +167,7 @@ export interface SubnetIPAsset {
 export interface SubnetIP {
   ip: string;
   asset: SubnetIPAsset | null;
+  label: string | null;
 }
 
 export interface SubnetIPResponse {
@@ -615,6 +624,22 @@ export const api = {
     }
     return fetchJson<LifecycleReport>(`/reports/lifecycle?${searchParams}`);
   },
+
+  // Asset IP Management
+  addAssetIP: (assetId: string, data: { ip: string; label?: string }) =>
+    fetchJson<AssetIPEntry>(`/assets/${assetId}/ips`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  updateAssetIP: (assetId: string, ipId: string, data: Partial<{ ip: string; label: string }>) =>
+    fetchJson<AssetIPEntry>(`/assets/${assetId}/ips/${ipId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+  deleteAssetIP: (assetId: string, ipId: string) =>
+    fetchJson<{ success: boolean }>(`/assets/${assetId}/ips/${ipId}`, {
+      method: 'DELETE'
+    }),
 
   // System
   triggerUpdate: () =>

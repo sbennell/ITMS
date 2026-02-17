@@ -52,6 +52,15 @@ const COLUMNS = [
   { header: 'LAN MAC', key: 'lanMacAddress', width: 18 },
   { header: 'WLAN MAC', key: 'wlanMacAddress', width: 18 },
   { header: 'IP Address', key: 'ipAddress', width: 15 },
+  { header: 'IP Address Label', key: 'ipAddressLabel', width: 18 },
+  { header: 'IP Address 2', key: 'ipAddress2', width: 15 },
+  { header: 'IP Address 2 Label', key: 'ipAddress2Label', width: 18 },
+  { header: 'IP Address 3', key: 'ipAddress3', width: 15 },
+  { header: 'IP Address 3 Label', key: 'ipAddress3Label', width: 18 },
+  { header: 'IP Address 4', key: 'ipAddress4', width: 15 },
+  { header: 'IP Address 4 Label', key: 'ipAddress4Label', width: 18 },
+  { header: 'IP Address 5', key: 'ipAddress5', width: 15 },
+  { header: 'IP Address 5 Label', key: 'ipAddress5Label', width: 18 },
   { header: 'Assigned To', key: 'assignedTo', width: 20 },
   { header: 'Location', key: 'location', width: 20 },
   { header: 'Warranty Expiration', key: 'warrantyExpiration', width: 18 },
@@ -102,6 +111,14 @@ router.get('/template', async (req: Request, res: Response) => {
       ['- Supplier: Select from existing or type new (will be created)'],
       ['- Location: Select from existing or type new (will be created)'],
       [''],
+      ['IP ADDRESS FIELDS'],
+      ['- IP Address: The primary IP address (first one listed)'],
+      ['- IP Address Label: Optional label for the primary IP (e.g., "LAN", "WLAN", "Management")'],
+      ['- IP Address 2-5: Optional additional IP addresses'],
+      ['- IP Address 2-5 Label: Optional labels for additional IPs'],
+      ['- On import, the first IP becomes primary. Additional IPs can also be added via these columns'],
+      ['- Leave additional IP columns blank if not needed'],
+      [''],
       ['DATE FIELDS (use format: YYYY-MM-DD)'],
       ['- Acquired Date: When the asset was purchased/acquired'],
       ['- Warranty Expiration: When warranty expires'],
@@ -116,7 +133,13 @@ router.get('/template', async (req: Request, res: Response) => {
       ['- You can import up to 500 assets at a time'],
       ['- New manufacturers, categories, suppliers, and locations are created automatically'],
       ['- Leave optional fields blank if not applicable'],
-      ['- The Purchase Price field accepts numbers (e.g., 1234.56)']
+      ['- The Purchase Price field accepts numbers (e.g., 1234.56)'],
+      ['- Each asset can have up to 5 IP addresses (columns: IP Address through IP Address 5)'],
+      ['- All IP addresses can have optional labels (e.g., "LAN", "WLAN", "Management") in their respective Label columns'],
+      ['- When importing, the first IP (IP Address column) becomes the primary IP'],
+      ['- When updating existing assets, all IPs in the import will replace existing IPs, with the first IP as primary'],
+      ['- All IP addresses and labels are preserved on export and round-trip import'],
+      ['- Additional IPs can also be managed through the Asset Edit form in the application']
     ];
 
     instructions.forEach((row, index) => {
@@ -303,7 +326,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       const headerRow = worksheet.getRow(1);
       const columnMap: { [key: string]: number } = {};
       headerRow.eachCell((cell, colNumber) => {
-        const header = getCellString(cell).toLowerCase().replace(/[^a-z]/g, '');
+        const header = getCellString(cell).toLowerCase().replace(/[^a-z0-9]/g, '');
         // Map header to column key
         if (header.includes('itemnumber')) columnMap['itemNumber'] = colNumber;
         else if (header.includes('serialnumber')) columnMap['serialNumber'] = colNumber;
@@ -322,6 +345,15 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
         else if (header.includes('devicepassword') || header.includes('password')) columnMap['devicePassword'] = colNumber;
         else if (header.includes('lanmac') || header === 'lanmac') columnMap['lanMacAddress'] = colNumber;
         else if (header.includes('wlanmac') || header === 'wlanmac') columnMap['wlanMacAddress'] = colNumber;
+        else if (header.includes('ipaddress5') || header === 'ipaddress5') columnMap['ipAddress5'] = colNumber;
+        else if (header.includes('ipaddress5label')) columnMap['ipAddress5Label'] = colNumber;
+        else if (header.includes('ipaddress4') || header === 'ipaddress4') columnMap['ipAddress4'] = colNumber;
+        else if (header.includes('ipaddress4label')) columnMap['ipAddress4Label'] = colNumber;
+        else if (header.includes('ipaddress3') || header === 'ipaddress3') columnMap['ipAddress3'] = colNumber;
+        else if (header.includes('ipaddress3label')) columnMap['ipAddress3Label'] = colNumber;
+        else if (header.includes('ipaddress2') || header === 'ipaddress2') columnMap['ipAddress2'] = colNumber;
+        else if (header.includes('ipaddress2label')) columnMap['ipAddress2Label'] = colNumber;
+        else if (header.includes('ipaddresslabel')) columnMap['ipAddressLabel'] = colNumber;
         else if (header.includes('ipaddress') || header === 'ip') columnMap['ipAddress'] = colNumber;
         else if (header.includes('assignedto') || header.includes('assigned')) columnMap['assignedTo'] = colNumber;
         else if (header.includes('location')) columnMap['location'] = colNumber;
@@ -477,6 +509,22 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           (name) => prisma.location.create({ data: { name } })
         );
 
+        // Collect all IP addresses and labels
+        const ips: Array<{ ip: string; label: string | null }> = [];
+        const ipAddressStr = String(row.ipAddress || '').trim();
+        if (ipAddressStr) {
+          const primaryLabel = String(row.ipAddressLabel || '').trim() || null;
+          ips.push({ ip: ipAddressStr, label: primaryLabel }); // Primary IP
+        }
+        // Add additional IPs
+        for (let ipNum = 2; ipNum <= 5; ipNum++) {
+          const ipStr = String(row[`ipAddress${ipNum}` as keyof typeof row] || '').trim();
+          if (ipStr) {
+            const label = String(row[`ipAddress${ipNum}Label` as keyof typeof row] || '').trim() || null;
+            ips.push({ ip: ipStr, label });
+          }
+        }
+
         const assetData = {
           serialNumber: String(row.serialNumber || '').trim() || null,
           manufacturerId,
@@ -494,7 +542,6 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           devicePassword: String(row.devicePassword || '').trim() || null,
           lanMacAddress: String(row.lanMacAddress || '').trim() || null,
           wlanMacAddress: String(row.wlanMacAddress || '').trim() || null,
-          ipAddress: String(row.ipAddress || '').trim() || null,
           assignedTo: String(row.assignedTo || '').trim() || null,
           locationId,
           warrantyExpiration: parseDate(row.warrantyExpiration),
@@ -504,10 +551,27 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
 
         if (existingAsset) {
           if (updateExisting) {
+            // Update the asset
             await prisma.asset.update({
               where: { id: existingAsset.id },
               data: assetData
             });
+
+            // If any IPs are provided, replace all IPs
+            if (ips.length > 0) {
+              await prisma.assetIP.deleteMany({ where: { assetId: existingAsset.id } });
+              // Create new IP entries
+              for (let i = 0; i < ips.length; i++) {
+                await prisma.assetIP.create({
+                  data: {
+                    assetId: existingAsset.id,
+                    ip: ips[i].ip,
+                    label: ips[i].label
+                  }
+                });
+              }
+            }
+
             results.updated++;
           } else if (skipDuplicates) {
             results.skipped++;
@@ -520,11 +584,19 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           continue;
         }
 
-        // Create new asset
+        // Create new asset with optional IPs
         await prisma.asset.create({
           data: {
             itemNumber,
-            ...assetData
+            ...assetData,
+            ...(ips.length > 0 && {
+              ipAddresses: {
+                create: ips.map((ipData) => ({
+                  ip: ipData.ip,
+                  label: ipData.label
+                }))
+              }
+            })
           }
         });
         results.created++;
@@ -555,7 +627,8 @@ router.get('/export', async (req: Request, res: Response) => {
         manufacturer: true,
         category: true,
         supplier: true,
-        location: true
+        location: true,
+        ipAddresses: true
       },
       orderBy: { itemNumber: 'asc' }
     });
@@ -580,7 +653,10 @@ router.get('/export', async (req: Request, res: Response) => {
 
     // Add data rows
     for (const asset of assets) {
-      worksheet.addRow({
+      // Get all IPs
+      const sortedIPs = asset.ipAddresses || [];
+
+      const rowData: any = {
         itemNumber: asset.itemNumber,
         serialNumber: asset.serialNumber,
         manufacturer: asset.manufacturer?.name,
@@ -598,13 +674,22 @@ router.get('/export', async (req: Request, res: Response) => {
         devicePassword: asset.devicePassword,
         lanMacAddress: asset.lanMacAddress,
         wlanMacAddress: asset.wlanMacAddress,
-        ipAddress: asset.ipAddress,
+        ipAddress: sortedIPs[0]?.ip || null,
+        ipAddressLabel: sortedIPs[0]?.label || null,
         assignedTo: asset.assignedTo,
         location: asset.location?.name,
         warrantyExpiration: asset.warrantyExpiration,
         endOfLifeDate: asset.endOfLifeDate,
         comments: asset.comments
-      });
+      };
+
+      // Add additional IPs
+      for (let i = 1; i < sortedIPs.length && i < 5; i++) {
+        rowData[`ipAddress${i + 1}`] = sortedIPs[i].ip;
+        rowData[`ipAddress${i + 1}Label`] = sortedIPs[i].label;
+      }
+
+      worksheet.addRow(rowData);
     }
 
     // Format date columns

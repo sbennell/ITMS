@@ -179,31 +179,38 @@ router.get('/subnets/:id/ips', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid CIDR or no host IPs available' });
     }
 
-    // Fetch all assets whose ipAddress is in the range
-    const assetsInRange = await prisma.asset.findMany({
+    // Fetch all AssetIP entries whose IPs are in the range
+    const assetIPsInRange = await prisma.assetIP.findMany({
       where: {
-        ipAddress: {
+        ip: {
           in: ips
         }
       },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        hostname: true,
-        assignedTo: true,
-        status: true,
-        ipAddress: true
+      include: {
+        asset: {
+          select: {
+            id: true,
+            itemNumber: true,
+            model: true,
+            hostname: true,
+            assignedTo: true,
+            status: true
+          }
+        }
       }
     });
 
-    // Build a map of IP -> asset for quick lookup
-    const ipToAssetMap = new Map(assetsInRange.map(asset => [asset.ipAddress!, asset]));
+    // Build a map of IP -> (asset + label) for quick lookup
+    const ipToAssetMap = new Map(assetIPsInRange.map(assetIP => [
+      assetIP.ip,
+      { asset: assetIP.asset, label: assetIP.label }
+    ]));
 
-    // Build response: each IP with its linked asset or null
+    // Build response: each IP with its linked asset, label, or null
     const ipData = ips.map(ip => ({
       ip,
-      asset: ipToAssetMap.get(ip) ?? null
+      asset: ipToAssetMap.get(ip)?.asset ?? null,
+      label: ipToAssetMap.get(ip)?.label ?? null
     }));
 
     res.json({ subnet, ips: ipData });

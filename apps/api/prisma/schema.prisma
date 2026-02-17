@@ -41,7 +41,6 @@ model Asset {
   devicePassword      String?   @map("device_password")
   lanMacAddress       String?   @map("lan_mac_address")
   wlanMacAddress      String?   @map("wlan_mac_address")
-  ipAddress           String?   @map("ip_address")
 
   // Assignment
   assignedTo          String?   @map("assigned_to")
@@ -68,6 +67,7 @@ model Asset {
   attachments         Attachment[]
   auditLogs           AuditLog[]
   stocktakeRecords    StocktakeRecord[]
+  ipAddresses         AssetIP[]
 
   @@map("assets")
 }
@@ -133,6 +133,18 @@ model Subnet {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("subnets")
+}
+
+model AssetIP {
+  id        String   @id @default(cuid())
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetId   String   @map("asset_id")
+  ip        String
+  label     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("asset_ips")
 }
 
 // ============ ATTACHMENTS ============

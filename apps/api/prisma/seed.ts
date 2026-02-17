@@ -399,10 +399,21 @@ async function main() {
   ];
 
   for (const asset of assets) {
+    const { ipAddress, ...assetData } = asset as any;
+
     await prisma.asset.upsert({
       where: { itemNumber: asset.itemNumber },
       update: {},
-      create: asset
+      create: {
+        ...assetData,
+        ...(ipAddress && {
+          ipAddresses: {
+            create: {
+              ip: ipAddress
+            }
+          }
+        })
+      }
     });
   }
   console.log(`Created ${assets.length} assets`);

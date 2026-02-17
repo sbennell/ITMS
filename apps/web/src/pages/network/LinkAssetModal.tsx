@@ -35,7 +35,7 @@ export default function LinkAssetModal({ ip, subnetId, onClose }: LinkAssetModal
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!selectedAssetId) throw new Error('No asset selected');
-      return api.updateAsset(selectedAssetId, { ipAddress: ip });
+      return api.addAssetIP(selectedAssetId, { ip });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subnet-ips', subnetId] });
@@ -126,9 +126,9 @@ export default function LinkAssetModal({ ip, subnetId, onClose }: LinkAssetModal
                         <p className="font-medium text-gray-900 text-sm">
                           {asset.itemNumber} {asset.model ? `- ${asset.model}` : ''}
                         </p>
-                        {asset.ipAddress && (
+                        {asset.ipAddresses && asset.ipAddresses.length > 0 && (
                           <p className="text-xs text-orange-600">
-                            Current IP: {asset.ipAddress}
+                            Current IPs: {asset.ipAddresses.map(ip => ip.ip).join(', ')}
                           </p>
                         )}
                         {asset.hostname && (
@@ -151,9 +151,9 @@ export default function LinkAssetModal({ ip, subnetId, onClose }: LinkAssetModal
             <p className="text-sm font-medium text-blue-900">
               Selected: {selectedAsset.itemNumber}
             </p>
-            {selectedAsset.ipAddress && (
+            {selectedAsset.ipAddresses && selectedAsset.ipAddresses.length > 0 && (
               <p className="text-xs text-orange-600 mt-1">
-                ⚠ This asset currently has IP: {selectedAsset.ipAddress}
+                ⚠ This asset currently has IPs: {selectedAsset.ipAddresses.map(ip => ip.ip).join(', ')}
               </p>
             )}
           </div>

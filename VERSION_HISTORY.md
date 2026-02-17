@@ -4,6 +4,113 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.10.0] - 2026-02-17
+
+### Added
+
+#### Multi-IP Support Per Asset
+- **Asset IP Management** — Each asset can now have multiple IP addresses across multiple subnets
+  - Optional labels for each IP (e.g., "LAN", "WLAN", "Management")
+  - Full CRUD operations for managing multiple IPs per asset
+  - All IPs treated equally; first IP used for backward compatibility with labels and exports
+
+- **Asset Edit Form IP Management**
+  - **Add Additional IPs** — New form section to add IPs directly while editing an asset
+  - IP Address input with optional Label field
+  - Dynamic IP list showing all assigned IPs with their labels
+  - Delete individual IPs with confirmation
+  - Real-time query updates after IP changes
+
+- **IP Address Display Improvements**
+  - Clean display showing IP + label badge for each assigned IP
+  - All IPs editable and manageable from the asset form
+  - First IP in array used for backward compatibility (label generation, exports)
+
+#### Import/Export Multi-IP Support
+- **Enhanced Excel Template** — Support for importing/exporting up to 5 IPs per asset
+  - `IP Address` + `IP Address Label` columns for primary IP
+  - `IP Address 2-5` + corresponding Label columns for additional IPs
+  - All IP labels preserved in round-trip import/export
+  - Full backward compatibility with single-IP imports
+
+- **Import Behavior**
+  - All IPs created with their specified labels
+  - First IP in list exported to "IP Address" column for consistency
+  - Update mode: All IPs from import replace existing IPs
+
+- **Export Behavior**
+  - First IP exported to "IP Address" and "IP Address Label" columns
+  - All additional IPs exported to "IP Address 2-5" columns with corresponding labels
+  - Maintains consistent ordering for round-trip imports
+
+#### Backend Enhancements
+- New `AssetIP` Prisma model (join table) with fields:
+  - `id` (UUID)
+  - `assetId` (foreign key)
+  - `ip` (string)
+  - `label` (optional string)
+  - `createdAt` / `updatedAt` timestamps
+
+- New API endpoints in `/api/assets/:id/ips`:
+  - `POST /assets/:id/ips` — Add IP to asset
+  - `PUT /assets/:id/ips/:ipId` — Update IP entry (ip, label)
+  - `DELETE /assets/:id/ips/:ipId` — Remove IP from asset
+
+- Smart IP update logic:
+  - Single IP field updates preserve other IPs (edit IP without losing others)
+  - Multiple IP array updates trigger full replacement (import/form sync)
+  - First IP in array used for label generation and backward compatibility
+
+- Network IP Browser updated:
+  - Queries `AssetIP` table instead of single IP field
+  - Displays correct asset info for each IP in the range
+  - Supports assets with IPs across multiple subnets
+
+- Label Service updated:
+  - Resolves primary IP from `ipAddresses` array
+  - Maintains backward compatibility with label generation
+
+#### Data Migration
+- Automatic migration from single `ipAddress` field to `ipAddresses` array
+- Existing single IPs converted to AssetIP entries (becomes first/primary IP in array)
+- Zero data loss during migration
+
+### Changed
+
+- **AssetForm UI Refactor**
+  - Removed single primary IP input field
+  - All IPs now managed through unified "Add Additional IP Address" + "IP Addresses" list
+  - Cleaner, more intuitive workflow
+  - Labels displayed as badges for quick visual identification
+
+- **API Response Format**
+  - Assets now include `ipAddresses: AssetIPEntry[]` array
+  - Single `ipAddress` field removed from Asset model
+  - First IP in array (`ipAddresses[0]`) used for backward compatibility (labels, exports)
+
+- **Import/Export Template**
+  - New columns for IP labels (primary + additional)
+  - Updated README with IP fields documentation
+  - Enhanced tips section covering multi-IP scenarios
+
+### Removed
+
+- Single `ipAddress: String?` field from Asset model
+- `isPrimary` field from AssetIP model — all IPs now treated equally
+- "Primary" badge from AssetForm and AssetDetail IP displays
+- Inline "Primary" indicator (replaced with label functionality)
+
+### Technical Details
+
+- Type-safe multi-IP handling with explicit label support
+- Prisma relation queries optimized for asset IP lookups
+- React hooks (useState) for form-based IP input management
+- TanStack Query mutations for IP CRUD operations
+- Full backward compatibility maintained where possible
+- Column mapping enhanced for flexible Excel import headers
+
+---
+
 ## [1.9.0] - 2026-02-16
 
 ### Added
