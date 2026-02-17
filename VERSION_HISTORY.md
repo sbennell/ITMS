@@ -4,6 +4,42 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.10.2] - 2026-02-17
+
+### Added
+
+#### Import/Export Date Fields
+- **Last Review Date Support** — Import and export asset review dates
+  - New column in Excel template: "Last Review Date"
+  - Accepts standard date format (YYYY-MM-DD)
+  - Automatically formatted in export files
+
+- **Decommission Date Support** — Track asset decommissioning dates
+  - New column in Excel template: "Decommission Date"
+  - Accepts standard date format (YYYY-MM-DD)
+  - Automatically formatted in export files
+
+- **Enhanced Template Instructions**
+  - Updated README tab with documentation for new date fields
+  - Clear guidance on date format requirements
+  - Expanded tips section for date field usage
+
+### Changed
+
+- **Import Template** — Two new date columns added to Excel template
+- **Export Functionality** — All assets now export with Last Review Date and Decommission Date values
+- **Column Mapping** — Enhanced import parser to recognize both new date fields
+
+### Technical Details
+
+- Date field handling uses existing `parseDate()` utility function
+- Both new date columns formatted as yyyy-mm-dd in Excel
+- Column mapping supports common header variations for flexibility
+- Full backward compatibility with existing imports (new columns optional)
+- Export includes all date fields from asset records
+
+---
+
 ## [1.10.1] - 2026-02-17
 
 ### Added

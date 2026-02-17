@@ -65,6 +65,8 @@ const COLUMNS = [
   { header: 'Location', key: 'location', width: 20 },
   { header: 'Warranty Expiration', key: 'warrantyExpiration', width: 18 },
   { header: 'End of Life Date', key: 'endOfLifeDate', width: 16 },
+  { header: 'Last Review Date', key: 'lastReviewDate', width: 16 },
+  { header: 'Decommission Date', key: 'decommissionDate', width: 18 },
   { header: 'Comments', key: 'comments', width: 30 }
 ];
 
@@ -123,6 +125,8 @@ router.get('/template', async (req: Request, res: Response) => {
       ['- Acquired Date: When the asset was purchased/acquired'],
       ['- Warranty Expiration: When warranty expires'],
       ['- End of Life Date: Planned end of life for the asset'],
+      ['- Last Review Date: When the asset was last reviewed/verified'],
+      ['- Decommission Date: When the asset was decommissioned'],
       [''],
       ['IMPORT OPTIONS (in the web application)'],
       ['- Skip duplicates: Skip rows where Item Number already exists'],
@@ -245,6 +249,8 @@ router.get('/template', async (req: Request, res: Response) => {
       dataSheet.getCell(`I${row}`).numFmt = 'yyyy-mm-dd';
       dataSheet.getCell(`U${row}`).numFmt = 'yyyy-mm-dd';
       dataSheet.getCell(`V${row}`).numFmt = 'yyyy-mm-dd';
+      dataSheet.getCell(`W${row}`).numFmt = 'yyyy-mm-dd';
+      dataSheet.getCell(`X${row}`).numFmt = 'yyyy-mm-dd';
 
       // Number format for price
       dataSheet.getCell(`J${row}`).numFmt = '#,##0.00';
@@ -359,6 +365,8 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
         else if (header.includes('location')) columnMap['location'] = colNumber;
         else if (header.includes('warrantyexpiration') || header.includes('warranty')) columnMap['warrantyExpiration'] = colNumber;
         else if (header.includes('endoflife') || header.includes('eol')) columnMap['endOfLifeDate'] = colNumber;
+        else if (header.includes('lastreviewdate') || header.includes('reviewed')) columnMap['lastReviewDate'] = colNumber;
+        else if (header.includes('decommissiondate') || header.includes('decommissioned')) columnMap['decommissionDate'] = colNumber;
         else if (header.includes('comments') || header.includes('notes')) columnMap['comments'] = colNumber;
       });
 
@@ -369,7 +377,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
         const record: any = {};
         for (const [key, colNum] of Object.entries(columnMap)) {
           const cell = row.getCell(colNum);
-          if (key === 'acquiredDate' || key === 'warrantyExpiration' || key === 'endOfLifeDate') {
+          if (key === 'acquiredDate' || key === 'warrantyExpiration' || key === 'endOfLifeDate' || key === 'lastReviewDate' || key === 'decommissionDate') {
             record[key] = cell.value;
           } else if (key === 'purchasePrice') {
             record[key] = cell.value;
@@ -546,6 +554,8 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           locationId,
           warrantyExpiration: parseDate(row.warrantyExpiration),
           endOfLifeDate: parseDate(row.endOfLifeDate),
+          lastReviewDate: parseDate(row.lastReviewDate),
+          decommissionDate: parseDate(row.decommissionDate),
           comments: String(row.comments || '').trim() || null
         };
 
@@ -680,6 +690,8 @@ router.get('/export', async (req: Request, res: Response) => {
         location: asset.location?.name,
         warrantyExpiration: asset.warrantyExpiration,
         endOfLifeDate: asset.endOfLifeDate,
+        lastReviewDate: asset.lastReviewDate,
+        decommissionDate: asset.decommissionDate,
         comments: asset.comments
       };
 
@@ -696,6 +708,8 @@ router.get('/export', async (req: Request, res: Response) => {
     worksheet.getColumn('acquiredDate').numFmt = 'yyyy-mm-dd';
     worksheet.getColumn('warrantyExpiration').numFmt = 'yyyy-mm-dd';
     worksheet.getColumn('endOfLifeDate').numFmt = 'yyyy-mm-dd';
+    worksheet.getColumn('lastReviewDate').numFmt = 'yyyy-mm-dd';
+    worksheet.getColumn('decommissionDate').numFmt = 'yyyy-mm-dd';
     worksheet.getColumn('purchasePrice').numFmt = '#,##0.00';
 
     // Freeze header row
