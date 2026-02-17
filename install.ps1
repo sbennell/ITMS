@@ -315,7 +315,7 @@ Write-Success "Application built successfully"
 # Initialize database
 Write-Step "Initializing database..."
 
-if (-not (Invoke-NativeCommand -Command "npx prisma db push --skip-generate" -StepName "prisma db push" -WorkDir "$InstallPath\app\apps\api")) {
+if (-not (Invoke-NativeCommand -Command "npx prisma db push --skip-generate --accept-data-loss" -StepName "prisma db push" -WorkDir "$InstallPath\app\apps\api")) {
     exit 1
 }
 Write-Success "Database initialized: $InstallPath\data\itms.db"
