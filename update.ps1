@@ -286,7 +286,7 @@ Write-Success "Prisma client generated"
 # Run database migrations
 Write-Step "Updating database schema..."
 
-if (-not (Invoke-NativeCommand -Command "npx prisma db push --skip-generate" -StepName "prisma db push" -WorkDir "$AppPath\apps\api")) {
+if (-not (Invoke-NativeCommand -Command "npx prisma db push --skip-generate --accept-data-loss" -StepName "prisma db push" -WorkDir "$AppPath\apps\api")) {
     exit 1
 }
 Write-Success "Database schema updated"
