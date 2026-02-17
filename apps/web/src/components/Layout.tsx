@@ -23,10 +23,9 @@ import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 
 const navigation = [
   { name: 'Assets', href: '/assets', icon: Package },
-  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck },
-  { name: 'Reports', href: '/reports', icon: BarChart2 },
   { name: 'IP Addresses', href: '/network', icon: Network },
-  { name: 'Settings', href: '/settings', icon: Settings }
+  { name: 'Reports', href: '/reports', icon: BarChart2 },
+  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck }
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -149,6 +148,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* User info and Logout */}
           <div className="p-4 border-t border-gray-200">
+            <Link
+              to="/settings"
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors mb-3',
+                location.pathname.startsWith('/settings')
+                  ? 'bg-primary-50 text-primary-700'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              )}
+            >
+              <Settings className={cn('w-5 h-5 mr-3', location.pathname.startsWith('/settings') ? 'text-primary-600' : 'text-gray-400')} />
+              Settings
+            </Link>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                 <User className="w-4 h-4 text-primary-600" />

@@ -4,6 +4,41 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.11.0] - 2026-02-17
+
+### Added
+
+#### Settings Page Redesign with Tabbed Interface
+- **Tabbed Settings Layout** — Reorganized settings into 6 focused tabs
+  - **General Tab** — Organization name and label printing settings
+  - **Users Tab** — User management (add, edit, delete, reset password)
+  - **Networking Tab** — Network subnet management
+  - **Lookups Tab** — Categories, Manufacturers, Suppliers, Locations
+  - **Data Tab** — Data import/export functionality
+  - **Account Tab** — Personal password change
+
+- **Sidebar Navigation Improvements**
+  - Settings link moved to top of user profile section (above username)
+  - Navigation items reordered alphabetically (Assets, IP Addresses, Reports, Stocktake)
+  - Cleaner, more organized user interface
+
+### Changed
+
+- **Settings Page Structure** — Refactored from single long page to tabbed interface
+  - Easier navigation with clear section separation
+  - Improved mobile responsiveness
+  - Matches existing Reports page tab pattern
+- **Sidebar Layout** — Settings link repositioned in user profile section for better discoverability
+
+### Technical Details
+
+- Settings components extracted into separate tab files (`settings/GeneralTab.tsx`, `settings/UsersTab.tsx`, etc.)
+- Implemented tab state management using React hooks
+- Tab styling matches existing design system (primary-50, primary-700 colors)
+- Admin-only tabs (Users, Networking, Data) remain visible but content is protected
+
+---
+
 ## [1.10.2] - 2026-02-17
 
 ### Added
