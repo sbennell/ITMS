@@ -4,6 +4,26 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.12.3] - 2026-02-18
+
+### Fixed
+
+- **Subnet Tab Switching Unresponsiveness on IP Addresses Page**
+  - Fixed unresponsiveness when changing subnets on the IP addresses page
+  - **Root Cause**: Sorting and pagination state from previous subnet carried over when switching tabs
+  - **Solution**: Force component remount when subnet changes using React key prop
+  - **Technical**: Added `key={activeTabId}` to SubnetIPTable component in Network page
+  - Added `useEffect` as backup to reset state when subnet changes
+  - Now switches between subnets smoothly with fresh state
+
+### Technical Details
+
+- SubnetIPTable now remounts completely when subnet changes (using React key prop)
+- Added useEffect cleanup for state reset (`sorting`, `page`, `limit`) as additional safeguard
+- Ensures no state carryover between subnet tabs
+
+---
+
 ## [1.12.2] - 2026-02-18
 
 ### Fixed

@@ -78,7 +78,7 @@ export default function Network() {
         {/* Tab Content */}
         <div className="p-6">
           {activeTabId && (
-            <SubnetIPTable subnetId={activeTabId} subnet={subnets.find(s => s.id === activeTabId)!} />
+            <SubnetIPTable key={activeTabId} subnetId={activeTabId} subnet={subnets.find(s => s.id === activeTabId)!} />
           )}
         </div>
       </div>

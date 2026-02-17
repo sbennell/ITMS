@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useReactTable, getCoreRowModel, createColumnHelper, getSortedRowModel, SortingState } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -15,6 +15,13 @@ export default function SubnetIPTable({ subnetId }: SubnetIPTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
+
+  // Reset sorting, page, and limit when subnet changes
+  useEffect(() => {
+    setSorting([]);
+    setPage(1);
+    setLimit(50);
+  }, [subnetId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['subnet-ips', subnetId],
