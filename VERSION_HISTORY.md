@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.13.1] - 2026-02-18
+
+### Added
+
+- **Clickable Asset Links on IP Addresses Page**
+  - Asset item numbers on the IP Addresses page are now clickable links
+  - Click to navigate directly to the asset detail page
+  - External link icon indicates the cell is clickable
+  - Free IPs (without linked assets) display "-" as before
+
+---
+
 ## [1.13.0] - 2026-02-18
 
 ### Added

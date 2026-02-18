@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.13.0**
+**Version 1.13.1**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 

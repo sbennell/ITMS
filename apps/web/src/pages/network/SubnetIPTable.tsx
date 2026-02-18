@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useReactTable, getCoreRowModel, createColumnHelper, getSortedRowModel, SortingState } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import LinkAssetModal from './LinkAssetModal';
 
@@ -121,7 +122,23 @@ export default function SubnetIPTable({ subnetId }: SubnetIPTableProps) {
                   <tr key={ipData.ip} className="hover:bg-gray-50">
                     {row.getVisibleCells().map((cell) => (
                       <td key={cell.id} className="py-3 px-4 font-mono text-gray-500">
-                        {cell.id.endsWith('ip') ? <span className="text-gray-900">{cell.getValue() as any}</span> : <span>{cell.getValue() as any}</span>}
+                        {cell.id.endsWith('ip') ? (
+                          <span className="text-gray-900">{cell.getValue() as any}</span>
+                        ) : cell.id.endsWith('asset') ? (
+                          ipData.asset ? (
+                            <Link
+                              to={`/assets/${ipData.asset.id}`}
+                              className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                            >
+                              {cell.getValue() as any}
+                              <ExternalLink className="w-3 h-3" />
+                            </Link>
+                          ) : (
+                            <span>-</span>
+                          )
+                        ) : (
+                          <span>{cell.getValue() as any}</span>
+                        )}
                       </td>
                     ))}
                     <td className="py-3 px-4 text-right">
