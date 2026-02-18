@@ -27,6 +27,7 @@ export interface LabelSettings {
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
+  qrCodeContent: 'full' | 'itemNumber';
   // Note: Item Number, Model, and Serial Number are always shown
 }
 
@@ -35,6 +36,7 @@ const DEFAULT_SETTINGS: LabelSettings = {
   showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,
+  qrCodeContent: 'full',
 };
 
 /**
@@ -66,9 +68,15 @@ export async function generateBarcode(text: string): Promise<Buffer> {
 }
 
 /**
- * Build QR code content with all label info
+ * Build QR code content based on qrCodeContent setting
  */
 function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
+  // If qrCodeContent is set to itemNumber, return only the item number
+  if (opts.qrCodeContent === 'itemNumber') {
+    return asset.itemNumber;
+  }
+
+  // Otherwise, build full QR content with all label info
   const lines: string[] = [];
 
   if (opts.showAssignedTo && asset.assignedTo) {
@@ -368,6 +376,7 @@ export function parseSettings(
     showAssignedTo: get('label.showAssignedTo') !== 'false',
     showHostname: get('label.showHostname') !== 'false',
     showIpAddress: get('label.showIpAddress') !== 'false',
+    qrCodeContent: (get('label.qrCodeContent') === 'itemNumber' ? 'itemNumber' : 'full'),
   };
 }
 
@@ -388,6 +397,9 @@ export function settingsToKeyValue(settings: Partial<LabelSettings>): Record<str
   }
   if (settings.showIpAddress !== undefined) {
     result['label.showIpAddress'] = String(settings.showIpAddress);
+  }
+  if (settings.qrCodeContent !== undefined) {
+    result['label.qrCodeContent'] = settings.qrCodeContent;
   }
 
   return result;

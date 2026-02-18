@@ -4,6 +4,35 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.13.0] - 2026-02-18
+
+### Added
+
+- **QR Code Content Option for Labels**
+  - Users can now choose between two QR code encoding modes:
+    - **Full**: Encodes all label information (Assigned To, Item, Model, S/N, Hostname, IP, Organization)
+    - **Item Number Only**: Encodes just the item number for simpler QR codes
+  - Setting available in Settings → Label Printing
+  - Per-print override available in Print Label modal
+
+- **Stocktake Condition Scanning with Mode Toggle**
+  - Improved quick-verify workflow with two condition-setting modes:
+    - **Single Asset**: Condition applies to next scanned asset only, then resets
+    - **Continuous**: Condition locks in place until changed (efficient for bulk scanning groups)
+  - Visual condition buttons replace dropdown (No Change, New, Excellent, Good, Fair, Poor, Non-functional)
+  - Colored condition buttons with active state indicator
+  - Condition banner shows locked state in continuous mode
+  - Condition QR code support: scan `CONDITION:GOOD` format to set condition and auto-enable continuous mode
+  - On-screen buttons for quick condition changes without printing QR codes
+
+- **New Asset Status: "Waiting Repair"**
+  - Added new asset status "Waiting Repair" for assets awaiting repair service
+  - Assigned orange badge color to indicate attention needed
+  - Available in asset status dropdowns throughout the system
+  - Supported in CSV import/export
+
+---
+
 ## [1.12.3] - 2026-02-18
 
 ### Fixed

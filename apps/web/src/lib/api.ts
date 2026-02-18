@@ -143,6 +143,7 @@ export interface LabelSettings {
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
+  qrCodeContent: 'full' | 'itemNumber';
   // Note: Item Number, Model, and Serial Number are always shown
 }
 

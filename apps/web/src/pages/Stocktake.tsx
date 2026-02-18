@@ -29,6 +29,33 @@ const STOCKTAKE_STATUS_LABELS: Record<string, string> = {
   CANCELLED: 'Cancelled'
 };
 
+const CONDITION_COLORS: Record<string, string> = {
+  NEW: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200',
+  EXCELLENT: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200',
+  GOOD: 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200',
+  FAIR: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200',
+  POOR: 'bg-red-100 text-red-800 border-red-300 hover:bg-red-200',
+  NON_FUNCTIONAL: 'bg-gray-100 text-gray-800 border-gray-300 hover:bg-gray-200'
+};
+
+const CONDITION_ACTIVE_COLORS: Record<string, string> = {
+  NEW: 'bg-blue-600 text-white border-blue-700',
+  EXCELLENT: 'bg-emerald-600 text-white border-emerald-700',
+  GOOD: 'bg-green-600 text-white border-green-700',
+  FAIR: 'bg-amber-600 text-white border-amber-700',
+  POOR: 'bg-red-600 text-white border-red-700',
+  NON_FUNCTIONAL: 'bg-gray-700 text-white border-gray-800'
+};
+
+const CONDITION_BANNER_COLORS: Record<string, string> = {
+  NEW: 'bg-blue-100 border-blue-300 text-blue-900',
+  EXCELLENT: 'bg-emerald-100 border-emerald-300 text-emerald-900',
+  GOOD: 'bg-green-100 border-green-300 text-green-900',
+  FAIR: 'bg-amber-100 border-amber-300 text-amber-900',
+  POOR: 'bg-red-100 border-red-300 text-red-900',
+  NON_FUNCTIONAL: 'bg-gray-100 border-gray-300 text-gray-900'
+};
+
 export default function Stocktake() {
   const [selectedStocktake, setSelectedStocktake] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -297,7 +324,8 @@ function StocktakeDetail({
   onBack: () => void;
 }) {
   const [quickVerifyInput, setQuickVerifyInput] = useState('');
-  const [quickVerifyCondition, setQuickVerifyCondition] = useState('');
+  const [activeCondition, setActiveCondition] = useState<string | null>(null);
+  const [conditionMode, setConditionMode] = useState<'single' | 'continuous'>('single');
   const [quickVerifyStatus, setQuickVerifyStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const quickVerifyRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -332,6 +360,10 @@ function StocktakeDetail({
         message: `Verified: ${data.asset?.itemNumber} - ${data.asset?.manufacturer?.name || ''} ${data.asset?.model || ''}`
       });
       setQuickVerifyInput('');
+      // In single mode, reset condition after each successful verify
+      if (conditionMode === 'single') {
+        setActiveCondition(null);
+      }
       queryClient.invalidateQueries({ queryKey: ['stocktake', stocktake.id] });
       queryClient.invalidateQueries({ queryKey: ['stocktakes'] });
       quickVerifyRef.current?.focus();
@@ -361,11 +393,26 @@ function StocktakeDetail({
 
   const handleQuickVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickVerifyInput.trim()) return;
+    const input = quickVerifyInput.trim();
+    if (!input) return;
+
+    // Check if this is a condition QR code (CONDITION:GOOD, CONDITION:EXCELLENT, etc.)
+    if (input.toUpperCase().startsWith('CONDITION:')) {
+      const conditionValue = input.substring('CONDITION:'.length).trim().toUpperCase();
+      if (Object.keys(CONDITION_LABELS).includes(conditionValue)) {
+        setActiveCondition(conditionValue);
+        setConditionMode('continuous');
+        setQuickVerifyInput('');
+        setQuickVerifyStatus({ type: 'success', message: `Condition set to: ${CONDITION_LABELS[conditionValue]}` });
+        quickVerifyRef.current?.focus();
+        return;
+      }
+    }
+
     setQuickVerifyStatus(null);
     quickVerifyMutation.mutate({
-      itemNumber: quickVerifyInput.trim(),
-      condition: quickVerifyCondition || undefined
+      itemNumber: input,
+      condition: activeCondition || undefined
     });
   };
 
@@ -461,10 +508,93 @@ function StocktakeDetail({
       {/* Quick Verify */}
       {stocktake.status === 'IN_PROGRESS' && (
         <div className="card p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <Scan className="w-4 h-4" />
-            Quick Verify (Scan or Enter Item Number)
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <Scan className="w-4 h-4" />
+              Quick Verify
+            </h3>
+            {/* Mode Toggle */}
+            <div className="flex rounded-md border border-gray-300 overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  setConditionMode('single');
+                  setActiveCondition(null);
+                }}
+                className={cn(
+                  'px-3 py-1.5 transition-colors',
+                  conditionMode === 'single'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                )}
+              >
+                Single Asset
+              </button>
+              <button
+                type="button"
+                onClick={() => setConditionMode('continuous')}
+                className={cn(
+                  'px-3 py-1.5 border-l border-gray-300 transition-colors',
+                  conditionMode === 'continuous'
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                )}
+              >
+                Continuous
+              </button>
+            </div>
+          </div>
+
+          {/* Condition Buttons */}
+          <div className="mb-3">
+            <p className="text-xs text-gray-500 mb-2">
+              Condition {conditionMode === 'continuous' ? '(locks until changed)' : '(applies to next scan)'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveCondition(null)}
+                className={cn(
+                  'px-3 py-1.5 rounded text-xs font-medium border transition-colors',
+                  !activeCondition
+                    ? 'bg-gray-700 text-white border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                )}
+              >
+                No Change
+              </button>
+              {Object.entries(CONDITION_LABELS).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setActiveCondition(activeCondition === value ? null : value)}
+                  className={cn(
+                    'px-3 py-1.5 rounded text-xs font-medium border transition-colors',
+                    activeCondition === value
+                      ? CONDITION_ACTIVE_COLORS[value]
+                      : CONDITION_COLORS[value]
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Continuous mode banner */}
+          {conditionMode === 'continuous' && activeCondition && (
+            <div className={cn('mb-3 px-3 py-2 rounded border text-sm font-medium flex items-center justify-between', CONDITION_BANNER_COLORS[activeCondition])}>
+              <span>CONDITION LOCKED: {CONDITION_LABELS[activeCondition]}</span>
+              <button
+                type="button"
+                onClick={() => setActiveCondition(null)}
+                className="text-xs underline opacity-70 hover:opacity-100"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleQuickVerify} className="flex gap-2">
             <input
               ref={quickVerifyRef}
@@ -475,20 +605,11 @@ function StocktakeDetail({
               className="input flex-1"
               autoFocus
             />
-            <select
-              value={quickVerifyCondition}
-              onChange={(e) => setQuickVerifyCondition(e.target.value)}
-              className="input w-36"
-            >
-              <option value="">Same condition</option>
-              {Object.entries(CONDITION_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
             <button type="submit" className="btn btn-primary" disabled={quickVerifyMutation.isPending}>
               Verify
             </button>
           </form>
+
           {quickVerifyStatus && (
             <div className={cn(
               'mt-3 p-3 rounded-md flex items-center gap-2',

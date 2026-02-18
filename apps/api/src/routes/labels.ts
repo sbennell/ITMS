@@ -48,7 +48,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
-    const { copies = 1, showAssignedTo, showHostname, showIpAddress } = req.body;
+    const { copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent } = req.body;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -62,7 +62,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -78,6 +78,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
     // Resolve first IP (all IPs are equal now)
@@ -108,7 +109,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 router.post('/print-batch', requireAuth, async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
-    const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress } = req.body;
+    const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent } = req.body;
 
     if (!Array.isArray(assetIds) || assetIds.length === 0) {
       return res.status(400).json({ error: 'assetIds array is required' });
@@ -117,7 +118,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -133,6 +134,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
     // Fetch all assets
@@ -198,11 +200,12 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
+    const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -218,6 +221,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
     // Fetch all assets
@@ -335,6 +339,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
+    const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -348,7 +353,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -364,6 +369,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
     const labelAsset: LabelAsset = { ...asset, organizationName };

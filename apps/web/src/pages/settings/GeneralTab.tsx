@@ -115,6 +115,10 @@ function LabelSettingsSection() {
     mutation.mutate({ [field]: value });
   };
 
+  const handleQRCodeContentChange = (value: 'full' | 'itemNumber') => {
+    mutation.mutate({ qrCodeContent: value });
+  };
+
   const isLoading = settingsLoading || printersLoading;
 
   return (
@@ -193,6 +197,35 @@ function LabelSettingsSection() {
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm text-gray-700">Show IP Address</span>
+              </label>
+            </div>
+          </div>
+
+          {/* QR Code Content */}
+          <div>
+            <label className="label">QR Code Content</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qrCodeContent"
+                  checked={(settings?.qrCodeContent ?? 'full') === 'full'}
+                  onChange={() => handleQRCodeContentChange('full')}
+                  disabled={mutation.isPending}
+                  className="border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">Full (all label info)</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="qrCodeContent"
+                  checked={(settings?.qrCodeContent ?? 'full') === 'itemNumber'}
+                  onChange={() => handleQRCodeContentChange('itemNumber')}
+                  disabled={mutation.isPending}
+                  className="border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">Item Number Only</span>
               </label>
             </div>
           </div>

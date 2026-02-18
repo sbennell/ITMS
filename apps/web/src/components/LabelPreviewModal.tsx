@@ -14,6 +14,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     showAssignedTo: true,
     showHostname: true,
     showIpAddress: true,
+    qrCodeContent: 'full',
   });
 
   const { data: orgData } = useQuery({
@@ -34,6 +35,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
         showAssignedTo: defaultSettings.showAssignedTo,
         showHostname: defaultSettings.showHostname,
         showIpAddress: defaultSettings.showIpAddress,
+        qrCodeContent: defaultSettings.qrCodeContent,
       });
     }
   }, [defaultSettings]);
@@ -52,12 +54,17 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     if (labelOptions.showAssignedTo !== undefined) params.set('showAssignedTo', String(labelOptions.showAssignedTo));
     if (labelOptions.showHostname !== undefined) params.set('showHostname', String(labelOptions.showHostname));
     if (labelOptions.showIpAddress !== undefined) params.set('showIpAddress', String(labelOptions.showIpAddress));
+    if (labelOptions.qrCodeContent !== undefined) params.set('qrCodeContent', labelOptions.qrCodeContent);
     const queryString = params.toString();
     window.open(`${api.downloadLabelUrl(asset.id)}${queryString ? '?' + queryString : ''}`, '_blank');
   };
 
   const toggleOption = (key: keyof LabelSettings) => {
     setLabelOptions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleQRCodeContentChange = (value: 'full' | 'itemNumber') => {
+    setLabelOptions(prev => ({ ...prev, qrCodeContent: value }));
   };
 
   return (
@@ -135,34 +142,60 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
           </button>
 
           {showOptions && (
-            <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showAssignedTo ?? true}
-                  onChange={() => toggleOption('showAssignedTo')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Assigned To</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showHostname ?? true}
-                  onChange={() => toggleOption('showHostname')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Hostname</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showIpAddress ?? true}
-                  onChange={() => toggleOption('showIpAddress')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show IP Address</span>
-              </label>
+            <div className="p-3 bg-gray-50 rounded-lg space-y-3">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={labelOptions.showAssignedTo ?? true}
+                    onChange={() => toggleOption('showAssignedTo')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Show Assigned To</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={labelOptions.showHostname ?? true}
+                    onChange={() => toggleOption('showHostname')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Show Hostname</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={labelOptions.showIpAddress ?? true}
+                    onChange={() => toggleOption('showIpAddress')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Show IP Address</span>
+                </label>
+              </div>
+
+              <div className="pt-2 border-t border-gray-300 space-y-2">
+                <p className="text-xs font-medium text-gray-600">QR Code Content</p>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="qrCodeContent"
+                    checked={(labelOptions.qrCodeContent ?? 'full') === 'full'}
+                    onChange={() => handleQRCodeContentChange('full')}
+                    className="border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Full (all label info)</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="qrCodeContent"
+                    checked={(labelOptions.qrCodeContent ?? 'full') === 'itemNumber'}
+                    onChange={() => handleQRCodeContentChange('itemNumber')}
+                    className="border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700">Item Number Only</span>
+                </label>
+              </div>
             </div>
           )}
 

@@ -20,6 +20,7 @@ const VALID_STATUS = [
   'Awaiting allocation',
   'Awaiting delivery',
   'Awaiting collection',
+  'Waiting Repair',
   'Decommissioned',
   'Decommissioned - Beyond service age',
   'Decommissioned - Damaged',
