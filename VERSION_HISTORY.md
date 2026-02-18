@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.14.0] - 2026-02-18
+
+### Added
+
+- **redone the Asset Reports Suite**
+  - **Warranty Expiry Report** — Track warranty status, expiration dates, and upcoming expirations with configurable thresholds
+  - **Fleet Health Report** — Monitor asset condition breakdown across the organization with visual charts and category analysis
+  - **Asset Value Report** — Financial analysis with totals by category, location, and manufacturer
+  - **Age & Lifecycle Report** — Track asset age groups and end-of-life status with EOL date projections
+  - **Stocktake Review Report** — Monitor asset review compliance and identify overdue reviews
+  - All reports feature pagination, filtering by category/location, summary statistics, charts, and exportable asset tables
+
+---
+
 ## [1.13.1] - 2026-02-18
 
 ### Added

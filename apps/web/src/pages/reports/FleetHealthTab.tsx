@@ -1,18 +1,34 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { DollarSign, TrendingUp } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
 
 interface FilterState {
   categoryId: string;
   locationId: string;
-  manufacturerId: string;
 }
 
-export default function ValueTab() {
-  const [filters, setFilters] = useState<FilterState>({ categoryId: '', locationId: '', manufacturerId: '' });
+const CONDITION_COLORS: Record<string, string> = {
+  NEW: '#10b981',
+  EXCELLENT: '#3b82f6',
+  GOOD: '#06b6d4',
+  FAIR: '#f59e0b',
+  POOR: '#ef4444',
+  NON_FUNCTIONAL: '#6b7280'
+};
+
+const CONDITION_LABELS: Record<string, string> = {
+  NEW: 'New',
+  EXCELLENT: 'Excellent',
+  GOOD: 'Good',
+  FAIR: 'Fair',
+  POOR: 'Poor',
+  NON_FUNCTIONAL: 'Non-Functional'
+};
+
+export default function FleetHealthTab() {
+  const [filters, setFilters] = useState<FilterState>({ categoryId: '', locationId: '' });
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
@@ -26,18 +42,12 @@ export default function ValueTab() {
     queryFn: api.getLocations
   });
 
-  const { data: manufacturersData } = useQuery({
-    queryKey: ['lookups', 'manufacturers'],
-    queryFn: api.getManufacturers
-  });
-
   const { data, isLoading, error } = useQuery({
-    queryKey: ['reports', 'value', filters, page],
+    queryKey: ['reports', 'condition', filters, page],
     queryFn: () =>
-      api.getValueReport({
+      api.getConditionReport({
         category: filters.categoryId,
         location: filters.locationId,
-        manufacturer: filters.manufacturerId,
         skip: (page - 1) * pageSize,
         limit: pageSize
       })
@@ -48,26 +58,41 @@ export default function ValueTab() {
     setPage(1);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(value);
+  const ConditionBadge = ({ condition }: { condition: string }) => {
+    return (
+      <span
+        className="px-2 py-1 rounded text-xs font-medium text-white"
+        style={{ backgroundColor: CONDITION_COLORS[condition] || '#6b7280' }}
+      >
+        {CONDITION_LABELS[condition] || condition}
+      </span>
+    );
   };
 
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">Failed to load asset value report</p>
+        <p className="text-red-600">Failed to load fleet health report</p>
       </div>
     );
   }
+
+  // Prepare pie data from summary
+  const pieData = data
+    ? Object.entries(data.summary)
+        .map(([condition, count]) => ({
+          name: CONDITION_LABELS[condition] || condition,
+          value: count,
+          color: CONDITION_COLORS[condition]
+        }))
+        .filter((x) => x.value > 0)
+    : [];
 
   return (
     <div className="space-y-6">
       {/* Filters */}
       <div className="card p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="label">Category</label>
             <select
@@ -98,21 +123,6 @@ export default function ValueTab() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="label">Manufacturer</label>
-            <select
-              value={filters.manufacturerId}
-              onChange={(e) => handleFilterChange('manufacturerId', e.target.value)}
-              className="input"
-            >
-              <option value="">All Manufacturers</option>
-              {manufacturersData?.map((mfg) => (
-                <option key={mfg.id} value={mfg.id}>
-                  {mfg.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
@@ -123,89 +133,70 @@ export default function ValueTab() {
       ) : data ? (
         <>
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Value</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.summary.totalValue)}</p>
-                </div>
-                <DollarSign className="w-10 h-10 text-green-500 opacity-20" />
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            {Object.entries(CONDITION_LABELS).map(([key, label]) => (
+              <div key={key} className="card p-4 text-center">
+                <p className="text-xs text-gray-600 mb-1">{label}</p>
+                <p className="text-2xl font-bold" style={{ color: CONDITION_COLORS[key] }}>
+                  {data.summary[key as keyof typeof data.summary] || 0}
+                </p>
               </div>
-            </div>
-            <div className="card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Average Value</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.summary.avgValue)}</p>
-                </div>
-                <TrendingUp className="w-10 h-10 text-blue-500 opacity-20" />
-              </div>
-            </div>
-            <div className="card p-4">
-              <p className="text-sm text-gray-600">Assets with Price</p>
-              <p className="text-2xl font-bold text-gray-900">{data.summary.assetsWithPrice}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                ({data.summary.assetCount > 0 ? Math.round((data.summary.assetsWithPrice / data.summary.assetCount) * 100) : 0}%)
-              </p>
-            </div>
-            <div className="card p-4">
-              <p className="text-sm text-gray-600">Asset Count</p>
-              <p className="text-2xl font-bold text-gray-900">{data.summary.assetCount}</p>
-            </div>
-          </div>
-
-          {/* Value Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="card p-4">
-              <p className="text-sm text-gray-600">Max Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.summary.maxValue)}</p>
-            </div>
-            <div className="card p-4">
-              <p className="text-sm text-gray-600">Min Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(data.summary.minValue)}</p>
-            </div>
+            ))}
           </div>
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* By Category */}
-            {data.byCategory.length > 0 && (
+            {/* Pie Chart */}
+            {pieData.length > 0 && (
               <div className="card p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Value by Category</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Overall Fleet Health</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={data.byCategory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                    <Bar dataKey="totalValue" fill="#2563eb" name="Total Value" />
-                  </BarChart>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
                 </ResponsiveContainer>
               </div>
             )}
 
-            {/* By Location */}
-            {data.byLocation.length > 0 && (
+            {/* By Condition Bar Chart */}
+            {data.byCondition.length > 0 && (
               <div className="card p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Value by Location</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Assets by Condition</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={data.byLocation}>
+                  <BarChart
+                    data={data.byCondition.map((item) => ({
+                      ...item,
+                      fill: CONDITION_COLORS[item.condition]
+                    }))}
+                  >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="location" />
+                    <XAxis dataKey="condition" />
                     <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                    <Bar dataKey="totalValue" fill="#3b82f6" name="Total Value" />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#2563eb" shape={<CustomBar />} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Category Breakdown Table */}
+          {/* Category Breakdown */}
           {data.byCategory.length > 0 && (
             <div className="card p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Category Breakdown</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Condition by Category</h3>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -214,71 +205,42 @@ export default function ValueTab() {
                         Category
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assets
+                        New
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Value
+                        Excellent
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Avg Value
+                        Good
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fair
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Poor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Non-Functional
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Total
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {data.byCategory.map((row) => (
-                      <tr key={row.category} className="hover:bg-gray-50">
+                    {data.byCategory.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {row.category}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.count}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.NEW}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.EXCELLENT}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.GOOD}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.FAIR}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.POOR}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.NON_FUNCTIONAL}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {formatCurrency(row.totalValue)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(row.avgValue)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Manufacturer Breakdown Table */}
-          {data.byManufacturer.length > 0 && (
-            <div className="card p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Manufacturers by Value</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Manufacturer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assets
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Value
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Avg Value
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {data.byManufacturer.slice(0, 10).map((row) => (
-                      <tr key={row.manufacturer} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {row.manufacturer}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.count}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {formatCurrency(row.totalValue)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(row.avgValue)}
+                          {row.total}
                         </td>
                       </tr>
                     ))}
@@ -304,13 +266,13 @@ export default function ValueTab() {
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Manufacturer
+                      Location
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Purchase Price
+                      Condition
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acquired Date
+                      Status
                     </th>
                   </tr>
                 </thead>
@@ -327,14 +289,12 @@ export default function ValueTab() {
                         {asset.category?.name || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {asset.manufacturer?.name || '-'}
+                        {asset.location?.name || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {asset.purchasePrice ? formatCurrency(asset.purchasePrice) : '-'}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <ConditionBadge condition={asset.condition} />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {asset.acquiredDate ? new Date(asset.acquiredDate).toLocaleDateString() : '-'}
-                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{asset.status}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -387,4 +347,10 @@ export default function ValueTab() {
       ) : null}
     </div>
   );
+}
+
+// Custom bar to use color from data
+function CustomBar(props: any) {
+  const { fill, x, y, width, height } = props;
+  return <rect x={x} y={y} width={width} height={height} fill={fill} />;
 }

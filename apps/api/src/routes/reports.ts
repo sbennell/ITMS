@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuth } from './auth.js';
 
 const router = Router();
@@ -7,197 +7,75 @@ const router = Router();
 // Apply auth to all routes
 router.use(requireAuth);
 
-// Get stocktake review report - assets grouped by last review date
-router.get('/stocktake-review', async (req: Request, res: Response) => {
-  const prisma = req.app.locals.prisma as PrismaClient;
+// Helper: Build base where clause for non-decommissioned assets
+function buildBaseWhere(categoryId?: string, locationId?: string): Prisma.AssetWhereInput {
+  const where: Prisma.AssetWhereInput = {
+    status: { not: { startsWith: 'Decommissioned' } } as any
+  };
 
-  try {
-    const year = req.query.year as string | undefined;
-    const status = req.query.status as string | undefined;
-    const categoryId = req.query.category as string | undefined;
-    const locationId = req.query.location as string | undefined;
-    const overdueMonthsParam = req.query.overdueMonths as string | undefined;
-
-    const overdueMonths = parseInt(overdueMonthsParam || '12', 10);
-
-    // Fetch all non-decommissioned assets
-    const assets = await prisma.asset.findMany({
-      where: {
-        status: {
-          not: { startsWith: 'Decommissioned' }
-        },
-        ...(categoryId ? { categoryId } : {}),
-        ...(locationId ? { locationId } : {})
-      },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        serialNumber: true,
-        status: true,
-        lastReviewDate: true,
-        category: {
-          select: { id: true, name: true }
-        },
-        location: {
-          select: { id: true, name: true }
-        },
-        manufacturer: {
-          select: { id: true, name: true }
-        }
-      },
-      orderBy: { itemNumber: 'asc' }
-    });
-
-    // Process assets to add computed fields
-    const now = Date.now();
-    const msPerDay = 86400000;
-    const overdueMs = overdueMonths * 30 * msPerDay;
-
-    const processedAssets = assets.map((asset) => {
-      const lastReviewDate = asset.lastReviewDate
-        ? asset.lastReviewDate.toISOString()
-        : null;
-
-      const reviewYear = asset.lastReviewDate
-        ? asset.lastReviewDate.getFullYear()
-        : null;
-
-      const daysSinceReview = asset.lastReviewDate
-        ? Math.floor((now - asset.lastReviewDate.getTime()) / msPerDay)
-        : null;
-
-      let reviewStatus: 'reviewed' | 'overdue' | 'never';
-      if (!asset.lastReviewDate) {
-        reviewStatus = 'never';
-      } else if (now - asset.lastReviewDate.getTime() > overdueMs) {
-        reviewStatus = 'overdue';
-      } else {
-        reviewStatus = 'reviewed';
-      }
-
-      return {
-        id: asset.id,
-        itemNumber: asset.itemNumber,
-        model: asset.model,
-        serialNumber: asset.serialNumber,
-        category: asset.category,
-        location: asset.location,
-        manufacturer: asset.manufacturer,
-        status: asset.status,
-        lastReviewDate,
-        reviewYear,
-        reviewStatus,
-        daysSinceReview
-      };
-    });
-
-    // Build summary from full list
-    const currentYear = new Date().getFullYear();
-    const summary = {
-      totalAssets: processedAssets.length,
-      reviewedThisYear: processedAssets.filter(
-        (a) => a.reviewYear === currentYear
-      ).length,
-      overdueCount: processedAssets.filter(
-        (a) => a.reviewStatus === 'overdue'
-      ).length,
-      neverReviewedCount: processedAssets.filter(
-        (a) => a.reviewStatus === 'never'
-      ).length
-    };
-
-    // Build byYear grouping
-    const yearMap = new Map<number, number>();
-    processedAssets.forEach((asset) => {
-      if (asset.reviewYear) {
-        yearMap.set(asset.reviewYear, (yearMap.get(asset.reviewYear) || 0) + 1);
-      }
-    });
-    const byYear = Array.from(yearMap.entries())
-      .map(([year, count]) => ({ year, count }))
-      .sort((a, b) => a.year - b.year);
-
-    // Apply year filter
-    let filteredAssets = processedAssets;
-    if (year) {
-      const yearNum = parseInt(year, 10);
-      filteredAssets = filteredAssets.filter((a) => a.reviewYear === yearNum);
-    }
-
-    // Apply status filter
-    if (status && ['reviewed', 'overdue', 'never'].includes(status)) {
-      filteredAssets = filteredAssets.filter(
-        (a) => a.reviewStatus === status
-      );
-    }
-
-    res.json({
-      summary,
-      byYear,
-      assets: filteredAssets,
-      meta: {
-        overdueThresholdMonths: overdueMonths,
-        generatedAt: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching stocktake review report:', error);
-    res.status(500).json({ error: 'Failed to fetch stocktake review report' });
+  if (categoryId) {
+    where.categoryId = categoryId;
   }
-});
 
-// Get warranty expiry report
+  if (locationId) {
+    where.locationId = locationId;
+  }
+
+  return where;
+}
+
+// GET /warranty - Warranty Expiry Report
 router.get('/warranty', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
-    const daysParam = req.query.days as string | undefined;
-    const categoryId = req.query.category as string | undefined;
-    const locationId = req.query.location as string | undefined;
+    const {
+      days = '90',
+      category,
+      location,
+      skip = '0',
+      limit = '50'
+    } = req.query;
 
-    const days = parseInt(daysParam || '90', 10);
+    const daysNum = parseInt(days as string, 10);
+    const skipNum = parseInt(skip as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const now = new Date();
+    const thresholdDate = new Date(now.getTime() + daysNum * 24 * 60 * 60 * 1000);
 
-    // Fetch all non-decommissioned assets
-    const assets = await prisma.asset.findMany({
-      where: {
-        status: { not: { startsWith: 'Decommissioned' } },
-        ...(categoryId ? { categoryId } : {}),
-        ...(locationId ? { locationId } : {})
-      },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        serialNumber: true,
-        status: true,
-        warrantyExpiration: true,
-        manufacturer: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } }
-      },
-      orderBy: { warrantyExpiration: 'asc' }
-    });
+    const where = buildBaseWhere(category as string, location as string);
 
-    const now = Date.now();
-    const msPerDay = 86400000;
-    const thresholdMs = days * msPerDay;
+    // Get total count and assets
+    const [total, assets] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where,
+        skip: skipNum,
+        take: limitNum,
+        include: {
+          category: true,
+          manufacturer: true,
+          location: true
+        },
+        orderBy: { itemNumber: 'asc' }
+      })
+    ]);
 
+    // Process assets to compute warranty status
     const processedAssets = assets.map((asset) => {
-      const warrantyExpiration = asset.warrantyExpiration
-        ? asset.warrantyExpiration.toISOString()
-        : null;
-
       let daysUntilExpiry: number | null = null;
       let warrantyStatus: 'no_warranty' | 'expired' | 'expiring_soon' | 'ok';
 
       if (!asset.warrantyExpiration) {
         warrantyStatus = 'no_warranty';
       } else {
-        daysUntilExpiry = Math.floor((asset.warrantyExpiration.getTime() - now) / msPerDay);
+        daysUntilExpiry = Math.floor(
+          (asset.warrantyExpiration.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+        );
+
         if (daysUntilExpiry < 0) {
           warrantyStatus = 'expired';
-        } else if (daysUntilExpiry <= days) {
+        } else if (daysUntilExpiry <= daysNum) {
           warrantyStatus = 'expiring_soon';
         } else {
           warrantyStatus = 'ok';
@@ -210,16 +88,25 @@ router.get('/warranty', async (req: Request, res: Response) => {
         model: asset.model,
         serialNumber: asset.serialNumber,
         status: asset.status,
-        manufacturer: asset.manufacturer,
-        category: asset.category,
-        location: asset.location,
-        warrantyExpiration,
+        manufacturer: asset.manufacturer ? { id: asset.manufacturer.id, name: asset.manufacturer.name } : null,
+        category: asset.category ? { id: asset.category.id, name: asset.category.name } : null,
+        location: asset.location ? { id: asset.location.id, name: asset.location.name } : null,
+        warrantyExpiration: asset.warrantyExpiration?.toISOString() || null,
         daysUntilExpiry,
         warrantyStatus
       };
     });
 
-    // Build summary
+    // Group by warranty month
+    const byMonth = new Map<string, number>();
+    assets.forEach((asset) => {
+      if (asset.warrantyExpiration) {
+        const yearMonth = asset.warrantyExpiration.toISOString().slice(0, 7);
+        byMonth.set(yearMonth, (byMonth.get(yearMonth) || 0) + 1);
+      }
+    });
+
+    // Compute summary
     const summary = {
       noWarranty: processedAssets.filter((a) => a.warrantyStatus === 'no_warranty').length,
       expired: processedAssets.filter((a) => a.warrantyStatus === 'expired').length,
@@ -227,24 +114,22 @@ router.get('/warranty', async (req: Request, res: Response) => {
       ok: processedAssets.filter((a) => a.warrantyStatus === 'ok').length
     };
 
-    // Build byMonth grouping
-    const monthMap = new Map<string, number>();
-    processedAssets.forEach((asset) => {
-      if (asset.warrantyExpiration) {
-        const date = new Date(asset.warrantyExpiration);
-        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthMap.set(month, (monthMap.get(month) || 0) + 1);
-      }
-    });
-    const byMonth = Array.from(monthMap.entries())
-      .map(([month, count]) => ({ month, count }))
-      .sort((a, b) => a.month.localeCompare(b.month));
-
     res.json({
       summary,
-      byMonth,
+      byMonth: Array.from(byMonth.entries())
+        .map(([month, count]) => ({ month, count }))
+        .sort((a, b) => a.month.localeCompare(b.month)),
       assets: processedAssets,
-      meta: { thresholdDays: days, generatedAt: new Date().toISOString() }
+      pagination: {
+        skip: skipNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      meta: {
+        thresholdDays: daysNum,
+        generatedAt: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error fetching warranty report:', error);
@@ -252,71 +137,113 @@ router.get('/warranty', async (req: Request, res: Response) => {
   }
 });
 
-// Get condition/fleet health report
+// GET /condition - Fleet Health Report (Condition Breakdown)
 router.get('/condition', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
-    const categoryId = req.query.category as string | undefined;
-    const locationId = req.query.location as string | undefined;
+    const { category, location, skip = '0', limit = '50' } = req.query;
 
-    const assets = await prisma.asset.findMany({
-      where: {
-        status: { not: { startsWith: 'Decommissioned' } },
-        ...(categoryId ? { categoryId } : {}),
-        ...(locationId ? { locationId } : {})
-      },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        status: true,
-        condition: true,
-        category: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } }
-      },
-      orderBy: { condition: 'asc' }
+    const skipNum = parseInt(skip as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+
+    const where = buildBaseWhere(category as string, location as string);
+
+    // Get total count and assets
+    const [total, assets] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where,
+        skip: skipNum,
+        take: limitNum,
+        include: {
+          category: true,
+          location: true
+        },
+        orderBy: { itemNumber: 'asc' }
+      })
+    ]);
+
+    // Process assets
+    const processedAssets = assets.map((asset) => ({
+      id: asset.id,
+      itemNumber: asset.itemNumber,
+      model: asset.model,
+      status: asset.status,
+      condition: asset.condition,
+      category: asset.category ? { id: asset.category.id, name: asset.category.name } : null,
+      location: asset.location ? { id: asset.location.id, name: asset.location.name } : null
+    }));
+
+    // Compute summary - count per condition
+    const conditionCounts = {
+      NEW: 0,
+      EXCELLENT: 0,
+      GOOD: 0,
+      FAIR: 0,
+      POOR: 0,
+      NON_FUNCTIONAL: 0
+    };
+
+    // Count from all assets (not just paginated)
+    const allAssets = await prisma.asset.findMany({
+      where,
+      select: { condition: true }
     });
 
-    // Build summary
-    const conditionCounts: Record<string, number> = {};
-    const conditionOrder = ['NEW', 'EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NON_FUNCTIONAL'];
-    conditionOrder.forEach((c) => { conditionCounts[c] = 0; });
-
-    const byConditionMap = new Map<string, number>();
-    const byCategoryMap = new Map<string, Record<string, number>>();
-
-    assets.forEach((asset) => {
-      const cond = asset.condition || 'GOOD';
-      conditionCounts[cond] = (conditionCounts[cond] || 0) + 1;
-      byConditionMap.set(cond, (byConditionMap.get(cond) || 0) + 1);
-
-      const catName = asset.category?.name || 'Uncategorized';
-      if (!byCategoryMap.has(catName)) {
-        const catConds: Record<string, number> = {};
-        conditionOrder.forEach((c) => { catConds[c] = 0; });
-        byCategoryMap.set(catName, catConds);
+    allAssets.forEach((asset) => {
+      const cond = asset.condition as keyof typeof conditionCounts;
+      if (cond in conditionCounts) {
+        conditionCounts[cond]++;
       }
-      const catConds = byCategoryMap.get(catName)!;
-      catConds[cond] = (catConds[cond] || 0) + 1;
     });
 
     const summary = conditionCounts;
 
-    const byCondition = Array.from(byConditionMap.entries())
+    // byCondition array
+    const byCondition = Object.entries(conditionCounts)
       .map(([condition, count]) => ({ condition, count }))
-      .sort((a, b) => conditionOrder.indexOf(a.condition) - conditionOrder.indexOf(b.condition));
+      .sort((a, b) => b.count - a.count);
 
-    const byCategory = Array.from(byCategoryMap.entries())
-      .map(([category, counts]) => ({ category, ...counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }))
+    // byCategory - cross-tab
+    const allWithCategory = await prisma.asset.findMany({
+      where,
+      include: { category: true }
+    });
+
+    const byCategory = new Map<string, Record<keyof typeof conditionCounts, number>>();
+    allWithCategory.forEach((asset) => {
+      const categoryName = asset.category?.name || 'Uncategorized';
+      if (!byCategory.has(categoryName)) {
+        byCategory.set(categoryName, { NEW: 0, EXCELLENT: 0, GOOD: 0, FAIR: 0, POOR: 0, NON_FUNCTIONAL: 0 });
+      }
+      const cond = asset.condition as keyof typeof conditionCounts;
+      const counts = byCategory.get(categoryName)!;
+      counts[cond]++;
+    });
+
+    const byCategoryArray = Array.from(byCategory.entries())
+      .map(([category, counts]) => ({
+        category,
+        ...counts,
+        total: Object.values(counts).reduce((a, b) => a + b, 0)
+      }))
       .sort((a, b) => b.total - a.total);
 
     res.json({
       summary,
       byCondition,
-      byCategory,
-      assets,
-      meta: { generatedAt: new Date().toISOString() }
+      byCategory: byCategoryArray,
+      assets: processedAssets,
+      pagination: {
+        skip: skipNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      meta: {
+        generatedAt: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error fetching condition report:', error);
@@ -324,65 +251,94 @@ router.get('/condition', async (req: Request, res: Response) => {
   }
 });
 
-// Get asset value/financial report
+// GET /value - Asset Value Report (Financial)
 router.get('/value', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
-    const categoryId = req.query.category as string | undefined;
-    const locationId = req.query.location as string | undefined;
-    const manufacturerId = req.query.manufacturer as string | undefined;
+    const { category, location, manufacturer, skip = '0', limit = '50' } = req.query;
 
-    const assets = await prisma.asset.findMany({
-      where: {
-        status: { not: { startsWith: 'Decommissioned' } },
-        ...(categoryId ? { categoryId } : {}),
-        ...(locationId ? { locationId } : {}),
-        ...(manufacturerId ? { manufacturerId } : {})
-      },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        status: true,
-        purchasePrice: true,
-        acquiredDate: true,
-        category: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } },
-        manufacturer: { select: { id: true, name: true } }
-      },
-      orderBy: { purchasePrice: 'desc' }
+    const skipNum = parseInt(skip as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+
+    const where = buildBaseWhere(category as string, location as string);
+
+    if (manufacturer) {
+      where.manufacturerId = manufacturer as string;
+    }
+
+    // Get total count and paginated assets
+    const [total, assets] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where,
+        skip: skipNum,
+        take: limitNum,
+        include: {
+          category: true,
+          location: true,
+          manufacturer: true
+        },
+        orderBy: { itemNumber: 'asc' }
+      })
+    ]);
+
+    // Process assets
+    const processedAssets = assets.map((asset) => ({
+      id: asset.id,
+      itemNumber: asset.itemNumber,
+      model: asset.model,
+      status: asset.status,
+      purchasePrice: asset.purchasePrice,
+      acquiredDate: asset.acquiredDate?.toISOString() || null,
+      category: asset.category ? { id: asset.category.id, name: asset.category.name } : null,
+      location: asset.location ? { id: asset.location.id, name: asset.location.name } : null,
+      manufacturer: asset.manufacturer ? { id: asset.manufacturer.id, name: asset.manufacturer.name } : null
+    }));
+
+    // Get all assets for aggregations
+    const allAssets = await prisma.asset.findMany({
+      where,
+      include: {
+        category: true,
+        location: true,
+        manufacturer: true
+      }
     });
 
-    // Build summary
-    const assetsWithPrice = assets.filter((a) => a.purchasePrice);
+    // Compute summary
+    const assetsWithPrice = allAssets.filter((a) => a.purchasePrice !== null && a.purchasePrice > 0);
     const totalValue = assetsWithPrice.reduce((sum, a) => sum + (a.purchasePrice || 0), 0);
     const avgValue = assetsWithPrice.length > 0 ? totalValue / assetsWithPrice.length : 0;
-    const maxValue = Math.max(...assetsWithPrice.map((a) => a.purchasePrice || 0), 0);
-    const minValue = Math.min(...assetsWithPrice.filter((a) => a.purchasePrice && a.purchasePrice > 0).map((a) => a.purchasePrice || 0), Infinity);
+    const prices = assetsWithPrice.map((a) => a.purchasePrice!);
+    const maxValue = prices.length > 0 ? Math.max(...prices) : 0;
+    const minValue = prices.length > 0 ? Math.min(...prices) : 0;
 
     const summary = {
       totalValue: Math.round(totalValue * 100) / 100,
       avgValue: Math.round(avgValue * 100) / 100,
-      assetCount: assets.length,
+      assetCount: allAssets.length,
       assetsWithPrice: assetsWithPrice.length,
-      assetsWithoutPrice: assets.length - assetsWithPrice.length,
-      maxValue: maxValue || 0,
-      minValue: minValue === Infinity ? 0 : minValue
+      assetsWithoutPrice: allAssets.length - assetsWithPrice.length,
+      maxValue: Math.round(maxValue * 100) / 100,
+      minValue: Math.round(minValue * 100) / 100
     };
 
-    // Group by category
-    const byCategoryMap = new Map<string, { count: number; totalValue: number }>();
-    assets.forEach((asset) => {
-      const catName = asset.category?.name || 'Uncategorized';
-      if (!byCategoryMap.has(catName)) {
-        byCategoryMap.set(catName, { count: 0, totalValue: 0 });
+    // byCategory
+    const byCategory = new Map<string, { totalValue: number; count: number }>();
+    allAssets.forEach((asset) => {
+      const categoryName = asset.category?.name || 'Uncategorized';
+      if (!byCategory.has(categoryName)) {
+        byCategory.set(categoryName, { totalValue: 0, count: 0 });
       }
-      const cat = byCategoryMap.get(catName)!;
-      cat.count += 1;
-      cat.totalValue += asset.purchasePrice || 0;
+      const data = byCategory.get(categoryName)!;
+      data.count++;
+      if (asset.purchasePrice) {
+        data.totalValue += asset.purchasePrice;
+      }
     });
-    const byCategory = Array.from(byCategoryMap.entries())
+
+    const byCategoryArray = Array.from(byCategory.entries())
       .map(([category, data]) => ({
         category,
         count: data.count,
@@ -391,18 +347,21 @@ router.get('/value', async (req: Request, res: Response) => {
       }))
       .sort((a, b) => b.totalValue - a.totalValue);
 
-    // Group by location
-    const byLocationMap = new Map<string, { count: number; totalValue: number }>();
-    assets.forEach((asset) => {
-      const locName = asset.location?.name || 'Unassigned';
-      if (!byLocationMap.has(locName)) {
-        byLocationMap.set(locName, { count: 0, totalValue: 0 });
+    // byLocation
+    const byLocation = new Map<string, { totalValue: number; count: number }>();
+    allAssets.forEach((asset) => {
+      const locationName = asset.location?.name || 'Unassigned';
+      if (!byLocation.has(locationName)) {
+        byLocation.set(locationName, { totalValue: 0, count: 0 });
       }
-      const loc = byLocationMap.get(locName)!;
-      loc.count += 1;
-      loc.totalValue += asset.purchasePrice || 0;
+      const data = byLocation.get(locationName)!;
+      data.count++;
+      if (asset.purchasePrice) {
+        data.totalValue += asset.purchasePrice;
+      }
     });
-    const byLocation = Array.from(byLocationMap.entries())
+
+    const byLocationArray = Array.from(byLocation.entries())
       .map(([location, data]) => ({
         location,
         count: data.count,
@@ -410,18 +369,21 @@ router.get('/value', async (req: Request, res: Response) => {
       }))
       .sort((a, b) => b.totalValue - a.totalValue);
 
-    // Group by manufacturer
-    const byManufacturerMap = new Map<string, { count: number; totalValue: number }>();
-    assets.forEach((asset) => {
-      const mfgName = asset.manufacturer?.name || 'Unknown';
-      if (!byManufacturerMap.has(mfgName)) {
-        byManufacturerMap.set(mfgName, { count: 0, totalValue: 0 });
+    // byManufacturer
+    const byManufacturer = new Map<string, { totalValue: number; count: number }>();
+    allAssets.forEach((asset) => {
+      const manufacturerName = asset.manufacturer?.name || 'Unknown';
+      if (!byManufacturer.has(manufacturerName)) {
+        byManufacturer.set(manufacturerName, { totalValue: 0, count: 0 });
       }
-      const mfg = byManufacturerMap.get(mfgName)!;
-      mfg.count += 1;
-      mfg.totalValue += asset.purchasePrice || 0;
+      const data = byManufacturer.get(manufacturerName)!;
+      data.count++;
+      if (asset.purchasePrice) {
+        data.totalValue += asset.purchasePrice;
+      }
     });
-    const byManufacturer = Array.from(byManufacturerMap.entries())
+
+    const byManufacturerArray = Array.from(byManufacturer.entries())
       .map(([manufacturer, data]) => ({
         manufacturer,
         count: data.count,
@@ -432,11 +394,19 @@ router.get('/value', async (req: Request, res: Response) => {
 
     res.json({
       summary,
-      byCategory,
-      byLocation,
-      byManufacturer,
-      assets,
-      meta: { generatedAt: new Date().toISOString() }
+      byCategory: byCategoryArray,
+      byLocation: byLocationArray,
+      byManufacturer: byManufacturerArray,
+      assets: processedAssets,
+      pagination: {
+        skip: skipNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      meta: {
+        generatedAt: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error fetching value report:', error);
@@ -444,66 +414,70 @@ router.get('/value', async (req: Request, res: Response) => {
   }
 });
 
-// Get asset lifecycle/age and EOL report
+// GET /lifecycle - Age & Lifecycle Report
 router.get('/lifecycle', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
-    const categoryId = req.query.category as string | undefined;
-    const locationId = req.query.location as string | undefined;
-    const eolDaysParam = req.query.eolDays as string | undefined;
+    const { category, location, eolDays = '365', skip = '0', limit = '50' } = req.query;
 
-    const eolDays = parseInt(eolDaysParam || '365', 10);
-
-    const assets = await prisma.asset.findMany({
-      where: {
-        status: { not: { startsWith: 'Decommissioned' } },
-        ...(categoryId ? { categoryId } : {}),
-        ...(locationId ? { locationId } : {})
-      },
-      select: {
-        id: true,
-        itemNumber: true,
-        model: true,
-        status: true,
-        acquiredDate: true,
-        endOfLifeDate: true,
-        category: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } }
-      },
-      orderBy: { endOfLifeDate: 'asc' }
-    });
-
+    const eolDaysNum = parseInt(eolDays as string, 10);
+    const skipNum = parseInt(skip as string, 10);
+    const limitNum = parseInt(limit as string, 10);
     const now = new Date();
-    const msPerDay = 86400000;
-    const msPerYear = msPerDay * 365.25;
-    const eolThresholdMs = eolDays * msPerDay;
 
+    const where = buildBaseWhere(category as string, location as string);
+
+    // Get total count and paginated assets
+    const [total, assets] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where,
+        skip: skipNum,
+        take: limitNum,
+        include: {
+          category: true,
+          location: true
+        },
+        orderBy: { itemNumber: 'asc' }
+      })
+    ]);
+
+    // Helper to compute age group
+    function getAgeGroup(ageYears: number | null): string {
+      if (ageYears === null) return 'Unknown';
+      if (ageYears < 1) return '< 1 year';
+      if (ageYears < 3) return '1-3 years';
+      if (ageYears < 5) return '3-5 years';
+      if (ageYears < 7) return '5-7 years';
+      return '7+ years';
+    }
+
+    // Helper to compute EOL status
+    function getEolStatus(
+      endOfLifeDate: Date | null,
+      ageYears: number | null
+    ): 'no_eol_date' | 'passed' | 'upcoming' | 'ok' {
+      if (!endOfLifeDate) return 'no_eol_date';
+      if (endOfLifeDate < now) return 'passed';
+      const daysUntil = Math.floor((endOfLifeDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      if (daysUntil <= eolDaysNum) return 'upcoming';
+      return 'ok';
+    }
+
+    // Process assets
     const processedAssets = assets.map((asset) => {
       let ageYears: number | null = null;
-      let ageGroup: string = 'Unknown';
+      let daysUntilEol: number | null = null;
 
       if (asset.acquiredDate) {
-        ageYears = (now.getTime() - asset.acquiredDate.getTime()) / msPerYear;
-        if (ageYears < 1) ageGroup = '< 1 year';
-        else if (ageYears < 3) ageGroup = '1–3 years';
-        else if (ageYears < 5) ageGroup = '3–5 years';
-        else if (ageYears < 7) ageGroup = '5–7 years';
-        else ageGroup = '7+ years';
+        ageYears = (now.getTime() - asset.acquiredDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       }
 
-      let daysUntilEol: number | null = null;
-      let eolStatus: 'no_eol_date' | 'passed' | 'upcoming' | 'ok' = 'no_eol_date';
-
       if (asset.endOfLifeDate) {
-        daysUntilEol = Math.floor((asset.endOfLifeDate.getTime() - now.getTime()) / msPerDay);
-        if (daysUntilEol < 0) {
-          eolStatus = 'passed';
-        } else if (daysUntilEol <= eolDays) {
-          eolStatus = 'upcoming';
-        } else {
-          eolStatus = 'ok';
-        }
+        daysUntilEol = Math.floor(
+          (asset.endOfLifeDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+        );
       }
 
       return {
@@ -511,50 +485,208 @@ router.get('/lifecycle', async (req: Request, res: Response) => {
         itemNumber: asset.itemNumber,
         model: asset.model,
         status: asset.status,
-        category: asset.category,
-        location: asset.location,
-        acquiredDate: asset.acquiredDate ? asset.acquiredDate.toISOString() : null,
-        endOfLifeDate: asset.endOfLifeDate ? asset.endOfLifeDate.toISOString() : null,
-        ageYears: ageYears ? Math.round(ageYears * 10) / 10 : null,
-        ageGroup,
+        category: asset.category ? { id: asset.category.id, name: asset.category.name } : null,
+        location: asset.location ? { id: asset.location.id, name: asset.location.name } : null,
+        acquiredDate: asset.acquiredDate?.toISOString() || null,
+        endOfLifeDate: asset.endOfLifeDate?.toISOString() || null,
+        ageYears: ageYears !== null ? Math.round(ageYears * 10) / 10 : null,
+        ageGroup: getAgeGroup(ageYears),
         daysUntilEol,
-        eolStatus
+        eolStatus: getEolStatus(asset.endOfLifeDate, ageYears)
       };
     });
 
-    // Build summary
-    const ageGroups = ['< 1 year', '1–3 years', '3–5 years', '5–7 years', '7+ years', 'Unknown'];
+    // Get all assets for aggregations
+    const allAssets = await prisma.asset.findMany({ where });
+
+    // Compute summary
+    const ages = allAssets
+      .filter((a) => a.acquiredDate)
+      .map((a) => (now.getTime() - a.acquiredDate!.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+
+    const avgAgeYears = ages.length > 0 ? Math.round((ages.reduce((a, b) => a + b, 0) / ages.length) * 10) / 10 : 0;
+
+    const eolPassed = allAssets.filter((a) => a.endOfLifeDate && a.endOfLifeDate < now).length;
+    const eolUpcoming = allAssets.filter((a) => {
+      if (!a.endOfLifeDate || a.endOfLifeDate < now) return false;
+      const daysUntil = Math.floor((a.endOfLifeDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      return daysUntil <= eolDaysNum;
+    }).length;
+
     const summary = {
-      total: processedAssets.length,
-      avgAgeYears: processedAssets.filter((a) => a.ageYears !== null).length > 0
-        ? Math.round((processedAssets.reduce((sum, a) => sum + (a.ageYears || 0), 0) /
-            processedAssets.filter((a) => a.ageYears !== null).length) * 10) / 10
-        : 0,
-      noAcquiredDate: processedAssets.filter((a) => a.ageYears === null).length,
-      eolPassed: processedAssets.filter((a) => a.eolStatus === 'passed').length,
-      eolUpcoming: processedAssets.filter((a) => a.eolStatus === 'upcoming').length
+      total: allAssets.length,
+      avgAgeYears,
+      noAcquiredDate: allAssets.filter((a) => !a.acquiredDate).length,
+      eolPassed,
+      eolUpcoming
     };
 
-    // Build byAgeGroup
-    const ageGroupMap = new Map<string, number>();
-    ageGroups.forEach((ag) => { ageGroupMap.set(ag, 0); });
-    processedAssets.forEach((asset) => {
-      ageGroupMap.set(asset.ageGroup, (ageGroupMap.get(asset.ageGroup) || 0) + 1);
+    // byAgeGroup
+    const ageGroupCounts = {
+      '< 1 year': 0,
+      '1-3 years': 0,
+      '3-5 years': 0,
+      '5-7 years': 0,
+      '7+ years': 0,
+      'Unknown': 0
+    };
+
+    allAssets.forEach((asset) => {
+      let ageYears: number | null = null;
+      if (asset.acquiredDate) {
+        ageYears = (now.getTime() - asset.acquiredDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      }
+      const group = getAgeGroup(ageYears);
+      ageGroupCounts[group as keyof typeof ageGroupCounts]++;
     });
-    const byAgeGroup = ageGroups.map((ag) => ({
-      ageGroup: ag,
-      count: ageGroupMap.get(ag) || 0
-    }));
+
+    const byAgeGroup = Object.entries(ageGroupCounts)
+      .map(([ageGroup, count]) => ({ ageGroup, count }))
+      .filter((x) => x.count > 0);
 
     res.json({
       summary,
       byAgeGroup,
       assets: processedAssets,
-      meta: { eolThresholdDays: eolDays, generatedAt: new Date().toISOString() }
+      pagination: {
+        skip: skipNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      meta: {
+        eolThresholdDays: eolDaysNum,
+        generatedAt: new Date().toISOString()
+      }
     });
   } catch (error) {
     console.error('Error fetching lifecycle report:', error);
     res.status(500).json({ error: 'Failed to fetch lifecycle report' });
+  }
+});
+
+// GET /stocktake-review - Stocktake Review Report
+router.get('/stocktake-review', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const { year, status, category, location, overdueMonths = '12', skip = '0', limit = '50' } = req.query;
+
+    const overdueMonthsNum = parseInt(overdueMonths as string, 10);
+    const skipNum = parseInt(skip as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const now = new Date();
+    const overdueDate = new Date(now.getFullYear(), now.getMonth() - overdueMonthsNum, now.getDate());
+
+    const where = buildBaseWhere(category as string, location as string);
+
+    // Get total count and paginated assets
+    const [total, assets] = await Promise.all([
+      prisma.asset.count({ where }),
+      prisma.asset.findMany({
+        where,
+        skip: skipNum,
+        take: limitNum,
+        include: {
+          category: true,
+          location: true,
+          manufacturer: true
+        },
+        orderBy: { itemNumber: 'asc' }
+      })
+    ]);
+
+    // Helper to compute review status
+    function getReviewStatus(lastReviewDate: Date | null): 'reviewed' | 'overdue' | 'never' {
+      if (!lastReviewDate) return 'never';
+      if (lastReviewDate < overdueDate) return 'overdue';
+      return 'reviewed';
+    }
+
+    // Process assets
+    const processedAssets = assets.map((asset) => {
+      const reviewYear = asset.lastReviewDate ? asset.lastReviewDate.getFullYear() : null;
+      const daysSinceReview = asset.lastReviewDate
+        ? Math.floor((now.getTime() - asset.lastReviewDate.getTime()) / (24 * 60 * 60 * 1000))
+        : null;
+
+      return {
+        id: asset.id,
+        itemNumber: asset.itemNumber,
+        model: asset.model,
+        serialNumber: asset.serialNumber,
+        category: asset.category ? { id: asset.category.id, name: asset.category.name } : null,
+        location: asset.location ? { id: asset.location.id, name: asset.location.name } : null,
+        manufacturer: asset.manufacturer ? { id: asset.manufacturer.id, name: asset.manufacturer.name } : null,
+        status: asset.status,
+        lastReviewDate: asset.lastReviewDate?.toISOString() || null,
+        reviewYear,
+        reviewStatus: getReviewStatus(asset.lastReviewDate),
+        daysSinceReview
+      };
+    });
+
+    // Get all assets for aggregations
+    const allAssets = await prisma.asset.findMany({ where });
+
+    // Filter by status if provided
+    const filteredAssets = status
+      ? allAssets.filter((a) => {
+          const reviewStatus = getReviewStatus(a.lastReviewDate);
+          return reviewStatus === status;
+        })
+      : allAssets;
+
+    // Filter by year if provided
+    const filteredByYear = year
+      ? filteredAssets.filter((a) => a.lastReviewDate && a.lastReviewDate.getFullYear() === parseInt(year as string))
+      : filteredAssets;
+
+    // Compute summary
+    const reviewedThisYear = allAssets.filter(
+      (a) => a.lastReviewDate && a.lastReviewDate.getFullYear() === now.getFullYear()
+    ).length;
+    const overdueCount = allAssets.filter((a) => getReviewStatus(a.lastReviewDate) === 'overdue').length;
+    const neverReviewedCount = allAssets.filter((a) => getReviewStatus(a.lastReviewDate) === 'never').length;
+
+    const summary = {
+      totalAssets: allAssets.length,
+      reviewedThisYear,
+      overdueCount,
+      neverReviewedCount
+    };
+
+    // byYear
+    const yearCounts = new Map<number, number>();
+    allAssets.forEach((asset) => {
+      if (asset.lastReviewDate) {
+        const y = asset.lastReviewDate.getFullYear();
+        yearCounts.set(y, (yearCounts.get(y) || 0) + 1);
+      }
+    });
+
+    const byYear = Array.from(yearCounts.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.year - a.year);
+
+    res.json({
+      summary,
+      byYear,
+      assets: processedAssets,
+      pagination: {
+        skip: skipNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      },
+      meta: {
+        overdueThresholdMonths: overdueMonthsNum,
+        generatedAt: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching stocktake review report:', error);
+    res.status(500).json({ error: 'Failed to fetch stocktake review report' });
   }
 });
 

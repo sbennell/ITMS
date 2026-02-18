@@ -11,8 +11,8 @@ import stocktakeRoutes from './routes/stocktake.js';
 import importRoutes from './routes/import.js';
 import labelRoutes from './routes/labels.js';
 import systemRoutes from './routes/system.js';
-import reportRoutes from './routes/reports.js';
 import networkRoutes from './routes/network.js';
+import reportRoutes from './routes/reports.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -47,8 +47,8 @@ app.use('/api/stocktakes', stocktakeRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/labels', labelRoutes);
 app.use('/api/system', systemRoutes);
-app.use('/api/reports', reportRoutes);
 app.use('/api/network', networkRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

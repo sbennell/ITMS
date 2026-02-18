@@ -1,44 +1,42 @@
 import { useState } from 'react';
-import StocktakeReviewTab from './reports/StocktakeReviewTab';
 import WarrantyTab from './reports/WarrantyTab';
-import ConditionTab from './reports/ConditionTab';
+import FleetHealthTab from './reports/FleetHealthTab';
 import ValueTab from './reports/ValueTab';
 import LifecycleTab from './reports/LifecycleTab';
+import StocktakeReviewTab from './reports/StocktakeReviewTab';
 
-type TabId = 'stocktake' | 'warranty' | 'condition' | 'value' | 'lifecycle';
+type TabId = 'warranty' | 'fleetHealth' | 'assetValue' | 'lifecycle' | 'stocktakeReview';
 
 const TABS: Array<{ id: TabId; label: string }> = [
-  { id: 'stocktake', label: 'Stocktake Review' },
   { id: 'warranty', label: 'Warranty Expiry' },
-  { id: 'condition', label: 'Fleet Health' },
-  { id: 'value', label: 'Asset Value' },
-  { id: 'lifecycle', label: 'Age & Lifecycle' }
+  { id: 'fleetHealth', label: 'Fleet Health' },
+  { id: 'assetValue', label: 'Asset Value' },
+  { id: 'lifecycle', label: 'Age & Lifecycle' },
+  { id: 'stocktakeReview', label: 'Stocktake Review' }
 ];
 
 const TabComponents: Record<TabId, React.ComponentType> = {
-  stocktake: StocktakeReviewTab,
   warranty: WarrantyTab,
-  condition: ConditionTab,
-  value: ValueTab,
-  lifecycle: LifecycleTab
+  fleetHealth: FleetHealthTab,
+  assetValue: ValueTab,
+  lifecycle: LifecycleTab,
+  stocktakeReview: StocktakeReviewTab
 };
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<TabId>('stocktake');
-
+  const [activeTab, setActiveTab] = useState<TabId>('warranty');
   const ActiveComponent = TabComponents[activeTab];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Comprehensive asset management insights and analytics
+          View asset warranty, condition, valuation, lifecycle, and stocktake review reports
         </p>
       </div>
 
-      {/* Tab Navigation */}
+      {/* Tab Bar */}
       <div className="bg-white border-b border-gray-200 rounded-t-lg">
         <div className="flex gap-1 p-4 overflow-x-auto">
           {TABS.map((tab) => (

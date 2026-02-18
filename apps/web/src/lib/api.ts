@@ -219,6 +219,7 @@ export interface StocktakeReviewReport {
   summary: ReviewReportSummary;
   byYear: ReviewByYear[];
   assets: ReviewAssetRow[];
+  pagination: { skip: number; limit: number; total: number; totalPages: number };
   meta: { overdueThresholdMonths: number; generatedAt: string };
 }
 
@@ -247,6 +248,7 @@ export interface WarrantyReport {
   summary: WarrantyReportSummary;
   byMonth: Array<{ month: string; count: number }>;
   assets: WarrantyAssetRow[];
+  pagination: { skip: number; limit: number; total: number; totalPages: number };
   meta: { thresholdDays: number; generatedAt: string };
 }
 
@@ -283,6 +285,7 @@ export interface ConditionReport {
     total: number;
   }>;
   assets: ConditionAssetRow[];
+  pagination: { skip: number; limit: number; total: number; totalPages: number };
   meta: { generatedAt: string };
 }
 
@@ -314,6 +317,7 @@ export interface ValueReport {
   byLocation: Array<{ location: string; count: number; totalValue: number }>;
   byManufacturer: Array<{ manufacturer: string; count: number; totalValue: number; avgValue: number }>;
   assets: ValueAssetRow[];
+  pagination: { skip: number; limit: number; total: number; totalPages: number };
   meta: { generatedAt: string };
 }
 
@@ -344,6 +348,7 @@ export interface LifecycleReport {
   summary: LifecycleReportSummary;
   byAgeGroup: Array<{ ageGroup: string; count: number }>;
   assets: LifecycleAssetRow[];
+  pagination: { skip: number; limit: number; total: number; totalPages: number };
   meta: { eolThresholdDays: number; generatedAt: string };
 }
 
@@ -561,11 +566,13 @@ export const api = {
     category?: string;
     location?: string;
     overdueMonths?: string;
+    skip?: number;
+    limit?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') searchParams.set(key, value);
+        if (value !== undefined && value !== '') searchParams.set(key, String(value));
       });
     }
     return fetchJson<StocktakeReviewReport>(`/reports/stocktake-review?${searchParams}`);
@@ -575,11 +582,13 @@ export const api = {
     days?: string;
     category?: string;
     location?: string;
+    skip?: number;
+    limit?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') searchParams.set(key, value);
+        if (value !== undefined && value !== '') searchParams.set(key, String(value));
       });
     }
     return fetchJson<WarrantyReport>(`/reports/warranty?${searchParams}`);
@@ -588,11 +597,13 @@ export const api = {
   getConditionReport: (params?: {
     category?: string;
     location?: string;
+    skip?: number;
+    limit?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') searchParams.set(key, value);
+        if (value !== undefined && value !== '') searchParams.set(key, String(value));
       });
     }
     return fetchJson<ConditionReport>(`/reports/condition?${searchParams}`);
@@ -602,11 +613,13 @@ export const api = {
     category?: string;
     location?: string;
     manufacturer?: string;
+    skip?: number;
+    limit?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') searchParams.set(key, value);
+        if (value !== undefined && value !== '') searchParams.set(key, String(value));
       });
     }
     return fetchJson<ValueReport>(`/reports/value?${searchParams}`);
@@ -616,11 +629,13 @@ export const api = {
     category?: string;
     location?: string;
     eolDays?: string;
+    skip?: number;
+    limit?: number;
   }) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== '') searchParams.set(key, value);
+        if (value !== undefined && value !== '') searchParams.set(key, String(value));
       });
     }
     return fetchJson<LifecycleReport>(`/reports/lifecycle?${searchParams}`);

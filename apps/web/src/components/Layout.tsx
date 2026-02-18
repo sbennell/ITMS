@@ -11,8 +11,8 @@ import {
   ClipboardCheck,
   Download,
   Loader2,
-  BarChart2,
-  Network
+  Network,
+  BarChart2
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import AboutModal from './AboutModal';
