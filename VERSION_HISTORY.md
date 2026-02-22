@@ -4,6 +4,21 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.15.0] - 2026-02-23
+
+### Added
+
+- **Audio Beep Feedback for Stocktake Scanning**
+  - Distinct audio cues for different scan outcomes during stocktake:
+    - **Success**: Single short high-pitched beep (1880 Hz, 120 ms) — confirms item scanned successfully
+    - **Already Scanned (Duplicate)**: Two medium beeps (880 Hz, 120 ms each, 80 ms gap) — warns that item was already verified
+    - **Error**: Single long low-pitched beep (220 Hz, 400 ms) — indicates item not found or invalid scan
+  - Improves stocktake workflow by providing immediate audio feedback without requiring users to watch the screen
+  - Works in all modern browsers (Chrome, Firefox, Safari) using Web Audio API
+  - Gracefully falls back to silent if audio is not supported
+
+---
+
 ## [1.14.0] - 2026-02-18
 
 ### Added

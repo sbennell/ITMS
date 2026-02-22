@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api, Stocktake as StocktakeType } from '../lib/api';
 import { cn, formatDate, CONDITION_LABELS } from '../lib/utils';
+import { playBeep } from '../lib/audio';
 
 const STOCKTAKE_STATUS_COLORS: Record<string, string> = {
   IN_PROGRESS: 'bg-blue-100 text-blue-800',
@@ -355,6 +356,7 @@ function StocktakeDetail({
     mutationFn: ({ itemNumber, condition }: { itemNumber: string; condition?: string }) =>
       api.quickVerify(stocktake.id, itemNumber, condition || undefined),
     onSuccess: (data) => {
+      playBeep('success');
       setQuickVerifyStatus({
         type: 'success',
         message: `Verified: ${data.asset?.itemNumber} - ${data.asset?.manufacturer?.name || ''} ${data.asset?.model || ''}`
@@ -369,6 +371,11 @@ function StocktakeDetail({
       quickVerifyRef.current?.focus();
     },
     onError: (error: Error) => {
+      if (error.message === 'Asset already verified') {
+        playBeep('duplicate');
+      } else {
+        playBeep('error');
+      }
       setQuickVerifyStatus({ type: 'error', message: error.message });
       setQuickVerifyInput('');
       quickVerifyRef.current?.focus();
