@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.15.1] - 2026-02-23
+
+### Added
+
+- **"Waiting Repair" Status Support in Stocktakes**
+  - Assets with "Waiting Repair" status are now included when creating stocktakes
+  - Previously only "In Use", "Awaiting allocation", "Awaiting delivery", and "Awaiting collection" statuses were included
+  - Allows inventory verification of assets currently waiting for repair service
+
+---
+
 ## [1.15.0] - 2026-02-23
 
 ### Added

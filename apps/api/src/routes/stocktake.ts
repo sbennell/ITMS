@@ -87,7 +87,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
-    // Build asset filter - include all "In Use" assets and awaiting statuses
+    // Build asset filter - include all "In Use" assets, awaiting statuses, and "Waiting Repair"
     const assetWhere: any = {
       AND: [
         {
@@ -95,7 +95,8 @@ router.post('/', async (req: Request, res: Response) => {
             { status: { startsWith: 'In Use' } },
             { status: 'Awaiting allocation' },
             { status: 'Awaiting delivery' },
-            { status: 'Awaiting collection' }
+            { status: 'Awaiting collection' },
+            { status: 'Waiting Repair' }
           ]
         }
       ]
