@@ -85,7 +85,16 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
     // Generate and print label
-    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+    const labelAsset: LabelAsset = {
+      itemNumber: asset.itemNumber,
+      serialNumber: asset.serialNumber,
+      model: asset.model,
+      hostname: asset.hostname,
+      ipAddress: primaryIP,
+      assignedTo: asset.assignedTo,
+      manufacturer: asset.manufacturer,
+      organizationName,
+    };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
