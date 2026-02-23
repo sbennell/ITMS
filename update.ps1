@@ -24,11 +24,17 @@
 .PARAMETER SkipService
     Skip service restart (for manual testing)
 
+.PARAMETER Force
+    Force reinstall/rebuild even if version is already up to date
+
 .EXAMPLE
     .\update.ps1
 
 .EXAMPLE
     .\update.ps1 -InstallPath "D:\ITMS" -Branch "develop"
+
+.EXAMPLE
+    .\update.ps1 -Force
 #>
 
 param(
@@ -36,7 +42,8 @@ param(
     [string]$Branch = "main",
     [switch]$SkipBackup,
     [switch]$SkipService,
-    [switch]$AutoUpdate
+    [switch]$AutoUpdate,
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -149,10 +156,15 @@ $localHash = (git rev-parse HEAD 2>&1).Trim()
 $remoteHash = (git rev-parse "origin/$Branch" 2>&1).Trim()
 
 if ($localHash -eq $remoteHash) {
-    Write-Success "Already up to date (v$currentVersion)"
-    Write-Host ""
-    Pop-Location
-    exit 0
+    if (-not $Force) {
+        Write-Success "Already up to date (v$currentVersion)"
+        Write-Host ""
+        Pop-Location
+        exit 0
+    } else {
+        Write-Warn "Already up to date (v$currentVersion), but proceeding with rebuild (-Force)"
+        Write-Host ""
+    }
 }
 
 # Get new version from remote
@@ -167,17 +179,21 @@ if ($remoteVersionContent) {
     }
 }
 
-Write-Success "Update available: v$currentVersion -> v$newVersion"
+if ($localHash -eq $remoteHash -and $Force) {
+    Write-Host "   Rebuilding (forced) v$currentVersion" -ForegroundColor Gray
+} else {
+    Write-Success "Update available: v$currentVersion -> v$newVersion"
 
-# Show commits to be applied
-$ErrorActionPreference = "Continue"
-$commits = git log --oneline "$localHash..$remoteHash" 2>&1
-$ErrorActionPreference = "Stop"
-if ($commits) {
-    Write-Host ""
-    Write-Host "   Changes:" -ForegroundColor Gray
-    $commits | ForEach-Object { Write-Host "     $_" -ForegroundColor Gray }
-    Write-Host ""
+    # Show commits to be applied
+    $ErrorActionPreference = "Continue"
+    $commits = git log --oneline "$localHash..$remoteHash" 2>&1
+    $ErrorActionPreference = "Stop"
+    if ($commits) {
+        Write-Host ""
+        Write-Host "   Changes:" -ForegroundColor Gray
+        $commits | ForEach-Object { Write-Host "     $_" -ForegroundColor Gray }
+        Write-Host ""
+    }
 }
 
 Pop-Location

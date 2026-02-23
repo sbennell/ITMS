@@ -245,28 +245,54 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname and IP Address on same line for compact space (especially for Dymo)
-  if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
-    let hostIpText = '';
-    if (opts.showHostname && asset.hostname) {
-      hostIpText = asset.hostname;
-    }
-    if (opts.showIpAddress && asset.ipAddress) {
-      if (hostIpText) {
-        hostIpText += ' | ' + asset.ipAddress;
-      } else {
-        hostIpText = asset.ipAddress;
+  // Hostname and IP Address handling - combined on single line for Dymo, separate for Brother
+  if (opts.labelSize === 'dymo-25x89') {
+    // Dymo: Combined on single line for compact space
+    if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
+      let hostIpText = '';
+      if (opts.showHostname && asset.hostname) {
+        hostIpText = asset.hostname;
       }
+      if (opts.showIpAddress && asset.ipAddress) {
+        if (hostIpText) {
+          hostIpText += ' | ' + asset.ipAddress;
+        } else {
+          hostIpText = asset.ipAddress;
+        }
+      }
+
+      page.drawText(truncateText(hostIpText, 50), {
+        x: textX,
+        y: textY,
+        size: 7, // Slightly smaller for combined text
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
+    }
+  } else {
+    // Brother: Hostname and IP on separate lines
+    if (opts.showHostname && asset.hostname) {
+      page.drawText(truncateText(asset.hostname, 30), {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
     }
 
-    page.drawText(truncateText(hostIpText, 50), {
-      x: textX,
-      y: textY,
-      size: 7, // Slightly smaller for combined text
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
+    if (opts.showIpAddress && asset.ipAddress) {
+      page.drawText(truncateText(asset.ipAddress, 30), {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
+    }
   }
 
   // Organization Name - centered at bottom, auto-fit to fill width
