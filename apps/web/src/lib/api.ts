@@ -138,8 +138,11 @@ export interface BulkUpdateResult {
   errors: { id: string; message: string }[];
 }
 
+export type LabelSize = 'brother-29x62' | 'dymo-25x89';
+
 export interface LabelSettings {
   printerName: string;
+  labelSize: LabelSize;
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;

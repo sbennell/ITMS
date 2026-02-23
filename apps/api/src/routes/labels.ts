@@ -62,7 +62,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -89,7 +89,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
-      await printLabel(pdfBytes, settings.printerName);
+      await printLabel(pdfBytes, settings.printerName, settings.labelSize);
     }
 
     res.json({
@@ -118,7 +118,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -155,7 +155,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
         const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
         const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
-          await printLabel(pdfBytes, settings.printerName);
+          await printLabel(pdfBytes, settings.printerName, settings.labelSize);
         }
         printed++;
       } catch (error) {
@@ -205,7 +205,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -353,7 +353,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};

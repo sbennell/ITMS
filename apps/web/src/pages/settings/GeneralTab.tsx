@@ -85,7 +85,8 @@ function LabelSettingsSection() {
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['labelSettings'],
-    queryFn: api.getLabelSettings
+    queryFn: api.getLabelSettings,
+    staleTime: 0
   });
 
   const { data: printers, isLoading: printersLoading } = useQuery({
@@ -95,13 +96,15 @@ function LabelSettingsSection() {
 
   const mutation = useMutation({
     mutationFn: (updates: Partial<LabelSettingsType>) => api.updateLabelSettings(updates),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Settings updated successfully:', data);
       queryClient.invalidateQueries({ queryKey: ['labelSettings'] });
       setSuccess('Label settings saved');
       setError('');
       setTimeout(() => setSuccess(''), 3000);
     },
     onError: (err: Error) => {
+      console.error('Settings update error:', err);
       setError(err.message);
       setSuccess('');
     }
@@ -117,6 +120,10 @@ function LabelSettingsSection() {
 
   const handleQRCodeContentChange = (value: 'full' | 'itemNumber') => {
     mutation.mutate({ qrCodeContent: value });
+  };
+
+  const handleLabelSizeChange = (labelSize: string) => {
+    mutation.mutate({ labelSize: labelSize as 'brother-29x62' | 'dymo-25x89' });
   };
 
   const isLoading = settingsLoading || printersLoading;
@@ -161,6 +168,37 @@ function LabelSettingsSection() {
             {printers?.length === 0 && (
               <p className="mt-1 text-xs text-gray-500">No printers detected</p>
             )}
+          </div>
+
+          {/* Label Size Selection */}
+          <div>
+            <label className="label">Label Size</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="labelSize"
+                  value="brother-29x62"
+                  checked={(settings?.labelSize ?? 'brother-29x62') === 'brother-29x62'}
+                  onChange={(e) => handleLabelSizeChange(e.target.value)}
+                  disabled={mutation.isPending}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">Brother QL — 29×62mm (DK-22211)</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="labelSize"
+                  value="dymo-25x89"
+                  checked={(settings?.labelSize ?? 'brother-29x62') === 'dymo-25x89'}
+                  onChange={(e) => handleLabelSizeChange(e.target.value)}
+                  disabled={mutation.isPending}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">Dymo 1933081 — 25×89mm</span>
+              </label>
+            </div>
           </div>
 
           {/* Label Content Options */}
