@@ -16,7 +16,7 @@ interface LabelDimensions {
 
 const LABEL_DIMENSIONS: Record<LabelSize, LabelDimensions> = {
   'brother-29x62': { widthPt: 176, heightPt: 82, paperSize: '29x62mm', qrSize: 48 },
-  'dymo-25x89': { widthPt: 252, heightPt: 71, paperSize: '89x25mm', qrSize: 40 },
+  'dymo-25x89':    { widthPt: 252, heightPt: 71, paperSize: '89x25mm', qrSize: 40 },
 };
 
 export interface LabelAsset {
@@ -120,8 +120,8 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 
 /**
  * Create a label PDF for an asset
- * Landscape PDF with QR on left, text on right
- * Supports multiple label sizes (Brother QL, Dymo)
+ * Landscape PDF (62mm x 29mm) with QR on left, text on right
+ * Brother QL driver handles rotation for 29mm tape
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -134,7 +134,7 @@ export async function createLabelPDF(
   const qrContent = buildQRContent(asset, opts);
   const qrBuffer = await generateQRCode(qrContent, 150);
 
-  // Create PDF document with selected label dimensions
+  // Create PDF document - landscape orientation
   const doc = await PDFDocument.create();
   const page = doc.addPage([dims.widthPt, dims.heightPt]);
 
@@ -188,7 +188,7 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 2;
-  let textY = dims.heightPt - 20; // Start below the assigned to name (compact for Dymo)
+  let textY = dims.heightPt - 20; // Start below the assigned to name
 
   // Text styling
   const fontSize = 8;
@@ -245,35 +245,26 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname and IP Address handling - Dymo on one line, Brother on separate lines
+  // Hostname and IP Address — combined on one line for Dymo, separate lines for Brother
   if (opts.labelSize === 'dymo-25x89') {
-    // Dymo: Combined on single line for compact space
     if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
       let hostIpText = '';
       if (opts.showHostname && asset.hostname) {
         hostIpText = asset.hostname;
       }
       if (opts.showIpAddress && asset.ipAddress) {
-        if (hostIpText) {
-          hostIpText += ' | ' + asset.ipAddress;
-        } else {
-          hostIpText = asset.ipAddress;
-        }
+        hostIpText = hostIpText ? hostIpText + ' | ' + asset.ipAddress : asset.ipAddress;
       }
-
-      if (hostIpText) {
-        page.drawText(truncateText(hostIpText, 50), {
-          x: textX,
-          y: textY,
-          size: 7, // Smaller for combined text
-          font: boldFont,
-          color: rgb(0, 0, 0),
-        });
-        textY -= lineHeight;
-      }
+      page.drawText(truncateText(hostIpText, 50), {
+        x: textX,
+        y: textY,
+        size: 7,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
     }
   } else {
-    // Brother: Hostname and IP on separate lines
     if (opts.showHostname && asset.hostname) {
       page.drawText(truncateText(asset.hostname, 30), {
         x: textX,
@@ -412,8 +403,8 @@ export function parseSettings(
     return settingsMap[key];
   };
 
-  const labelSize = get('label.labelSize');
-  const validLabelSize: LabelSize = (labelSize === 'dymo-25x89') ? 'dymo-25x89' : 'brother-29x62';
+  const labelSizeRaw = get('label.labelSize');
+  const validLabelSize: LabelSize = labelSizeRaw === 'dymo-25x89' ? 'dymo-25x89' : 'brother-29x62';
 
   return {
     printerName: get('label.printerName') || DEFAULT_SETTINGS.printerName,
