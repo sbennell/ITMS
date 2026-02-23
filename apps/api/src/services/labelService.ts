@@ -16,7 +16,7 @@ interface LabelDimensions {
 
 const LABEL_DIMENSIONS: Record<LabelSize, LabelDimensions> = {
   'brother-29x62': { widthPt: 176, heightPt: 82, paperSize: '29x62mm', qrSize: 48 },
-  'dymo-25x89':    { widthPt: 252, heightPt: 71, paperSize: '89x25mm', qrSize: 40 },
+  'dymo-25x89':    { widthPt: 252, heightPt: 71, paperSize: '25x89mm', qrSize: 40 },
 };
 
 export interface LabelAsset {
@@ -348,7 +348,7 @@ export async function printLabel(
     const dims = LABEL_DIMENSIONS[labelSize];
     const printOptions: any = {
       paperSize: dims.paperSize,
-      scale: labelSize === 'dymo-25x89' ? 'noscale' : 'fit',  // Dymo no scale, Brother with fit
+      scale: 'fit',
     };
 
     if (printerName) {
