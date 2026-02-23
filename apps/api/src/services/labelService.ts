@@ -348,8 +348,7 @@ export async function printLabel(
     const dims = LABEL_DIMENSIONS[labelSize];
     const printOptions: any = {
       paperSize: dims.paperSize,
-      orientation: 'landscape',
-      scale: 'fit',
+      scale: labelSize === 'dymo-25x89' ? 100 : 'fit',  // Dymo at 100%, Brother with fit
     };
 
     if (printerName) {
