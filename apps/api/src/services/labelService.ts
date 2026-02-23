@@ -261,14 +261,16 @@ export async function createLabelPDF(
         }
       }
 
-      page.drawText(truncateText(hostIpText, 50), {
-        x: textX,
-        y: textY,
-        size: 7, // Smaller for combined text
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
+      if (hostIpText) {
+        page.drawText(truncateText(hostIpText, 50), {
+          x: textX,
+          y: textY,
+          size: 7, // Smaller for combined text
+          font: boldFont,
+          color: rgb(0, 0, 0),
+        });
+        textY -= lineHeight;
+      }
     }
   } else {
     // Brother: Hostname and IP on separate lines
