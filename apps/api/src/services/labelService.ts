@@ -245,7 +245,7 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname and IP Address handling - combined on single line for Dymo, separate for Brother
+  // Hostname and IP Address handling - Dymo on one line, Brother on separate lines
   if (opts.labelSize === 'dymo-25x89') {
     // Dymo: Combined on single line for compact space
     if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
@@ -264,7 +264,7 @@ export async function createLabelPDF(
       page.drawText(truncateText(hostIpText, 50), {
         x: textX,
         y: textY,
-        size: 7, // Slightly smaller for combined text
+        size: 7, // Smaller for combined text
         font: boldFont,
         color: rgb(0, 0, 0),
       });
