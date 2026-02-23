@@ -241,7 +241,16 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     for (const asset of assets) {
       // Resolve first IP
       const primaryIP = asset.ipAddresses?.[0]?.ip;
-      const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+      const labelAsset: LabelAsset = {
+        itemNumber: asset.itemNumber,
+        serialNumber: asset.serialNumber,
+        model: asset.model,
+        hostname: asset.hostname,
+        ipAddress: primaryIP,
+        assignedTo: asset.assignedTo,
+        manufacturer: asset.manufacturer,
+        organizationName,
+      };
       const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
       const labelPdf = await PDFDocument.load(pdfBytes);
       const [page] = await combinedPdf.copyPages(labelPdf, [0]);
@@ -376,7 +385,16 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 
     // Resolve first IP
     const primaryIP = asset.ipAddresses?.[0]?.ip;
-    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+    const labelAsset: LabelAsset = {
+      itemNumber: asset.itemNumber,
+      serialNumber: asset.serialNumber,
+      model: asset.model,
+      hostname: asset.hostname,
+      ipAddress: primaryIP,
+      assignedTo: asset.assignedTo,
+      manufacturer: asset.manufacturer,
+      organizationName,
+    };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'application/pdf');
