@@ -304,7 +304,7 @@ export async function printLabel(
     const printOptions: any = {
       paperSize: '25x89mm',
       orientation: 'landscape',
-      scale: 'fit',
+      scale: 'noscale',
     };
 
     if (printerName) {
