@@ -262,7 +262,7 @@ export async function createLabelPDF(
     const orgX = (LABEL_WIDTH_PT - orgWidth) / 2;
     page.drawText(orgText, {
       x: orgX,
-      y: 1,
+      y: 4,
       size: orgFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
