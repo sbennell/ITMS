@@ -150,9 +150,9 @@ export async function createLabelPDF(
   let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
 
   // Text styling - increased sizes
-  const fontSize = 7;
-  const boldFontSize = 8;
-  const assignedToFontSize = 9;
+  const fontSize = 8;
+  const boldFontSize = 9;
+  const assignedToFontSize = 10;
   const lineHeight = 8;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
@@ -257,7 +257,7 @@ export async function createLabelPDF(
   // Organization Name - at bottom if space
   if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 7.5;
+    const maxFontSize = 12;
     let orgFontSize = maxFontSize;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
