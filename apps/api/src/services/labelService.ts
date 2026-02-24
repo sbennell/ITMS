@@ -245,6 +245,7 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
+<<<<<<< HEAD
   // Hostname and IP Address — combined on one line for Dymo, separate lines for Brother
   if (opts.labelSize === 'dymo-25x89') {
     if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
@@ -265,27 +266,30 @@ export async function createLabelPDF(
       textY -= lineHeight;
     }
   } else {
+=======
+  // Hostname and IP Address on same line for compact space (especially for Dymo)
+  if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
+    let hostIpText = '';
+>>>>>>> parent of bddc1e7 (Add Dymo label support and update -Force)
     if (opts.showHostname && asset.hostname) {
-      page.drawText(truncateText(asset.hostname, 30), {
-        x: textX,
-        y: textY,
-        size: fontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
+      hostIpText = asset.hostname;
+    }
+    if (opts.showIpAddress && asset.ipAddress) {
+      if (hostIpText) {
+        hostIpText += ' | ' + asset.ipAddress;
+      } else {
+        hostIpText = asset.ipAddress;
+      }
     }
 
-    if (opts.showIpAddress && asset.ipAddress) {
-      page.drawText(truncateText(asset.ipAddress, 30), {
-        x: textX,
-        y: textY,
-        size: fontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
-    }
+    page.drawText(truncateText(hostIpText, 50), {
+      x: textX,
+      y: textY,
+      size: 7, // Slightly smaller for combined text
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    textY -= lineHeight;
   }
 
   // Organization Name - centered at bottom, auto-fit to fill width

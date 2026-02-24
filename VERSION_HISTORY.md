@@ -7,7 +7,6 @@ All notable changes to the Asset Management System are documented in this file.
 ## [1.16.0] - 2026-02-23
 
 ### Added
-- Do not update to this version yet 
 
 - **Multi-Label Size Support**: Added support for Dymo 1933081 25×89mm labels alongside existing Brother QL 29×62mm labels
   - New label size selector in Settings → Label Printing with radio button options
@@ -19,8 +18,7 @@ All notable changes to the Asset Management System are documented in this file.
 ### Changed
 
 - **Label Layout Optimization**: Improved compact label layout for smaller Dymo labels
-  - **Dymo 1933081 (25×89mm)**: Hostname and IP address display on single line with pipe separator (` | `) for space efficiency
-  - **Brother QL (29×62mm)**: Hostname and IP address remain on separate lines for readability
+  - Hostname and IP address now display on a single line with pipe separator (` | `) for better space utilization
   - Adjusted font sizes and positioning to fit content within constrained Dymo label height (71pt)
   - Maintained all required fields: Item Number, Model, Serial Number always shown
   - Optional fields (Assigned To, Hostname, IP Address, Organization) adapt to available space
