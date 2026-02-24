@@ -150,8 +150,8 @@ export async function createLabelPDF(
   let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
 
   // Text styling - increased sizes
-  const fontSize = 8;
-  const boldFontSize = 9;
+  const fontSize = 9;
+  const boldFontSize = 10;
   const assignedToFontSize = 10;
   const lineHeight = 8;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
