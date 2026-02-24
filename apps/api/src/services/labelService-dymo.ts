@@ -152,6 +152,7 @@ export async function createLabelPDF(
   // Text styling
   const fontSize = 5.5;
   const boldFontSize = 6.5;
+  const assignedToFontSize = 7.5;
   const lineHeight = 7;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
@@ -160,7 +161,7 @@ export async function createLabelPDF(
     page.drawText(truncateText(asset.assignedTo, 28), {
       x: textX,
       y: textY,
-      size: boldFontSize,
+      size: assignedToFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
@@ -256,13 +257,13 @@ export async function createLabelPDF(
   // Organization Name - at bottom if space
   if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 4.5;
+    const maxFontSize = 6;
     let orgFontSize = maxFontSize;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
     // Scale down if too wide
     if (orgWidth > textAreaWidth) {
-      orgFontSize = Math.max(3, (textAreaWidth / orgWidth) * maxFontSize);
+      orgFontSize = Math.max(4, (textAreaWidth / orgWidth) * maxFontSize);
     }
 
     page.drawText(orgText, {
