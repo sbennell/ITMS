@@ -62,7 +62,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -85,20 +85,11 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
     // Generate and print label
-    const labelAsset: LabelAsset = {
-      itemNumber: asset.itemNumber,
-      serialNumber: asset.serialNumber,
-      model: asset.model,
-      hostname: asset.hostname,
-      ipAddress: primaryIP,
-      assignedTo: asset.assignedTo,
-      manufacturer: asset.manufacturer,
-      organizationName,
-    };
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
-      await printLabel(pdfBytes, settings.printerName, settings.labelSize);
+      await printLabel(pdfBytes, settings.printerName);
     }
 
     res.json({
@@ -127,7 +118,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -164,7 +155,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
         const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
         const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
-          await printLabel(pdfBytes, settings.printerName, settings.labelSize);
+          await printLabel(pdfBytes, settings.printerName);
         }
         printed++;
       } catch (error) {
@@ -214,7 +205,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -236,7 +227,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Fetch all assets
     const assets = await prisma.asset.findMany({
       where: { id: { in: assetIds } },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true },
     });
 
     if (assets.length === 0) {
@@ -248,18 +239,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     const combinedPdf = await PDFDocument.create();
 
     for (const asset of assets) {
-      // Resolve first IP
-      const primaryIP = asset.ipAddresses?.[0]?.ip;
-      const labelAsset: LabelAsset = {
-        itemNumber: asset.itemNumber,
-        serialNumber: asset.serialNumber,
-        model: asset.model,
-        hostname: asset.hostname,
-        ipAddress: primaryIP,
-        assignedTo: asset.assignedTo,
-        manufacturer: asset.manufacturer,
-        organizationName,
-      };
+      const labelAsset: LabelAsset = { ...asset, organizationName };
       const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
       const labelPdf = await PDFDocument.load(pdfBytes);
       const [page] = await combinedPdf.copyPages(labelPdf, [0]);
@@ -363,7 +343,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true },
     });
 
     if (!asset) {
@@ -373,7 +353,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.labelSize', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -392,18 +372,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
-    // Resolve first IP
-    const primaryIP = asset.ipAddresses?.[0]?.ip;
-    const labelAsset: LabelAsset = {
-      itemNumber: asset.itemNumber,
-      serialNumber: asset.serialNumber,
-      model: asset.model,
-      hostname: asset.hostname,
-      ipAddress: primaryIP,
-      assignedTo: asset.assignedTo,
-      manufacturer: asset.manufacturer,
-      organizationName,
-    };
+    const labelAsset: LabelAsset = { ...asset, organizationName };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'application/pdf');

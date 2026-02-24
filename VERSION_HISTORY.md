@@ -4,36 +4,6 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
-## [1.16.0] - 2026-02-23
-
-### Added
-
-- **Multi-Label Size Support**: Added support for Dymo 1933081 25×89mm labels alongside existing Brother QL 29×62mm labels
-  - New label size selector in Settings → Label Printing with radio button options
-  - Label size preference persists in database (key: `label.labelSize`)
-  - Backend dynamically generates PDFs with appropriate dimensions based on selected size
-  - QR code size automatically adjusts: 48pt for Brother (82pt height), 40pt for Dymo (71pt height)
-  - Text layout adapts based on label dimensions to ensure all content fits
-
-### Changed
-
-- **Label Layout Optimization**: Improved compact label layout for smaller Dymo labels
-  - Hostname and IP address now display on a single line with pipe separator (` | `) for better space utilization
-  - Adjusted font sizes and positioning to fit content within constrained Dymo label height (71pt)
-  - Maintained all required fields: Item Number, Model, Serial Number always shown
-  - Optional fields (Assigned To, Hostname, IP Address, Organization) adapt to available space
-
-### Technical Details
-
-- `LabelSize` type: `'brother-29x62' | 'dymo-25x89'`
-- `LABEL_DIMENSIONS` configuration map with dimensions and QR code sizes for each label type
-- `createLabelPDF` function updated to accept and use `labelSize` setting
-- `printLabel` function passes dynamic `paperSize` parameter to printer based on selected label size
-- Settings persistence via database key `label.labelSize`
-- Frontend UI components updated to include label size selector in GeneralTab
-
----
-
 ## [1.15.1] - 2026-02-23
 
 ### Added

@@ -5,19 +5,11 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-export type LabelSize = 'brother-29x62' | 'dymo-25x89';
-
-interface LabelDimensions {
-  widthPt: number;   // along tape (print length)
-  heightPt: number;  // tape width
-  paperSize: string; // pdf-to-printer paperSize string
-  qrSize: number;    // QR code size in points
-}
-
-const LABEL_DIMENSIONS: Record<LabelSize, LabelDimensions> = {
-  'brother-29x62': { widthPt: 176, heightPt: 82, paperSize: '29x62mm', qrSize: 48 },
-  'dymo-25x89':    { widthPt: 252, heightPt: 71, paperSize: '89x25mm', qrSize: 40 },
-};
+// DK-22211 label dimensions for Brother QL label printers
+// For continuous 29mm tape, create landscape PDF and let printer driver rotate
+// Width = print length (62mm), Height = tape width (29mm)
+const LABEL_WIDTH_PT = 176;  // 62mm (print length along tape)
+const LABEL_HEIGHT_PT = 82;  // 29mm (tape width)
 
 export interface LabelAsset {
   itemNumber: string;
@@ -32,7 +24,6 @@ export interface LabelAsset {
 
 export interface LabelSettings {
   printerName: string;
-  labelSize: LabelSize;
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
@@ -42,7 +33,6 @@ export interface LabelSettings {
 
 const DEFAULT_SETTINGS: LabelSettings = {
   printerName: '',
-  labelSize: 'brother-29x62',
   showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,
@@ -128,15 +118,14 @@ export async function createLabelPDF(
   settings: Partial<LabelSettings> = {}
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
-  const dims = LABEL_DIMENSIONS[opts.labelSize];
 
   // Generate QR code containing all label information
   const qrContent = buildQRContent(asset, opts);
   const qrBuffer = await generateQRCode(qrContent, 150);
 
-  // Create PDF document - landscape orientation
+  // Create PDF document - landscape orientation (62mm x 29mm)
   const doc = await PDFDocument.create();
-  const page = doc.addPage([dims.widthPt, dims.heightPt]);
+  const page = doc.addPage([LABEL_WIDTH_PT, LABEL_HEIGHT_PT]);
 
   // Embed bold font for all text
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
@@ -146,11 +135,11 @@ export async function createLabelPDF(
 
   // Layout: Landscape - QR on left, text on right
   const margin = 3;
-  const qrSize = dims.qrSize;
+  const qrSize = 48; // ~17mm - compact to maximize text space
 
   // QR code on LEFT, vertically centered on full label height
   const qrX = margin;
-  const qrY = (dims.heightPt - qrSize) / 2;
+  const qrY = (LABEL_HEIGHT_PT - qrSize) / 2;
 
   page.drawImage(qrImage, {
     x: qrX,
@@ -163,7 +152,7 @@ export async function createLabelPDF(
   const topMargin = 12; // Space from top for assigned to name
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = asset.assignedTo;
-    const availableWidth = dims.widthPt - (margin * 2);
+    const availableWidth = LABEL_WIDTH_PT - (margin * 2);
     const maxAssignedFontSize = 14;
     const minAssignedFontSize = 7;
 
@@ -178,8 +167,8 @@ export async function createLabelPDF(
     }
 
     page.drawText(assignedText, {
-      x: (dims.widthPt - assignedWidth) / 2,
-      y: dims.heightPt - topMargin,
+      x: (LABEL_WIDTH_PT - assignedWidth) / 2,
+      y: LABEL_HEIGHT_PT - topMargin,
       size: assignedFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
@@ -188,13 +177,13 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 2;
-  let textY = dims.heightPt - 20; // Start below the assigned to name
+  let textY = LABEL_HEIGHT_PT - 24; // Start below the assigned to name
 
   // Text styling
   const fontSize = 8;
   const boldFontSize = 9;
   const lineHeight = 10;
-  const textAreaWidth = dims.widthPt - textX - margin; // Available width for text
+  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Item Number with prefix - bold and larger
   page.drawText(truncateText(`Item: ${asset.itemNumber}`, 28), {
@@ -245,57 +234,33 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-<<<<<<< HEAD
-  // Hostname and IP Address — combined on one line for Dymo, separate lines for Brother
-  if (opts.labelSize === 'dymo-25x89') {
-    if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
-      let hostIpText = '';
-      if (opts.showHostname && asset.hostname) {
-        hostIpText = asset.hostname;
-      }
-      if (opts.showIpAddress && asset.ipAddress) {
-        hostIpText = hostIpText ? hostIpText + ' | ' + asset.ipAddress : asset.ipAddress;
-      }
-      page.drawText(truncateText(hostIpText, 50), {
-        x: textX,
-        y: textY,
-        size: 7,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
-    }
-  } else {
-=======
-  // Hostname and IP Address on same line for compact space (especially for Dymo)
-  if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
-    let hostIpText = '';
->>>>>>> parent of bddc1e7 (Add Dymo label support and update -Force)
-    if (opts.showHostname && asset.hostname) {
-      hostIpText = asset.hostname;
-    }
-    if (opts.showIpAddress && asset.ipAddress) {
-      if (hostIpText) {
-        hostIpText += ' | ' + asset.ipAddress;
-      } else {
-        hostIpText = asset.ipAddress;
-      }
-    }
-
-    page.drawText(truncateText(hostIpText, 50), {
+  // Hostname on its own line
+  if (opts.showHostname && asset.hostname) {
+    page.drawText(truncateText(asset.hostname, 30), {
       x: textX,
       y: textY,
-      size: 7, // Slightly smaller for combined text
+      size: fontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
   }
 
+  // IP Address on its own line
+  if (opts.showIpAddress && asset.ipAddress) {
+    page.drawText(truncateText(asset.ipAddress, 30), {
+      x: textX,
+      y: textY,
+      size: fontSize,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+  }
+
   // Organization Name - centered at bottom, auto-fit to fill width
   if (asset.organizationName) {
     const orgText = asset.organizationName;
-    const availableWidth = dims.widthPt - (margin * 2);
+    const availableWidth = LABEL_WIDTH_PT - (margin * 2);
     const maxFontSize = 14;
     const minFontSize = 6;
 
@@ -310,7 +275,7 @@ export async function createLabelPDF(
     }
 
     page.drawText(orgText, {
-      x: (dims.widthPt - orgWidth) / 2,
+      x: (LABEL_WIDTH_PT - orgWidth) / 2,
       y: 4,
       size: orgFontSize,
       font: boldFont,
@@ -340,8 +305,7 @@ export async function createLabelPreview(
  */
 export async function printLabel(
   pdfBytes: Uint8Array,
-  printerName: string,
-  labelSize: LabelSize = 'brother-29x62'
+  printerName: string
 ): Promise<void> {
   // Write PDF to temp file
   const tempPath = join(tmpdir(), `label-${Date.now()}.pdf`);
@@ -349,9 +313,11 @@ export async function printLabel(
 
   try {
     // Use pdf-to-printer which works in SYSTEM user context (service)
-    const dims = LABEL_DIMENSIONS[labelSize];
+    // Set paper size to match DK-22211 and use 'fit' scale to fill the label
     const printOptions: any = {
-      paperSize: dims.paperSize,
+      paperSize: '29x62mm',
+      orientation: 'landscape',
+      scale: 'fit',
     };
 
     if (printerName) {
@@ -405,12 +371,8 @@ export function parseSettings(
     return settingsMap[key];
   };
 
-  const labelSizeRaw = get('label.labelSize');
-  const validLabelSize: LabelSize = labelSizeRaw === 'dymo-25x89' ? 'dymo-25x89' : 'brother-29x62';
-
   return {
     printerName: get('label.printerName') || DEFAULT_SETTINGS.printerName,
-    labelSize: validLabelSize,
     showAssignedTo: get('label.showAssignedTo') !== 'false',
     showHostname: get('label.showHostname') !== 'false',
     showIpAddress: get('label.showIpAddress') !== 'false',
@@ -426,9 +388,6 @@ export function settingsToKeyValue(settings: Partial<LabelSettings>): Record<str
 
   if (settings.printerName !== undefined) {
     result['label.printerName'] = settings.printerName;
-  }
-  if (settings.labelSize !== undefined) {
-    result['label.labelSize'] = settings.labelSize;
   }
   if (settings.showAssignedTo !== undefined) {
     result['label.showAssignedTo'] = String(settings.showAssignedTo);
