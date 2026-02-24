@@ -260,7 +260,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Fetch all assets
     const assets = await prisma.asset.findMany({
       where: { id: { in: assetIds } },
-      include: { manufacturer: true },
+      include: { manufacturer: true, ipAddresses: true },
     });
 
     if (assets.length === 0) {
@@ -272,7 +272,10 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     const combinedPdf = await PDFDocument.create();
 
     for (const asset of assets) {
-      const labelAsset: LabelAsset = { ...asset, organizationName };
+      // Resolve first IP (all IPs are equal now)
+      const primaryIP = asset.ipAddresses?.[0]?.ip;
+
+      const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
       const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
       const labelPdf = await PDFDocument.load(pdfBytes);
       const [page] = await combinedPdf.copyPages(labelPdf, [0]);
@@ -389,7 +392,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true },
+      include: { manufacturer: true, ipAddresses: true },
     });
 
     if (!asset) {
@@ -422,7 +425,10 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     const isDymo = finalSettings.labelType === 'dymo-1933081';
     const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
 
-    const labelAsset: LabelAsset = { ...asset, organizationName };
+    // Resolve first IP (all IPs are equal now)
+    const primaryIP = asset.ipAddresses?.[0]?.ip;
+
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'application/pdf');
