@@ -31,7 +31,7 @@ export interface LabelSettings {
 
 const DEFAULT_SETTINGS: LabelSettings = {
   printerName: '',
-  showAssignedTo: false,  // Don't show by default on compact Dymo label
+  showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,
   qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
@@ -147,15 +147,27 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 2;
-  let textY = LABEL_HEIGHT_PT - 8; // Start near top of label
+  let textY = LABEL_HEIGHT_PT - 6; // Start near top of label
 
   // Text styling
-  const fontSize = 6;
-  const boldFontSize = 7;
-  const lineHeight = 8;
+  const fontSize = 5.5;
+  const boldFontSize = 6.5;
+  const lineHeight = 7;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
-  // Item Number - bold and larger
+  // Assigned To (if present)
+  if (opts.showAssignedTo && asset.assignedTo) {
+    page.drawText(truncateText(asset.assignedTo, 28), {
+      x: textX,
+      y: textY,
+      size: boldFontSize,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    textY -= lineHeight;
+  }
+
+  // Item Number - bold
   page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
     x: textX,
     y: textY,
@@ -170,7 +182,7 @@ export async function createLabelPDF(
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 6;
+    const maxModelFontSize = 5.5;
     const minModelFontSize = 4;
 
     // Calculate font size to fit text within available width
@@ -242,9 +254,9 @@ export async function createLabelPDF(
   }
 
   // Organization Name - at bottom if space
-  if (asset.organizationName && textY > 4) {
-    const orgText = truncateText(asset.organizationName, 35);
-    const maxFontSize = 5;
+  if (asset.organizationName && textY > 3) {
+    const orgText = truncateText(asset.organizationName, 40);
+    const maxFontSize = 4.5;
     let orgFontSize = maxFontSize;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
@@ -255,7 +267,7 @@ export async function createLabelPDF(
 
     page.drawText(orgText, {
       x: textX,
-      y: 2,
+      y: 1,
       size: orgFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
