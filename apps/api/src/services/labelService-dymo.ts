@@ -131,8 +131,8 @@ export async function createLabelPDF(
   const qrImage = await doc.embedPng(qrBuffer);
 
   // Layout: Landscape - QR on left, text on right
-  const margin = 2;
-  const qrSize = 40; // ~14mm - compact QR for narrow label
+  const margin = 3;
+  const qrSize = 55; // Larger QR code
 
   // QR code on LEFT, vertically centered
   const qrX = margin;
@@ -146,14 +146,14 @@ export async function createLabelPDF(
   });
 
   // Text starts after QR code
-  const textX = qrX + qrSize + 2;
-  let textY = LABEL_HEIGHT_PT - 6; // Start near top of label
+  const textX = qrX + qrSize + 3;
+  let textY = LABEL_HEIGHT_PT - 5; // Start near top of label
 
-  // Text styling
-  const fontSize = 5.5;
-  const boldFontSize = 6.5;
-  const assignedToFontSize = 7.5;
-  const lineHeight = 7;
+  // Text styling - increased sizes
+  const fontSize = 7;
+  const boldFontSize = 8;
+  const assignedToFontSize = 9;
+  const lineHeight = 8;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Assigned To (if present)
@@ -183,8 +183,8 @@ export async function createLabelPDF(
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 5.5;
-    const minModelFontSize = 4;
+    const maxModelFontSize = 7;
+    const minModelFontSize = 5;
 
     // Calculate font size to fit text within available width
     let modelFontSize = maxModelFontSize;
@@ -257,13 +257,13 @@ export async function createLabelPDF(
   // Organization Name - at bottom if space
   if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 6;
+    const maxFontSize = 7.5;
     let orgFontSize = maxFontSize;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
     // Scale down if too wide
     if (orgWidth > textAreaWidth) {
-      orgFontSize = Math.max(4, (textAreaWidth / orgWidth) * maxFontSize);
+      orgFontSize = Math.max(5, (textAreaWidth / orgWidth) * maxFontSize);
     }
 
     page.drawText(orgText, {
