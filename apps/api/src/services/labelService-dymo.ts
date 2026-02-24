@@ -147,16 +147,16 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 3;
-  let textY = LABEL_HEIGHT_PT - 5; // Start near top of label
+  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Text styling - increased sizes
   const fontSize = 7;
   const boldFontSize = 8;
   const assignedToFontSize = 9;
   const lineHeight = 8;
-  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
-  // Assigned To (if present)
+  // Assigned To (if present) - above the QR code area
+  let textY = LABEL_HEIGHT_PT - 5; // Start near top for assigned to
   if (opts.showAssignedTo && asset.assignedTo) {
     page.drawText(truncateText(asset.assignedTo, 28), {
       x: textX,
@@ -168,7 +168,8 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Item Number - bold
+  // Item Number - starts aligned with QR code top
+  textY = qrY + qrSize; // Align with top of QR code
   page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
     x: textX,
     y: textY,
