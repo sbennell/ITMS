@@ -221,11 +221,9 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // DYMO SPECIFIC: Hostname and IP Address on ONE line
-  if (opts.showHostname && asset.hostname && opts.showIpAddress && asset.ipAddress) {
-    // Both hostname and IP present - combine on one line
-    const combined = `${asset.hostname} | ${asset.ipAddress}`;
-    page.drawText(truncateText(combined, 30), {
+  // Hostname on its own line
+  if (opts.showHostname && asset.hostname) {
+    page.drawText(truncateText(asset.hostname, 30), {
       x: textX,
       y: textY,
       size: fontSize,
@@ -233,29 +231,18 @@ export async function createLabelPDF(
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
-  } else {
-    // Fall back to individual lines if only one is present
-    if (opts.showHostname && asset.hostname) {
-      page.drawText(truncateText(asset.hostname, 30), {
-        x: textX,
-        y: textY,
-        size: fontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
-    }
+  }
 
-    if (opts.showIpAddress && asset.ipAddress) {
-      page.drawText(truncateText(asset.ipAddress, 30), {
-        x: textX,
-        y: textY,
-        size: fontSize,
-        font: boldFont,
-        color: rgb(0, 0, 0),
-      });
-      textY -= lineHeight;
-    }
+  // IP Address on its own line
+  if (opts.showIpAddress && asset.ipAddress) {
+    page.drawText(truncateText(asset.ipAddress, 30), {
+      x: textX,
+      y: textY,
+      size: fontSize,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    textY -= lineHeight;
   }
 
   // Organization Name - centered across full label width at bottom
