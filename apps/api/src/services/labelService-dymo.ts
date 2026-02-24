@@ -303,6 +303,7 @@ export async function printLabel(
     // Use pdf-to-printer with Dymo paper size (25mm x 89mm)
     const printOptions: any = {
       scale: 'noscale',
+      paperSize: 'w252h71',
     };
 
     if (printerName) {
