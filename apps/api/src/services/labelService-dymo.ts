@@ -153,7 +153,7 @@ export async function createLabelPDF(
   const fontSize = 12;
   const boldFontSize = 12;
   const assignedToFontSize = 12;
-  const lineHeight = 8;
+  const lineHeight = 10;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Assigned To (if present) - centered across full label width
