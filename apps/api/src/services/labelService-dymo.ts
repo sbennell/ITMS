@@ -132,7 +132,7 @@ export async function createLabelPDF(
 
   // Layout: Landscape - QR on left, text on right
   const margin = 3;
-  const qrSize = 52; // Larger QR code
+  const qrSize = 50; // Larger QR code
 
   // QR code on LEFT, vertically centered
   const qrX = margin;
@@ -147,7 +147,7 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 3;
-  let textY = LABEL_HEIGHT_PT - 5; // Start near top of label
+  let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
 
   // Text styling - increased sizes
   const fontSize = 7;
