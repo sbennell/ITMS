@@ -5,11 +5,10 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-// DK-22211 label dimensions for Brother QL label printers
-// For continuous 29mm tape, create landscape PDF and let printer driver rotate
-// Width = print length (62mm), Height = tape width (29mm)
-const LABEL_WIDTH_PT = 176;  // 62mm (print length along tape)
-const LABEL_HEIGHT_PT = 82;  // 29mm (tape width)
+// Dymo 1933081 label dimensions: 25mm × 89mm (height × width)
+// For landscape orientation: width = 89mm, height = 25mm
+const LABEL_WIDTH_PT = 252;   // 89mm (width)
+const LABEL_HEIGHT_PT = 71;   // 25mm (height)
 
 export interface LabelAsset {
   itemNumber: string;
@@ -24,21 +23,18 @@ export interface LabelAsset {
 
 export interface LabelSettings {
   printerName: string;
-  labelType: 'brother-dk22211' | 'dymo-1933081';
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
   qrCodeContent: 'full' | 'itemNumber';
-  // Note: Item Number, Model, and Serial Number are always shown
 }
 
 const DEFAULT_SETTINGS: LabelSettings = {
   printerName: '',
-  labelType: 'brother-dk22211',
-  showAssignedTo: true,
+  showAssignedTo: false,  // Don't show by default on compact Dymo label
   showHostname: true,
   showIpAddress: true,
-  qrCodeContent: 'full',
+  qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
 };
 
 /**
@@ -96,7 +92,7 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
   if (asset.serialNumber) {
     lines.push(`S/N: ${asset.serialNumber}`);
   }
-  // Hostname and IP on separate lines
+  // Hostname and IP on separate lines in QR (even though printed on one line)
   if (opts.showHostname && asset.hostname) {
     lines.push(asset.hostname);
   }
@@ -111,9 +107,8 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 }
 
 /**
- * Create a label PDF for an asset
- * Landscape PDF (62mm x 29mm) with QR on left, text on right
- * Brother QL driver handles rotation for 29mm tape
+ * Create a label PDF for an asset (Dymo 1933081 - 25mm×89mm)
+ * Landscape PDF (89mm x 25mm) with QR on left, text on right
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -121,11 +116,11 @@ export async function createLabelPDF(
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
 
-  // Generate QR code containing all label information
+  // Generate QR code
   const qrContent = buildQRContent(asset, opts);
-  const qrBuffer = await generateQRCode(qrContent, 150);
+  const qrBuffer = await generateQRCode(qrContent, 120);
 
-  // Create PDF document - landscape orientation (62mm x 29mm)
+  // Create PDF document - landscape orientation (89mm x 25mm)
   const doc = await PDFDocument.create();
   const page = doc.addPage([LABEL_WIDTH_PT, LABEL_HEIGHT_PT]);
 
@@ -136,10 +131,10 @@ export async function createLabelPDF(
   const qrImage = await doc.embedPng(qrBuffer);
 
   // Layout: Landscape - QR on left, text on right
-  const margin = 3;
-  const qrSize = 48; // ~17mm - compact to maximize text space
+  const margin = 2;
+  const qrSize = 40; // ~14mm - compact QR for narrow label
 
-  // QR code on LEFT, vertically centered on full label height
+  // QR code on LEFT, vertically centered
   const qrX = margin;
   const qrY = (LABEL_HEIGHT_PT - qrSize) / 2;
 
@@ -150,45 +145,18 @@ export async function createLabelPDF(
     height: qrSize,
   });
 
-  // Assigned To name - centered at top of label, auto-fit to fill width
-  const topMargin = 12; // Space from top for assigned to name
-  if (opts.showAssignedTo && asset.assignedTo) {
-    const assignedText = asset.assignedTo;
-    const availableWidth = LABEL_WIDTH_PT - (margin * 2);
-    const maxAssignedFontSize = 14;
-    const minAssignedFontSize = 7;
-
-    // Calculate font size to fit text within available width
-    let assignedFontSize = maxAssignedFontSize;
-    let assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
-
-    // Scale down if text is too wide
-    if (assignedWidth > availableWidth) {
-      assignedFontSize = Math.max(minAssignedFontSize, (availableWidth / assignedWidth) * maxAssignedFontSize);
-      assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
-    }
-
-    page.drawText(assignedText, {
-      x: (LABEL_WIDTH_PT - assignedWidth) / 2,
-      y: LABEL_HEIGHT_PT - topMargin,
-      size: assignedFontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-  }
-
   // Text starts after QR code
   const textX = qrX + qrSize + 2;
-  let textY = LABEL_HEIGHT_PT - 24; // Start below the assigned to name
+  let textY = LABEL_HEIGHT_PT - 8; // Start near top of label
 
   // Text styling
-  const fontSize = 8;
-  const boldFontSize = 9;
-  const lineHeight = 10;
+  const fontSize = 6;
+  const boldFontSize = 7;
+  const lineHeight = 8;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
-  // Item Number with prefix - bold and larger
-  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 28), {
+  // Item Number - bold and larger
+  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
     x: textX,
     y: textY,
     size: boldFontSize,
@@ -202,8 +170,8 @@ export async function createLabelPDF(
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 8;
-    const minModelFontSize = 5;
+    const maxModelFontSize = 6;
+    const minModelFontSize = 4;
 
     // Calculate font size to fit text within available width
     let modelFontSize = maxModelFontSize;
@@ -226,7 +194,7 @@ export async function createLabelPDF(
 
   // Serial Number (always shown, under Model)
   if (asset.serialNumber) {
-    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 30), {
+    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 25), {
       x: textX,
       y: textY,
       size: fontSize,
@@ -236,9 +204,11 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname on its own line
-  if (opts.showHostname && asset.hostname) {
-    page.drawText(truncateText(asset.hostname, 30), {
+  // DYMO SPECIFIC: Hostname and IP Address on ONE line
+  if (opts.showHostname && asset.hostname && opts.showIpAddress && asset.ipAddress) {
+    // Both hostname and IP present - combine on one line
+    const combined = `${asset.hostname} | ${asset.ipAddress}`;
+    page.drawText(truncateText(combined, 30), {
       x: textX,
       y: textY,
       size: fontSize,
@@ -246,39 +216,46 @@ export async function createLabelPDF(
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
+  } else {
+    // Fall back to individual lines if only one is present
+    if (opts.showHostname && asset.hostname) {
+      page.drawText(truncateText(asset.hostname, 30), {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
+    }
+
+    if (opts.showIpAddress && asset.ipAddress) {
+      page.drawText(truncateText(asset.ipAddress, 30), {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      textY -= lineHeight;
+    }
   }
 
-  // IP Address on its own line
-  if (opts.showIpAddress && asset.ipAddress) {
-    page.drawText(truncateText(asset.ipAddress, 30), {
-      x: textX,
-      y: textY,
-      size: fontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-  }
-
-  // Organization Name - centered at bottom, auto-fit to fill width
-  if (asset.organizationName) {
-    const orgText = asset.organizationName;
-    const availableWidth = LABEL_WIDTH_PT - (margin * 2);
-    const maxFontSize = 14;
-    const minFontSize = 6;
-
-    // Calculate font size to fit text within available width
+  // Organization Name - at bottom if space
+  if (asset.organizationName && textY > 4) {
+    const orgText = truncateText(asset.organizationName, 35);
+    const maxFontSize = 5;
     let orgFontSize = maxFontSize;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
-    // Scale down if text is too wide
-    if (orgWidth > availableWidth) {
-      orgFontSize = Math.max(minFontSize, (availableWidth / orgWidth) * maxFontSize);
-      orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
+    // Scale down if too wide
+    if (orgWidth > textAreaWidth) {
+      orgFontSize = Math.max(3, (textAreaWidth / orgWidth) * maxFontSize);
     }
 
     page.drawText(orgText, {
-      x: (LABEL_WIDTH_PT - orgWidth) / 2,
-      y: 4,
+      x: textX,
+      y: 2,
       size: orgFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
@@ -295,29 +272,25 @@ export async function createLabelPreview(
   asset: LabelAsset,
   settings: Partial<LabelSettings> = {}
 ): Promise<Buffer> {
-  // For preview, we'll return the QR code with asset info encoded
-  // A more sophisticated implementation could render the full label as an image
   const qrBuffer = await generateQRCode(asset.itemNumber, 200);
   return qrBuffer;
 }
 
 /**
  * Print a label to the specified printer using pdf-to-printer
- * Works in service context (SYSTEM user) where PowerShell verb methods fail
  */
 export async function printLabel(
   pdfBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
   // Write PDF to temp file
-  const tempPath = join(tmpdir(), `label-${Date.now()}.pdf`);
+  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.pdf`);
   writeFileSync(tempPath, Buffer.from(pdfBytes));
 
   try {
-    // Use pdf-to-printer which works in SYSTEM user context (service)
-    // Set paper size to match DK-22211 and use 'fit' scale to fill the label
+    // Use pdf-to-printer with Dymo paper size (25mm x 89mm)
     const printOptions: any = {
-      paperSize: '29x62mm',
+      paperSize: '25x89mm',
       orientation: 'landscape',
       scale: 'fit',
     };
@@ -328,7 +301,7 @@ export async function printLabel(
 
     await print(tempPath, printOptions);
   } finally {
-    // Clean up temp file after a delay to allow printing to complete
+    // Clean up temp file after a delay
     setTimeout(() => {
       try {
         unlinkSync(tempPath);
@@ -358,55 +331,4 @@ export async function getAvailablePrinters(): Promise<string[]> {
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 2) + '..';
-}
-
-/**
- * Parse settings from key-value store format
- */
-export function parseSettings(
-  settingsMap: Map<string, string> | Record<string, string>
-): LabelSettings {
-  const get = (key: string) => {
-    if (settingsMap instanceof Map) {
-      return settingsMap.get(key);
-    }
-    return settingsMap[key];
-  };
-
-  return {
-    printerName: get('label.printerName') || DEFAULT_SETTINGS.printerName,
-    labelType: (get('label.labelType') === 'dymo-1933081' ? 'dymo-1933081' : 'brother-dk22211'),
-    showAssignedTo: get('label.showAssignedTo') !== 'false',
-    showHostname: get('label.showHostname') !== 'false',
-    showIpAddress: get('label.showIpAddress') !== 'false',
-    qrCodeContent: (get('label.qrCodeContent') === 'itemNumber' ? 'itemNumber' : 'full'),
-  };
-}
-
-/**
- * Convert settings to key-value pairs for storage
- */
-export function settingsToKeyValue(settings: Partial<LabelSettings>): Record<string, string> {
-  const result: Record<string, string> = {};
-
-  if (settings.printerName !== undefined) {
-    result['label.printerName'] = settings.printerName;
-  }
-  if (settings.labelType !== undefined) {
-    result['label.labelType'] = settings.labelType;
-  }
-  if (settings.showAssignedTo !== undefined) {
-    result['label.showAssignedTo'] = String(settings.showAssignedTo);
-  }
-  if (settings.showHostname !== undefined) {
-    result['label.showHostname'] = String(settings.showHostname);
-  }
-  if (settings.showIpAddress !== undefined) {
-    result['label.showIpAddress'] = String(settings.showIpAddress);
-  }
-  if (settings.qrCodeContent !== undefined) {
-    result['label.qrCodeContent'] = settings.qrCodeContent;
-  }
-
-  return result;
 }

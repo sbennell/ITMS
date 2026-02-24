@@ -119,6 +119,10 @@ function LabelSettingsSection() {
     mutation.mutate({ qrCodeContent: value });
   };
 
+  const handleLabelTypeChange = (labelType: 'brother-dk22211' | 'dymo-1933081') => {
+    mutation.mutate({ labelType });
+  };
+
   const isLoading = settingsLoading || printersLoading;
 
   return (
@@ -161,6 +165,20 @@ function LabelSettingsSection() {
             {printers?.length === 0 && (
               <p className="mt-1 text-xs text-gray-500">No printers detected</p>
             )}
+          </div>
+
+          {/* Label Size / Type */}
+          <div>
+            <label className="label">Label Size</label>
+            <select
+              value={settings?.labelType || 'brother-dk22211'}
+              onChange={(e) => handleLabelTypeChange(e.target.value as 'brother-dk22211' | 'dymo-1933081')}
+              className="input"
+              disabled={mutation.isPending}
+            >
+              <option value="brother-dk22211">Brother DK-22211 (29×62mm)</option>
+              <option value="dymo-1933081">Dymo 1933081 (25×89mm)</option>
+            </select>
           </div>
 
           {/* Label Content Options */}

@@ -140,6 +140,7 @@ export interface BulkUpdateResult {
 
 export interface LabelSettings {
   printerName: string;
+  labelType: 'brother-dk22211' | 'dymo-1933081';
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;

@@ -2,15 +2,20 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from './auth.js';
 import {
-  createLabelPDF,
-  createLabelPreview,
-  printLabel,
+  createLabelPDF as createBrotherPDF,
+  createLabelPreview as createBrotherPreview,
+  printLabel as printBrother,
   getAvailablePrinters,
   parseSettings,
   settingsToKeyValue,
   LabelAsset,
   LabelSettings,
 } from '../services/labelService.js';
+import {
+  createLabelPDF as createDymoPDF,
+  createLabelPreview as createDymoPreview,
+  printLabel as printDymo,
+} from '../services/labelService-dymo.js';
 
 const router = Router();
 
@@ -29,10 +34,24 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
       return res.status(404).json({ error: 'Asset not found' });
     }
 
+    // Get label settings
+    const settingsRecords = await prisma.settings.findMany({
+      where: {
+        key: { in: ['label.labelType', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent'] },
+      },
+    });
+    const settingsMap: Record<string, string> = {};
+    settingsRecords.forEach((s: { key: string; value: string }) => {
+      settingsMap[s.key] = s.value;
+    });
+    const settings = parseSettings(settingsMap);
+
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
-    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP } as LabelAsset);
+    // Select correct preview function based on label type
+    const createLabelPreview = settings.labelType === 'dymo-1933081' ? createDymoPreview : createBrotherPreview;
+    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP } as LabelAsset, settings);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `inline; filename="label-${asset.itemNumber}.png"`);
@@ -62,7 +81,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.labelType', 'label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -80,6 +99,11 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
       ...(showIpAddress !== undefined && { showIpAddress }),
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
+
+    // Select correct service based on label type
+    const isDymo = finalSettings.labelType === 'dymo-1933081';
+    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
+    const printLabel = isDymo ? printDymo : printBrother;
 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
@@ -118,7 +142,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.labelType', 'label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -136,6 +160,11 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
       ...(showIpAddress !== undefined && { showIpAddress }),
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
+
+    // Select correct service based on label type
+    const isDymo = finalSettings.labelType === 'dymo-1933081';
+    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
+    const printLabel = isDymo ? printDymo : printBrother;
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -205,7 +234,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.labelType', 'label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -223,6 +252,10 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
       ...(showIpAddress !== undefined && { showIpAddress }),
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
+
+    // Select correct service based on label type
+    const isDymo = finalSettings.labelType === 'dymo-1933081';
+    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -292,6 +325,19 @@ router.get('/settings', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// Get available label types
+router.get('/label-types', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    res.json([
+      { id: 'brother-dk22211', name: 'Brother DK-22211 (29×62mm)' },
+      { id: 'dymo-1933081', name: 'Dymo 1933081 (25×89mm)' },
+    ]);
+  } catch (error) {
+    console.error('Get label types error:', error);
+    res.status(500).json({ error: 'Failed to get label types' });
+  }
+});
+
 // Update label settings
 router.put('/settings', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -353,7 +399,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
       where: {
-        key: { in: ['label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+        key: { in: ['label.labelType', 'label.printerName', 'label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
       },
     });
     const settingsMap: Record<string, string> = {};
@@ -371,6 +417,10 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
       ...(showIpAddress !== undefined && { showIpAddress }),
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
+
+    // Select correct service based on label type
+    const isDymo = finalSettings.labelType === 'dymo-1933081';
+    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
 
     const labelAsset: LabelAsset = { ...asset, organizationName };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
