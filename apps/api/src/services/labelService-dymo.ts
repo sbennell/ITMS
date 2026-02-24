@@ -187,7 +187,7 @@ export async function createLabelPDF(
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 7;
+    const maxModelFontSize = 9;
     const minModelFontSize = 5;
 
     // Calculate font size to fit text within available width
