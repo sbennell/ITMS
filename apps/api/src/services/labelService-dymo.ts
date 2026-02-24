@@ -150,7 +150,7 @@ export async function createLabelPDF(
   let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
 
   // Text styling - increased sizes
-  const fontSize = 9;
+  const fontSize = 10;
   const boldFontSize = 10;
   const assignedToFontSize = 10;
   const lineHeight = 8;
@@ -187,7 +187,7 @@ export async function createLabelPDF(
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 9;
+    const maxModelFontSize = 10;
     const minModelFontSize = 5;
 
     // Calculate font size to fit text within available width
