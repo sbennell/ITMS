@@ -3,7 +3,7 @@ import { getPrinters } from 'pdf-to-printer';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { execFile } from 'child_process';
 
 
 export interface LabelAsset {
@@ -336,15 +336,26 @@ export async function printLabel(
     // Get DLS.exe path from environment or use standard installation path
     const dlsPath = process.env.DYMO_DLS_PATH ?? `C:\\Program Files (x86)\\DYMO\\DYMO Label Software\\DLS.exe`;
 
-    // Build command with optional printer argument
-    const printerArg = printerName ? ` /printer "${printerName}"` : '';
-    const command = `"${dlsPath}" /p "${tempPath}"${printerArg}`;
+    // Build command arguments
+    const args = ['/p', tempPath];
+    if (printerName) {
+      args.push('/printer', printerName);
+    }
 
-    // Execute DLS.exe
-    execSync(command, {
-      windowsHide: true,
-      stdio: 'ignore',
+    // Execute DLS.exe asynchronously
+    await new Promise<void>((resolve, reject) => {
+      execFile(dlsPath, args, { windowsHide: true }, (error) => {
+        if (error) {
+          console.error('DLS.exe execution failed:', error);
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
     });
+  } catch (error) {
+    console.error('Failed to print label:', error);
+    throw error;
   } finally {
     // Clean up temp file after a delay
     setTimeout(() => {
