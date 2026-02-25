@@ -1,6 +1,9 @@
 import bwipjs from 'bwip-js';
-import { request } from 'http';
-import { URLSearchParams } from 'url';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 
 export interface LabelAsset {
@@ -420,126 +423,70 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label to the specified printer using DYMO Label Software web service
- * Sends the label XML to http://127.0.0.1:41951/DYMO/DLS/Printing/PrintLabel
+ * Print a label by saving it to a temp file and opening it with DLS.exe
+ * DLS.exe will use the configured printer and print the label
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
-  const labelXml = Buffer.from(labelBytes).toString('utf-8');
-  const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
+  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.label`);
+  writeFileSync(tempPath, Buffer.from(labelBytes));
 
-  // Extract just the printer name if it includes a network path (e.g., \\IP\PRINTER -> PRINTER)
-  const cleanPrinterName = printerName.includes('\\')
-    ? printerName.split('\\').pop() || printerName
-    : printerName;
+  console.log('[DYMO] Label file written to:', tempPath);
+  console.log('[DYMO] Printer:', printerName);
 
-  console.log('[DYMO] Printing label to printer:', cleanPrinterName);
-  console.log('[DYMO] Original printer name:', printerName);
+  const execAsync = promisify(exec);
+  const dlsPath = process.env.DYMO_DLS_PATH ?? `C:\\Program Files (x86)\\DYMO\\DYMO Label Software\\DLS.exe`;
 
-  const body = new URLSearchParams({
-    printerName: cleanPrinterName,
-    labelXmlContent: labelXml,
-    printParamsXml: printParams,
-    paramsXml: '',
-  }).toString();
+  try {
+    // Open the label file with DLS.exe to trigger printing
+    console.log('[DYMO] Opening label with DLS.exe:', dlsPath);
+    await execAsync(`"${dlsPath}" "${tempPath}"`, {
+      windowsHide: true,
+      timeout: 30000,
+    });
 
-  console.log('[DYMO] Request body size:', Buffer.byteLength(body), 'bytes');
-
-  return new Promise<void>((resolve, reject) => {
-    const req = request(
-      {
-        hostname: '127.0.0.1',
-        port: 41951,
-        path: '/DYMO/DLS/Printing/PrintLabel',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Content-Length': Buffer.byteLength(body),
-        },
-      },
-      (res) => {
-        let responseData = '';
-        res.on('data', (chunk) => {
-          responseData += chunk;
-        });
-        res.on('end', () => {
-          console.log(`[DYMO] Response status: ${res.statusCode}`);
-          console.log(`[DYMO] Response data: ${responseData.substring(0, 200)}`);
-          if (res.statusCode === 200 || res.statusCode === 201) {
-            console.log('[DYMO] Label printed successfully');
-            resolve();
-          } else {
-            console.error('[DYMO] Service error:', res.statusCode);
-            console.error('[DYMO] Response:', responseData);
-            reject(new Error(`DYMO service error: ${res.statusCode} - ${responseData}`));
-          }
-        });
+    console.log('[DYMO] Label printed successfully');
+  } catch (error) {
+    console.error('[DYMO] Failed to print label:', error);
+    throw error;
+  } finally {
+    // Clean up temp file after a delay
+    setTimeout(() => {
+      try {
+        unlinkSync(tempPath);
+        console.log('[DYMO] Temp file cleaned up');
+      } catch (e) {
+        // Ignore cleanup errors
       }
-    );
-
-    req.on('error', (error) => {
-      console.error('[DYMO] Failed to connect to DYMO service:', error.message);
-      console.error('[DYMO] Make sure DYMO Label Software is running on http://127.0.0.1:41951');
-      console.error('[DYMO] Error details:', error);
-      reject(error);
-    });
-
-    req.on('timeout', () => {
-      console.error('[DYMO] Request timeout');
-      req.destroy();
-      reject(new Error('DYMO service timeout'));
-    });
-
-    req.write(body);
-    req.end();
-  });
+    }, 2000);
+  }
 }
 
 /**
- * Get list of available DYMO printers from the DYMO Label Software web service
+ * Get list of available DYMO printers
+ * This queries the system for available printers
  */
 export async function getAvailablePrinters(): Promise<string[]> {
-  return new Promise<string[]>((resolve) => {
-    const req = request(
-      {
-        hostname: '127.0.0.1',
-        port: 41951,
-        path: '/DYMO/DLS/Printing/GetPrinters',
-        method: 'GET',
-      },
-      (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          try {
-            // Parse printer names from XML response: <Name>PrinterName</Name>
-            const printerNames: string[] = [];
-            const nameRegex = /<Name>([^<]+)<\/Name>/g;
-            let match;
-            while ((match = nameRegex.exec(data)) !== null) {
-              printerNames.push(match[1]);
-            }
-            console.log('[DYMO] Found printers:', printerNames);
-            resolve(printerNames);
-          } catch (error) {
-            console.error('[DYMO] Failed to parse printers:', error);
-            resolve([]);
-          }
-        });
-      }
+  try {
+    // Try to use WMI (Windows Management Instrumentation) to query printers
+    const execAsync = promisify(exec);
+    const { stdout } = await execAsync(
+      'wmic printconfig get name',
+      { encoding: 'utf-8' }
     );
 
-    req.on('error', (error) => {
-      console.warn('[DYMO] Failed to get printers from service:', error.message);
-      console.warn('[DYMO] Make sure DYMO Label Software is running');
-      resolve([]);
-    });
+    // Parse printer names from WMI output
+    const lines = stdout.split('\n').filter((line) => line.trim());
+    const printerNames = lines.slice(1).map((line) => line.trim()).filter((name) => name);
 
-    req.end();
-  });
+    console.log('[DYMO] Found printers:', printerNames);
+    return printerNames;
+  } catch (error) {
+    console.warn('[DYMO] Failed to query printers:', (error as Error).message);
+    // Return empty array if query fails - the printer list will be populated from DB settings
+    return [];
+  }
 }
 
