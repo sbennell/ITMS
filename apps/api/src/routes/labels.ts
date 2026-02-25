@@ -104,16 +104,26 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const isDymo = finalSettings.labelType === 'dymo-1933081';
     const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
     const printLabel = isDymo ? printDymo : printBrother;
+    const printBrotherLabel = printBrother;
+    const printDymoLabel = printDymo;
 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
     // Generate and print label
     const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
-    const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
-    for (let i = 0; i < copies; i++) {
-      await printLabel(pdfBytes, settings.printerName);
+    if (isDymo) {
+      // Dymo: Print directly via WebService (no PDF needed)
+      for (let i = 0; i < copies; i++) {
+        await printDymoLabel(labelAsset, finalSettings, settings.printerName, 1);
+      }
+    } else {
+      // Brother: Generate PDF and print
+      const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+      for (let i = 0; i < copies; i++) {
+        await printBrotherLabel(pdfBytes, settings.printerName);
+      }
     }
 
     res.json({
@@ -164,7 +174,8 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Select correct service based on label type
     const isDymo = finalSettings.labelType === 'dymo-1933081';
     const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
-    const printLabel = isDymo ? printDymo : printBrother;
+    const printBrotherLabel = printBrother;
+    const printDymoLabel = printDymo;
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -182,9 +193,18 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
         const primaryIP = asset.ipAddresses?.[0]?.ip;
 
         const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
-        const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
-        for (let i = 0; i < copies; i++) {
-          await printLabel(pdfBytes, settings.printerName);
+
+        if (isDymo) {
+          // Dymo: Print directly via WebService
+          for (let i = 0; i < copies; i++) {
+            await printDymoLabel(labelAsset, finalSettings, settings.printerName, 1);
+          }
+        } else {
+          // Brother: Generate PDF and print
+          const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+          for (let i = 0; i < copies; i++) {
+            await printBrotherLabel(pdfBytes, settings.printerName);
+          }
         }
         printed++;
       } catch (error) {
