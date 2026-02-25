@@ -478,4 +478,122 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
   }
 });
 
+// Debug endpoint for testing DYMO API with different parameter formats
+router.post('/debug/test-print', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { printerName } = req.body;
+
+    if (!printerName) {
+      return res.status(400).json({ error: 'printerName is required' });
+    }
+
+    const https = await import('https');
+
+    // Test with minimal XML
+    const minimalXml = `<?xml version="1.0" encoding="utf-8"?>
+<DieCutLabel Version="8.0" Units="twips">
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>Address</Id>
+  <PaperName>30252 Address</PaperName>
+  <DrawCommands>
+    <RoundRectangle X="0" Y="0" Width="5040" Height="1440" Rx="270" Ry="270" />
+  </DrawCommands>
+  <ObjectInfo>
+    <TextObject>
+      <Name>TestText</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>TEST LABEL</String>
+          <Attributes>
+            <Font Family="Arial" Size="12" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="100" Y="400" Width="4800" Height="600" />
+  </ObjectInfo>
+</DieCutLabel>`;
+
+    const printParamsXml = `<LabelWriterPrintParams>
+      <Copies>1</Copies>
+      <JobTitle>Test</JobTitle>
+      <FlowDirection>LeftToRight</FlowDirection>
+      <PrintQuality>Text</PrintQuality>
+    </LabelWriterPrintParams>`;
+
+    // Test different parameter name combinations
+    const tests = [
+      { name: 'lowercase', params: new URLSearchParams({ printerName, labelXml: minimalXml, printParamsXml }) },
+      { name: 'PascalCase', params: new URLSearchParams({ PrinterName: printerName, LabelXml: minimalXml, PrintParamsXml: printParamsXml }) },
+      { name: 'snake_case', params: new URLSearchParams({ printer_name: printerName, label_xml: minimalXml, print_params_xml: printParamsXml }) },
+    ];
+
+    const results: any[] = [];
+
+    for (const test of tests) {
+      const body = test.params;
+      const cleanedName = printerName.startsWith('\\\\')
+        ? printerName.split('\\').pop() || printerName
+        : printerName;
+
+      try {
+        await new Promise((resolve, reject) => {
+          const agent = new https.Agent({ rejectUnauthorized: false });
+          const options = {
+            hostname: '127.0.0.1',
+            port: 41951,
+            path: '/DYMO/DLS/Printing/PrintLabel',
+            method: 'POST',
+            agent: agent,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Content-Length': Buffer.byteLength(body.toString()),
+            },
+          };
+
+          const req = https.request(options, (res: any) => {
+            let data = '';
+            res.on('data', (chunk: any) => { data += chunk; });
+            res.on('end', () => {
+              if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+                resolve(null);
+              } else {
+                reject(new Error(`${res.statusCode}: ${data}`));
+              }
+            });
+          });
+
+          req.on('error', reject);
+          req.write(body.toString());
+          req.end();
+        });
+
+        results.push({ test: test.name, status: 'success', message: 'Printed successfully' });
+      } catch (error: any) {
+        results.push({ test: test.name, status: 'failed', message: error.message });
+      }
+    }
+
+    res.json({
+      printerName: printerName,
+      cleanedName: printerName.startsWith('\\\\') ? printerName.split('\\').pop() : printerName,
+      results,
+    });
+  } catch (error) {
+    console.error('Debug test error:', error);
+    res.status(500).json({ error: 'Failed to run debug test', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 export default router;
