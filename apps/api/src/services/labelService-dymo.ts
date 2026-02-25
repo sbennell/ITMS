@@ -581,6 +581,13 @@ export async function printLabel(
     throw new Error('Printer name is required. Please configure a printer in Settings > Label Printing');
   }
 
+  // Strip UNC path prefix if present (e.g., \\server\DYMO printer -> DYMO printer)
+  let cleanPrinterName = printerName.trim();
+  if (cleanPrinterName.startsWith('\\\\')) {
+    const parts = cleanPrinterName.split('\\');
+    cleanPrinterName = parts[parts.length - 1];
+  }
+
   const labelXml = buildDymoLabelXml(asset, settings);
 
   const printParamsXml = `<LabelWriterPrintParams>
@@ -591,13 +598,13 @@ export async function printLabel(
   </LabelWriterPrintParams>`;
 
   const body = new URLSearchParams({
-    printerName: printerName.trim(),
+    printerName: cleanPrinterName,
     labelXml,
     printParamsXml,
   });
 
   try {
-    console.log(`[DYMO] Printing to printer: ${printerName}`);
+    console.log(`[DYMO] Printing to printer: ${cleanPrinterName}`);
     await dymoFetch('/PrintLabel', 'POST', body.toString());
     console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
   } catch (error) {
