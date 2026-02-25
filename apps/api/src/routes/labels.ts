@@ -398,6 +398,24 @@ router.put('/settings', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// Get available printers
+router.get('/printers', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    // Get printers from the appropriate service based on settings
+    const { getAvailablePrinters: getBrotherPrinters } = await import('../services/labelService.js');
+    const { getAvailablePrinters: getDymoPrinters } = await import('../services/labelService-dymo.js');
+
+    const brotherPrinters = await getBrotherPrinters();
+    const dymoPrinters = await getDymoPrinters();
+    const allPrinters = [...new Set([...brotherPrinters, ...dymoPrinters])];
+
+    res.json(allPrinters);
+  } catch (error) {
+    console.error('Get printers error:', error);
+    res.status(500).json({ error: 'Failed to get printers' });
+  }
+});
+
 // Download label as PDF (for manual printing)
 router.get('/download/:assetId', requireAuth, async (req: Request, res: Response) => {
   try {
