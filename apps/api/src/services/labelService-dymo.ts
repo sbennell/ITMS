@@ -306,6 +306,10 @@ ${textObjects.join('')}
   </ObjectInfo>
 </DieCutLabel>`;
 
+  if (process.env.DEBUG_DYMO) {
+    console.log('[DYMO] Generated label XML:', labelXml);
+  }
+
   // Return as UTF-8 encoded bytes
   return new Uint8Array(Buffer.from(labelXml, 'utf-8'));
 }
@@ -342,19 +346,24 @@ export async function printLabel(
       args.push('/printer', printerName);
     }
 
+    console.log('[DYMO] Printing label:', { dlsPath, tempPath, printerName, args });
+
     // Execute DLS.exe asynchronously
     await new Promise<void>((resolve, reject) => {
-      execFile(dlsPath, args, { windowsHide: true }, (error) => {
+      execFile(dlsPath, args, { windowsHide: true }, (error, stdout, stderr) => {
         if (error) {
-          console.error('DLS.exe execution failed:', error);
+          console.error('[DYMO] DLS.exe execution failed:', error);
+          console.error('[DYMO] stderr:', stderr);
+          console.error('[DYMO] stdout:', stdout);
           reject(error);
         } else {
+          console.log('[DYMO] Label printed successfully');
           resolve();
         }
       });
     });
   } catch (error) {
-    console.error('Failed to print label:', error);
+    console.error('[DYMO] Failed to print label:', error);
     throw error;
   } finally {
     // Clean up temp file after a delay
