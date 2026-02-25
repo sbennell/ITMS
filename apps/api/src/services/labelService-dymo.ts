@@ -104,7 +104,7 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 
 /**
  * Create a DYMO label as XML string, returned as UTF-8 bytes
- * Generates a .label file format for 25mm × 89mm landscape label
+ * Generates a .label file format for 25mm × 89mm (1933081) label
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -129,220 +129,278 @@ export async function createLabelPDF(
     });
   };
 
-  // Build text objects conditionally
-  const textObjects: string[] = [];
-  let yPosition = 150; // Starting Y position in twips
+  // Build ObjectInfo blocks (each object gets its own ObjectInfo with Bounds)
+  const objectInfos: string[] = [];
 
-  // Item Number - bold, larger
-  textObjects.push(`    <TextObject>
-      <Name>ItemNumber</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(`Item: ${asset.itemNumber}`)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="250"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(`Item: ${asset.itemNumber}`)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="11" Bold="True" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-  yPosition += 280;
+  // QR Code (barcode) object
+  objectInfos.push(`	<ObjectInfo>
+		<BarcodeObject>
+			<Name>BARCODE</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<Text>${escapeXml(qrContent)}</Text>
+			<Type>QRCode</Type>
+			<Size>Medium</Size>
+			<TextPosition>None</TextPosition>
+			<TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+			<CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+			<TextEmbedding>None</TextEmbedding>
+			<ECLevel>0</ECLevel>
+			<HorizontalAlignment>Center</HorizontalAlignment>
+			<QuietZonesPadding Left="0" Top="0" Right="0" Bottom="0" />
+		</BarcodeObject>
+		<Bounds X="50" Y="150" Width="900" Height="900" />
+	</ObjectInfo>`);
+
+  let yPos = 100;
+
+  // Item Number
+  objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>ItemNumber</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(`Item: ${asset.itemNumber}`)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="180" />
+	</ObjectInfo>`);
+  yPos += 200;
 
   // Model
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    textObjects.push(`    <TextObject>
-      <Name>Model</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(modelText)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="200"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(modelText)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-    yPosition += 230;
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>Model</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(modelText)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
+	</ObjectInfo>`);
+    yPos += 180;
   }
 
   // Serial Number
   if (asset.serialNumber) {
-    textObjects.push(`    <TextObject>
-      <Name>SerialNumber</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(`S/N: ${asset.serialNumber}`)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="200"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(`S/N: ${asset.serialNumber}`)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-    yPosition += 230;
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>SerialNumber</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(`S/N: ${asset.serialNumber}`)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
+	</ObjectInfo>`);
+    yPos += 180;
   }
 
   // Hostname
   if (opts.showHostname && asset.hostname) {
-    textObjects.push(`    <TextObject>
-      <Name>Hostname</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(asset.hostname)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="200"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(asset.hostname)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-    yPosition += 230;
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>Hostname</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(asset.hostname)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
+	</ObjectInfo>`);
+    yPos += 180;
   }
 
   // IP Address
   if (opts.showIpAddress && asset.ipAddress) {
-    textObjects.push(`    <TextObject>
-      <Name>IpAddress</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(asset.ipAddress)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="200"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(asset.ipAddress)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-    yPosition += 230;
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>IpAddress</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(asset.ipAddress)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
+	</ObjectInfo>`);
+    yPos += 180;
   }
 
   // Assigned To
   if (opts.showAssignedTo && asset.assignedTo) {
-    textObjects.push(`    <TextObject>
-      <Name>AssignedTo</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(asset.assignedTo)}</Text>
-      <Bounds X="1350" Y="${yPosition}" Width="3500" Height="200"/>
-      <Alignment>Left</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(asset.assignedTo)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
-    yPosition += 230;
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>AssignedTo</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Left</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(asset.assignedTo)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
+	</ObjectInfo>`);
   }
 
-  // Organization Name (if present)
+  // Organization Name (bottom)
   if (asset.organizationName) {
-    textObjects.push(`    <TextObject>
-      <Name>Organization</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(asset.organizationName)}</Text>
-      <Bounds X="100" Y="1250" Width="5000" Height="150"/>
-      <Alignment>Center</Alignment>
-      <LineAlignment>Middle</LineAlignment>
-      <StyledText>
-        <Element>
-          <String>${escapeXml(asset.organizationName)}</String>
-          <Attributes>
-            <Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False"/>
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>`);
+    objectInfos.push(`	<ObjectInfo>
+		<TextObject>
+			<Name>Organization</Name>
+			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+			<LinkedObjectName />
+			<Rotation>Rotation0</Rotation>
+			<IsMirrored>False</IsMirrored>
+			<IsVariable>False</IsVariable>
+			<GroupID>-1</GroupID>
+			<IsOutlined>False</IsOutlined>
+			<HorizontalAlignment>Center</HorizontalAlignment>
+			<VerticalAlignment>Top</VerticalAlignment>
+			<TextFitMode>None</TextFitMode>
+			<UseFullFontHeight>True</UseFullFontHeight>
+			<Verticalized>False</Verticalized>
+			<StyledText>
+				<Element>
+					<String xml:space="preserve">${escapeXml(asset.organizationName)}</String>
+					<Attributes>
+						<Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
+					</Attributes>
+				</Element>
+			</StyledText>
+		</TextObject>
+		<Bounds X="50" Y="1150" Width="4990" Height="150" />
+	</ObjectInfo>`);
   }
-
-  // Build QR barcode object
-  const qrObject = `    <BarcodeObject>
-      <Name>QRCode</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Text>${escapeXml(qrContent)}</Text>
-      <Type>QRCode</Type>
-      <Size>Small</Size>
-      <TextPosition>None</TextPosition>
-      <Bounds X="100" Y="150" Width="1200" Height="1200"/>
-    </BarcodeObject>`;
 
   // Construct complete .label XML with proper DYMO format
   const labelXml = `<?xml version="1.0" encoding="utf-8"?>
-<DieCutLabel Version="8.0" Units="twips">
-  <PaperOrientation>Landscape</PaperOrientation>
-  <Id>Address</Id>
-  <PaperName>25mm x 89mm</PaperName>
-  <DrawCommands>
-    <RoundRectangle X="0" Y="0" Width="5040" Height="1417" Rx="270" Ry="270"/>
-  </DrawCommands>
-  <ObjectInfo>
-${qrObject}
-${textObjects.join('\n')}
-  </ObjectInfo>
+<DieCutLabel Version="8.0" Units="twips" MediaType="Durable">
+	<PaperOrientation>Landscape</PaperOrientation>
+	<Id>LW_DURABLE_25X89mm</Id>
+	<IsOutlined>false</IsOutlined>
+	<PaperName>1933081 Drbl 1 x 3-1/2 in</PaperName>
+	<DrawCommands>
+		<RoundRectangle X="0" Y="0" Width="1440" Height="5040" Rx="90.708661417" Ry="90.708661417" />
+	</DrawCommands>
+${objectInfos.join('\n')}
 </DieCutLabel>`;
 
   if (process.env.DEBUG_DYMO) {
