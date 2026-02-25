@@ -295,11 +295,10 @@ export async function printLabel(
   writeFileSync(tempPath, Buffer.from(pdfBytes));
 
   try {
-    // Use pdf-to-printer with Dymo paper size (25mm x 89mm)
+    // Use pdf-to-printer with noscale to print at 100% native PDF size
+    // PDF is already exactly 89mm x 25mm, matching the physical Dymo label
     const printOptions: any = {
-      paperSize: '25x89mm',
-      orientation: 'landscape',
-      scale: 'fit',
+      scale: 'noscale',
     };
 
     if (printerName) {
