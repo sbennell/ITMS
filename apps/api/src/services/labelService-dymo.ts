@@ -1,9 +1,6 @@
 import bwipjs from 'bwip-js';
-import { getPrinters } from 'pdf-to-printer';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
-import { execFile } from 'child_process';
+import { request } from 'http';
+import { URLSearchParams } from 'url';
 
 
 export interface LabelAsset {
@@ -423,67 +420,108 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label to the specified printer using DYMO Label Software (DLS.exe)
+ * Print a label to the specified printer using DYMO Label Software web service
+ * Sends the label XML to http://127.0.0.1:41951/DYMO/DLS/Printing/PrintLabel
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
-  // Write .label XML to temp file
-  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.label`);
-  writeFileSync(tempPath, Buffer.from(labelBytes));
+  const labelXml = Buffer.from(labelBytes).toString('utf-8');
+  const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
-  try {
-    // Get DLS.exe path from environment or use standard installation path
-    const dlsPath = process.env.DYMO_DLS_PATH ?? `C:\\Program Files (x86)\\DYMO\\DYMO Label Software\\DLS.exe`;
+  const body = new URLSearchParams({
+    printerName,
+    labelXmlContent: labelXml,
+    printParamsXml: printParams,
+    paramsXml: '',
+  }).toString();
 
-    // Build command arguments
-    const args = ['/p', tempPath];
-    if (printerName) {
-      args.push('/printer', printerName);
-    }
+  console.log('[DYMO] Printing label to printer:', printerName);
 
-    console.log('[DYMO] Printing label:', { dlsPath, tempPath, printerName, args });
-
-    // Execute DLS.exe asynchronously
-    await new Promise<void>((resolve, reject) => {
-      execFile(dlsPath, args, { windowsHide: true }, (error, stdout, stderr) => {
-        if (error) {
-          console.error('[DYMO] DLS.exe execution failed:', error);
-          console.error('[DYMO] stderr:', stderr);
-          console.error('[DYMO] stdout:', stdout);
-          reject(error);
-        } else {
-          console.log('[DYMO] Label printed successfully');
-          resolve();
-        }
-      });
-    });
-  } catch (error) {
-    console.error('[DYMO] Failed to print label:', error);
-    throw error;
-  } finally {
-    // Clean up temp file after a delay
-    setTimeout(() => {
-      try {
-        unlinkSync(tempPath);
-      } catch (e) {
-        // Ignore cleanup errors
+  return new Promise<void>((resolve, reject) => {
+    const req = request(
+      {
+        hostname: '127.0.0.1',
+        port: 41951,
+        path: '/DYMO/DLS/Printing/PrintLabel',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        let responseData = '';
+        res.on('data', (chunk) => {
+          responseData += chunk;
+        });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            console.log('[DYMO] Label printed successfully');
+            resolve();
+          } else {
+            console.error('[DYMO] Service error:', res.statusCode, responseData);
+            reject(new Error(`DYMO service error: ${res.statusCode}`));
+          }
+        });
       }
-    }, 2000);
-  }
+    );
+
+    req.on('error', (error) => {
+      console.error('[DYMO] Failed to connect to DYMO service:', error.message);
+      console.error('[DYMO] Make sure DYMO Label Software is running');
+      reject(error);
+    });
+
+    req.write(body);
+    req.end();
+  });
 }
 
 /**
- * Get list of available printers
+ * Get list of available DYMO printers from the DYMO Label Software web service
  */
 export async function getAvailablePrinters(): Promise<string[]> {
-  try {
-    const printers = await getPrinters();
-    return printers.map(p => p.name);
-  } catch (error) {
-    console.error('Failed to get printers:', error);
-    return [];
-  }
+  return new Promise<string[]>((resolve) => {
+    const req = request(
+      {
+        hostname: '127.0.0.1',
+        port: 41951,
+        path: '/DYMO/DLS/Printing/GetPrinters',
+        method: 'GET',
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          try {
+            // Parse printer names from XML response: <Name>PrinterName</Name>
+            const printerNames: string[] = [];
+            const nameRegex = /<Name>([^<]+)<\/Name>/g;
+            let match;
+            while ((match = nameRegex.exec(data)) !== null) {
+              printerNames.push(match[1]);
+            }
+            console.log('[DYMO] Found printers:', printerNames);
+            resolve(printerNames);
+          } catch (error) {
+            console.error('[DYMO] Failed to parse printers:', error);
+            resolve([]);
+          }
+        });
+      }
+    );
+
+    req.on('error', (error) => {
+      console.warn('[DYMO] Failed to get printers from service:', error.message);
+      console.warn('[DYMO] Make sure DYMO Label Software is running');
+      resolve([]);
+    });
+
+    req.end();
+  });
 }
 
