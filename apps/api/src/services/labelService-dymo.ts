@@ -63,6 +63,8 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string): P
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           resolve(data);
         } else {
+          console.error(`[DYMO API] ${method} ${path} returned ${res.statusCode}`);
+          console.error(`[DYMO API] Response:`, data);
           reject(new Error(`DYMO WebService error: ${res.statusCode} ${data}`));
         }
       });
@@ -70,6 +72,8 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string): P
 
     req.on('error', reject);
     if (body) {
+      console.log(`[DYMO API] ${method} ${path}`);
+      console.log(`[DYMO API] Body length: ${Buffer.byteLength(body)} bytes`);
       req.write(body);
     }
     req.end();
@@ -597,15 +601,22 @@ export async function printLabel(
     <PrintQuality>Text</PrintQuality>
   </LabelWriterPrintParams>`;
 
+  // DYMO API parameter names - try different formats based on SDK docs
   const body = new URLSearchParams({
     printerName: cleanPrinterName,
-    labelXml,
-    printParamsXml,
+    labelXml: labelXml,
+    printParamsXml: printParamsXml,
   });
 
   try {
+    const bodyStr = body.toString();
     console.log(`[DYMO] Printing to printer: ${cleanPrinterName}`);
-    await dymoFetch('/PrintLabel', 'POST', body.toString());
+    console.log(`[DYMO] Label XML length: ${labelXml.length} chars`);
+    console.log(`[DYMO] PrintParams XML length: ${printParamsXml.length} chars`);
+    console.log(`[DYMO] Total body size: ${bodyStr.length} bytes`);
+    console.log(`[DYMO] Body keys:`, bodyStr.split('&').map(p => p.split('=')[0]));
+    console.log(`[DYMO] Sending POST to /PrintLabel`);
+    await dymoFetch('/PrintLabel', 'POST', bodyStr);
     console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
