@@ -430,14 +430,22 @@ export async function printLabel(
   const labelXml = Buffer.from(labelBytes).toString('utf-8');
   const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
+  // Extract just the printer name if it includes a network path (e.g., \\IP\PRINTER -> PRINTER)
+  const cleanPrinterName = printerName.includes('\\')
+    ? printerName.split('\\').pop() || printerName
+    : printerName;
+
+  console.log('[DYMO] Printing label to printer:', cleanPrinterName);
+  console.log('[DYMO] Original printer name:', printerName);
+
   const body = new URLSearchParams({
-    printerName,
+    printerName: cleanPrinterName,
     labelXmlContent: labelXml,
     printParamsXml: printParams,
     paramsXml: '',
   }).toString();
 
-  console.log('[DYMO] Printing label to printer:', printerName);
+  console.log('[DYMO] Request body size:', Buffer.byteLength(body), 'bytes');
 
   return new Promise<void>((resolve, reject) => {
     const req = request(
