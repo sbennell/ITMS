@@ -457,12 +457,15 @@ export async function printLabel(
           responseData += chunk;
         });
         res.on('end', () => {
-          if (res.statusCode === 200) {
+          console.log(`[DYMO] Response status: ${res.statusCode}`);
+          console.log(`[DYMO] Response data: ${responseData.substring(0, 200)}`);
+          if (res.statusCode === 200 || res.statusCode === 201) {
             console.log('[DYMO] Label printed successfully');
             resolve();
           } else {
-            console.error('[DYMO] Service error:', res.statusCode, responseData);
-            reject(new Error(`DYMO service error: ${res.statusCode}`));
+            console.error('[DYMO] Service error:', res.statusCode);
+            console.error('[DYMO] Response:', responseData);
+            reject(new Error(`DYMO service error: ${res.statusCode} - ${responseData}`));
           }
         });
       }
@@ -470,8 +473,15 @@ export async function printLabel(
 
     req.on('error', (error) => {
       console.error('[DYMO] Failed to connect to DYMO service:', error.message);
-      console.error('[DYMO] Make sure DYMO Label Software is running');
+      console.error('[DYMO] Make sure DYMO Label Software is running on http://127.0.0.1:41951');
+      console.error('[DYMO] Error details:', error);
       reject(error);
+    });
+
+    req.on('timeout', () => {
+      console.error('[DYMO] Request timeout');
+      req.destroy();
+      reject(new Error('DYMO service timeout'));
     });
 
     req.write(body);
