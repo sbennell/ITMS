@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: LabelSettings = {
 /**
  * DYMO WebService HTTP helper - uses https.Agent to bypass self-signed cert
  */
-async function dymoFetch(path: string, method: string = 'GET', body?: string): Promise<string> {
+async function dymoFetch(path: string, method: string = 'GET', body?: string, contentType: string = 'application/x-www-form-urlencoded'): Promise<string> {
   return new Promise((resolve, reject) => {
     const agent = new https.Agent({ rejectUnauthorized: false });
     const url = new URL(`${DYMO_BASE}${path}`);
@@ -51,7 +51,7 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string): P
       method: method,
       agent: agent,
       headers: method === 'POST' ? {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': contentType,
         'Content-Length': Buffer.byteLength(body || ''),
       } : {},
     };
@@ -74,6 +74,7 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string): P
     if (body) {
       console.log(`[DYMO API] ${method} ${path}`);
       console.log(`[DYMO API] Body length: ${Buffer.byteLength(body)} bytes`);
+      console.log(`[DYMO API] Content-Type: ${contentType}`);
       req.write(body);
     }
     req.end();
@@ -601,22 +602,21 @@ export async function printLabel(
     <PrintQuality>Text</PrintQuality>
   </LabelWriterPrintParams>`;
 
-  // DYMO API parameter names - the key parameter is called "printable", not "labelXml"
-  const body = new URLSearchParams({
-    printerName: cleanPrinterName,
-    printable: labelXml,
-    printParams: printParamsXml,
-  });
-
   try {
-    const bodyStr = body.toString();
     console.log(`[DYMO] Printing to printer: ${cleanPrinterName}`);
     console.log(`[DYMO] Label XML length: ${labelXml.length} chars`);
     console.log(`[DYMO] PrintParams XML length: ${printParamsXml.length} chars`);
-    console.log(`[DYMO] Total body size: ${bodyStr.length} bytes`);
-    console.log(`[DYMO] Body keys:`, bodyStr.split('&').map(p => p.split('=')[0]));
-    console.log(`[DYMO] Sending POST to /PrintLabel`);
-    await dymoFetch('/PrintLabel', 'POST', bodyStr);
+
+    // Try JSON format first (some DYMO versions prefer this)
+    const jsonBody = JSON.stringify({
+      printerName: cleanPrinterName,
+      labelXml: labelXml,
+      printParamsXml: printParamsXml,
+    });
+
+    console.log(`[DYMO] Sending POST (JSON) to /PrintLabel`);
+    console.log(`[DYMO] Total body size: ${Buffer.byteLength(jsonBody)} bytes`);
+    await dymoFetch('/PrintLabel', 'POST', jsonBody, 'application/json');
     console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
