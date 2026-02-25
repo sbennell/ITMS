@@ -576,6 +576,11 @@ export async function printLabel(
   printerName: string,
   copies: number = 1
 ): Promise<void> {
+  // Validate printer name
+  if (!printerName || printerName.trim() === '') {
+    throw new Error('Printer name is required. Please configure a printer in Settings > Label Printing');
+  }
+
   const labelXml = buildDymoLabelXml(asset, settings);
 
   const printParamsXml = `<LabelWriterPrintParams>
@@ -586,15 +591,19 @@ export async function printLabel(
   </LabelWriterPrintParams>`;
 
   const body = new URLSearchParams({
-    printerName,
+    printerName: printerName.trim(),
     labelXml,
     printParamsXml,
   });
 
   try {
+    console.log(`[DYMO] Printing to printer: ${printerName}`);
     await dymoFetch('/PrintLabel', 'POST', body.toString());
+    console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
   } catch (error) {
-    throw new Error(`Failed to print label via DYMO WebService: ${error instanceof Error ? error.message : String(error)}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[DYMO] Print error for ${asset.itemNumber}:`, errorMsg);
+    throw new Error(`Failed to print label via DYMO WebService: ${errorMsg}`);
   }
 }
 
