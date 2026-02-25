@@ -39,7 +39,7 @@ const DEFAULT_SETTINGS: LabelSettings = {
 /**
  * DYMO WebService HTTP helper - uses https.Agent to bypass self-signed cert
  */
-async function dymoFetch(path: string, method: string = 'GET', body?: string, contentType: string = 'application/x-www-form-urlencoded'): Promise<string> {
+async function dymoFetch(path: string, method: string = 'GET', body?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const agent = new https.Agent({ rejectUnauthorized: false });
     const url = new URL(`${DYMO_BASE}${path}`);
@@ -51,7 +51,7 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string, co
       method: method,
       agent: agent,
       headers: method === 'POST' ? {
-        'Content-Type': contentType,
+        'Content-Type': 'application/x-www-form-urlencoded',
         'Content-Length': Buffer.byteLength(body || ''),
       } : {},
     };
@@ -64,8 +64,8 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string, co
           resolve(data);
         } else {
           console.error(`[DYMO API] ${method} ${path} returned ${res.statusCode}`);
-          console.error(`[DYMO API] Response:`, data);
-          reject(new Error(`DYMO WebService error: ${res.statusCode} ${data}`));
+          console.error(`[DYMO API] Response:`, data.substring(0, 500));
+          reject(new Error(`DYMO WebService error: ${res.statusCode}`));
         }
       });
     });
@@ -74,7 +74,6 @@ async function dymoFetch(path: string, method: string = 'GET', body?: string, co
     if (body) {
       console.log(`[DYMO API] ${method} ${path}`);
       console.log(`[DYMO API] Body length: ${Buffer.byteLength(body)} bytes`);
-      console.log(`[DYMO API] Content-Type: ${contentType}`);
       req.write(body);
     }
     req.end();
@@ -607,16 +606,17 @@ export async function printLabel(
     console.log(`[DYMO] Label XML length: ${labelXml.length} chars`);
     console.log(`[DYMO] PrintParams XML length: ${printParamsXml.length} chars`);
 
-    // Try JSON format first (some DYMO versions prefer this)
-    const jsonBody = JSON.stringify({
-      printerName: cleanPrinterName,
-      labelXml: labelXml,
-      printParamsXml: printParamsXml,
-    });
+    // DYMO WebService expects form-encoded data - try PascalCase (standard for .NET APIs)
+    const params = new URLSearchParams();
+    params.append('PrinterName', cleanPrinterName);
+    params.append('LabelXml', labelXml);
+    params.append('PrintParamsXml', printParamsXml);
+    const formBody = params.toString();
 
-    console.log(`[DYMO] Sending POST (JSON) to /PrintLabel`);
-    console.log(`[DYMO] Total body size: ${Buffer.byteLength(jsonBody)} bytes`);
-    await dymoFetch('/PrintLabel', 'POST', jsonBody, 'application/json');
+    console.log(`[DYMO] Sending POST (form-encoded, PascalCase) to /PrintLabel`);
+    console.log(`[DYMO] Parameter names: PrinterName, LabelXml, PrintParamsXml`);
+    console.log(`[DYMO] Total body size: ${Buffer.byteLength(formBody)} bytes`);
+    await dymoFetch('/PrintLabel', 'POST', formBody);
     console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
