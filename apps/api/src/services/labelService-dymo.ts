@@ -1,14 +1,10 @@
 import bwipjs from 'bwip-js';
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { getPrinters, print } from 'pdf-to-printer';
+import { getPrinters } from 'pdf-to-printer';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
-// Dymo 1933081 label dimensions: 25mm × 89mm (height × width)
-// For landscape orientation: width = 89mm, height = 25mm
-const LABEL_WIDTH_PT = 252;   // 89mm (width)
-const LABEL_HEIGHT_PT = 71;   // 25mm (height)
 
 export interface LabelAsset {
   itemNumber: string;
@@ -107,8 +103,8 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 }
 
 /**
- * Create a label PDF for an asset (Dymo 1933081 - 25mm×89mm)
- * Landscape PDF (89mm x 25mm) with QR on left, text on right
+ * Create a DYMO label as XML string, returned as UTF-8 bytes
+ * Generates a .label file format for 25mm × 89mm landscape label
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -116,160 +112,202 @@ export async function createLabelPDF(
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
 
-  // Generate QR code
+  // Build QR content
   const qrContent = buildQRContent(asset, opts);
-  const qrBuffer = await generateQRCode(qrContent, 120);
 
-  // Create PDF document - landscape orientation (89mm x 25mm)
-  const doc = await PDFDocument.create();
-  const page = doc.addPage([LABEL_WIDTH_PT, LABEL_HEIGHT_PT]);
-
-  // Embed bold font for all text
-  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
-
-  // Embed QR code image
-  const qrImage = await doc.embedPng(qrBuffer);
-
-  // Layout: Landscape - QR on left, text on right
-  const margin = 3;
-  const qrSize = 45; // Larger QR code
-
-  // QR code on LEFT, vertically centered
-  const qrX = margin;
-  const qrY = (LABEL_HEIGHT_PT - qrSize) / 2;
-
-  page.drawImage(qrImage, {
-    x: qrX,
-    y: qrY,
-    width: qrSize,
-    height: qrSize,
-  });
-
-  // Text starts after QR code
-  const textX = qrX + qrSize + 3;
-  let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
-
-  // Text styling - increased sizes
-  const fontSize = 12;
-  const boldFontSize = 12;
-  const assignedToFontSize = 12;
-  const lineHeight = 9.5;
-  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
-
-  // Assigned To (if present) - centered across full label width
-  if (opts.showAssignedTo && asset.assignedTo) {
-    const assignedText = truncateText(asset.assignedTo, 28);
-    const assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedToFontSize);
-    const assignedX = (LABEL_WIDTH_PT - assignedWidth) / 2;
-
-    page.drawText(assignedText, {
-      x: assignedX,
-      y: textY,
-      size: assignedToFontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
+  // Escape XML special characters
+  const escapeXml = (str: string): string => {
+    return str.replace(/[&<>"']/g, (char) => {
+      const map: Record<string, string> = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&apos;',
+      };
+      return map[char];
     });
-    textY -= lineHeight;
-  }
+  };
 
-  // Item Number - bold
-  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
-    x: textX,
-    y: textY,
-    size: boldFontSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-  textY -= lineHeight;
+  // Build text objects conditionally
+  const textObjects: string[] = [];
+  let yPosition = 100; // Starting Y position in twips
 
-  // Model (always shown) - auto-fit to available width
+  // Item Number - bold, larger
+  textObjects.push(`
+    <TextObject>
+      <Name>ItemNumber</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(`Item: ${asset.itemNumber}`)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="300"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(`Item: ${asset.itemNumber}`)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="12" Bold="True"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+  yPosition += 350;
+
+  // Model
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 12;
-    const minModelFontSize = 5;
-
-    // Calculate font size to fit text within available width
-    let modelFontSize = maxModelFontSize;
-    let modelWidth = boldFont.widthOfTextAtSize(modelText, modelFontSize);
-
-    // Scale down if text is too wide
-    if (modelWidth > textAreaWidth) {
-      modelFontSize = Math.max(minModelFontSize, (textAreaWidth / modelWidth) * maxModelFontSize);
-    }
-
-    page.drawText(modelText, {
-      x: textX,
-      y: textY,
-      size: modelFontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
+    textObjects.push(`
+    <TextObject>
+      <Name>Model</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(modelText)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="250"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(modelText)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+    yPosition += 300;
   }
 
-  // Serial Number (always shown, under Model)
+  // Serial Number
   if (asset.serialNumber) {
-    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 25), {
-      x: textX,
-      y: textY,
-      size: fontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
+    textObjects.push(`
+    <TextObject>
+      <Name>SerialNumber</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(`S/N: ${asset.serialNumber}`)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="250"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(`S/N: ${asset.serialNumber}`)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+    yPosition += 300;
   }
 
-  // Hostname on its own line
+  // Hostname
   if (opts.showHostname && asset.hostname) {
-    page.drawText(truncateText(asset.hostname, 30), {
-      x: textX,
-      y: textY,
-      size: fontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
+    textObjects.push(`
+    <TextObject>
+      <Name>Hostname</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(asset.hostname)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="250"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(asset.hostname)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+    yPosition += 300;
   }
 
-  // IP Address on its own line
+  // IP Address
   if (opts.showIpAddress && asset.ipAddress) {
-    page.drawText(truncateText(asset.ipAddress, 30), {
-      x: textX,
-      y: textY,
-      size: fontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
+    textObjects.push(`
+    <TextObject>
+      <Name>IpAddress</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(asset.ipAddress)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="250"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(asset.ipAddress)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+    yPosition += 300;
   }
 
-  // Organization Name - centered across full label width at bottom
-  if (asset.organizationName && textY > 3) {
-    const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 12;
-    let orgFontSize = maxFontSize;
-    let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
-
-    // Scale down if too wide for full label width
-    const fullLabelWidth = LABEL_WIDTH_PT - (margin * 2);
-    if (orgWidth > fullLabelWidth) {
-      orgFontSize = Math.max(5, (fullLabelWidth / orgWidth) * maxFontSize);
-      orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
-    }
-
-    const orgX = (LABEL_WIDTH_PT - orgWidth) / 2;
-    page.drawText(orgText, {
-      x: orgX,
-      y: 4,
-      size: orgFontSize,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
+  // Assigned To
+  if (opts.showAssignedTo && asset.assignedTo) {
+    textObjects.push(`
+    <TextObject>
+      <Name>AssignedTo</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(asset.assignedTo)}</Text>
+      <Bounds X="300" Y="${yPosition}" Width="4500" Height="250"/>
+      <Alignment>Left</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(asset.assignedTo)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+    yPosition += 300;
   }
 
-  return doc.save();
+  // Organization Name (if present)
+  if (asset.organizationName) {
+    textObjects.push(`
+    <TextObject>
+      <Name>Organization</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(asset.organizationName)}</Text>
+      <Bounds X="300" Y="4950" Width="4500" Height="200"/>
+      <Alignment>Center</Alignment>
+      <StyledText>
+        <Element>
+          <String>${escapeXml(asset.organizationName)}</String>
+          <Attributes>
+            <Font Family="Arial" Size="9"/>
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>`);
+  }
+
+  // Build QR barcode object
+  const qrObject = `
+    <BarcodeObject>
+      <Name>QRCode</Name>
+      <Rotation>Rotation0</Rotation>
+      <Text>${escapeXml(qrContent)}</Text>
+      <Type>QRCode</Type>
+      <Bounds X="100" Y="500" Width="1200" Height="1200"/>
+      <TextPosition>None</TextPosition>
+    </BarcodeObject>`;
+
+  // Construct complete .label XML
+  const labelXml = `<?xml version="1.0" encoding="utf-8"?>
+<DieCutLabel Version="8.0" Units="twips">
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>DYMO-1933081</Id>
+  <PaperName>25mm x 89mm</PaperName>
+  <DrawCommands>
+    <RoundRectangle X="0" Y="0" Width="5040" Height="1417" Rx="270" Ry="270"/>
+  </DrawCommands>
+  <ObjectInfo>
+    ${qrObject}
+${textObjects.join('')}
+  </ObjectInfo>
+</DieCutLabel>`;
+
+  // Return as UTF-8 encoded bytes
+  return new Uint8Array(Buffer.from(labelXml, 'utf-8'));
 }
 
 /**
@@ -284,29 +322,29 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label to the specified printer using pdf-to-printer
+ * Print a label to the specified printer using DYMO Label Software (DLS.exe)
  */
 export async function printLabel(
-  pdfBytes: Uint8Array,
+  labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
-  // Write PDF to temp file
-  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.pdf`);
-  writeFileSync(tempPath, Buffer.from(pdfBytes));
+  // Write .label XML to temp file
+  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.label`);
+  writeFileSync(tempPath, Buffer.from(labelBytes));
 
   try {
-    // Use pdf-to-printer with Dymo paper size (25mm x 89mm)
-    const printOptions: any = {
-      paperSize: '25x89mm',
-      orientation: 'landscape',
-      scale: 'fit',
-    };
+    // Get DLS.exe path from environment or use standard installation path
+    const dlsPath = process.env.DYMO_DLS_PATH ?? `C:\\Program Files (x86)\\DYMO\\DYMO Label Software\\DLS.exe`;
 
-    if (printerName) {
-      printOptions.printer = printerName;
-    }
+    // Build command with optional printer argument
+    const printerArg = printerName ? ` /printer "${printerName}"` : '';
+    const command = `"${dlsPath}" /p "${tempPath}"${printerArg}`;
 
-    await print(tempPath, printOptions);
+    // Execute DLS.exe
+    execSync(command, {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
   } finally {
     // Clean up temp file after a delay
     setTimeout(() => {
@@ -332,10 +370,3 @@ export async function getAvailablePrinters(): Promise<string[]> {
   }
 }
 
-/**
- * Truncate text to fit within label width
- */
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 2) + '..';
-}
