@@ -601,11 +601,11 @@ export async function printLabel(
     <PrintQuality>Text</PrintQuality>
   </LabelWriterPrintParams>`;
 
-  // DYMO API parameter names - try different formats based on SDK docs
+  // DYMO API parameter names - the key parameter is called "printable", not "labelXml"
   const body = new URLSearchParams({
     printerName: cleanPrinterName,
-    labelXml: labelXml,
-    printParamsXml: printParamsXml,
+    printable: labelXml,
+    printParams: printParamsXml,
   });
 
   try {
