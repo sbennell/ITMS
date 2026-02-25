@@ -1,14 +1,13 @@
 import bwipjs from 'bwip-js';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { getPrinters, print } from 'pdf-to-printer';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import https from 'https';
 
-// Dymo 1933081 label dimensions: 25mm × 89mm (height × width)
-// For landscape orientation: width = 89mm, height = 25mm
+// Dymo 1933081 label dimensions: 25mm × 89mm
 const LABEL_WIDTH_PT = 252;   // 89mm (width)
 const LABEL_HEIGHT_PT = 71;   // 25mm (height)
+
+// DYMO WebService constants
+const DYMO_BASE = 'https://127.0.0.1:41951/DYMO/DLS/Printing';
 
 export interface LabelAsset {
   itemNumber: string;
@@ -34,8 +33,48 @@ const DEFAULT_SETTINGS: LabelSettings = {
   showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,
-  qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
+  qrCodeContent: 'itemNumber',
 };
+
+/**
+ * DYMO WebService HTTP helper - uses https.Agent to bypass self-signed cert
+ */
+async function dymoFetch(path: string, method: string = 'GET', body?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const agent = new https.Agent({ rejectUnauthorized: false });
+    const url = new URL(`${DYMO_BASE}${path}`);
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname + url.search,
+      method: method,
+      agent: agent,
+      headers: method === 'POST' ? {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body || ''),
+      } : {},
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(`DYMO WebService error: ${res.statusCode} ${data}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
 
 /**
  * Generate a QR code as PNG buffer
@@ -69,30 +108,25 @@ export async function generateBarcode(text: string): Promise<Buffer> {
  * Build QR code content based on qrCodeContent setting
  */
 function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
-  // If qrCodeContent is set to itemNumber, return only the item number
   if (opts.qrCodeContent === 'itemNumber') {
     return asset.itemNumber;
   }
 
-  // Otherwise, build full QR content with all label info
   const lines: string[] = [];
 
   if (opts.showAssignedTo && asset.assignedTo) {
     lines.push(asset.assignedTo);
   }
   lines.push(`Item: ${asset.itemNumber}`);
-  // Model is always included
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
     lines.push(modelText);
   }
-  // Serial Number is always included (under Model)
   if (asset.serialNumber) {
     lines.push(`S/N: ${asset.serialNumber}`);
   }
-  // Hostname and IP on separate lines in QR (even though printed on one line)
   if (opts.showHostname && asset.hostname) {
     lines.push(asset.hostname);
   }
@@ -107,8 +141,265 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 }
 
 /**
- * Create a label PDF for an asset (Dymo 1933081 - 25mm×89mm)
- * Landscape PDF (89mm x 25mm) with QR on left, text on right
+ * Build DYMO XML label for printing (Dymo 1933081: 30252 Address label, 1"×3.5")
+ * Coordinates in twips (1440 per inch). Label landscape: 5040×1440 twips.
+ */
+function buildDymoLabelXml(asset: LabelAsset, opts: LabelSettings): string {
+  const qrContent = buildQRContent(asset, opts);
+  const escapeXml = (str: string) => str.replace(/[<>&'"]/g, c => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    "'": '&apos;',
+    '"': '&quot;'
+  }[c] || c));
+
+  const assignedText = opts.showAssignedTo && asset.assignedTo
+    ? escapeXml(asset.assignedTo.substring(0, 28))
+    : '';
+  const itemText = `Item: ${escapeXml(asset.itemNumber.substring(0, 25))}`;
+  const modelText = asset.model
+    ? escapeXml((asset.manufacturer?.name ? `${asset.manufacturer.name} ` : '') + asset.model)
+    : '';
+  const serialText = asset.serialNumber
+    ? `S/N: ${escapeXml(asset.serialNumber.substring(0, 25))}`
+    : '';
+  const hostnameText = opts.showHostname && asset.hostname
+    ? escapeXml(asset.hostname.substring(0, 30))
+    : '';
+  const ipText = opts.showIpAddress && asset.ipAddress
+    ? escapeXml(asset.ipAddress.substring(0, 30))
+    : '';
+  const orgText = asset.organizationName
+    ? escapeXml(asset.organizationName.substring(0, 40))
+    : '';
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<DieCutLabel Version="8.0" Units="twips">
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>Address</Id>
+  <PaperName>30252 Address</PaperName>
+  <DrawCommands>
+    <RoundRectangle X="0" Y="0" Width="5040" Height="1440" Rx="270" Ry="270" />
+  </DrawCommands>
+
+  <!-- QR Code on the left: ~22mm square -->
+  <ObjectInfo>
+    <BarcodeObject>
+      <Name>QRCode</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <Text>${escapeXml(qrContent)}</Text>
+      <Type>QRCode</Type>
+      <Size>Large</Size>
+      <TextPosition>None</TextPosition>
+      <TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+      <CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+      <TextEmbedding>None</TextEmbedding>
+      <ECLevel>0</ECLevel>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+    </BarcodeObject>
+    <Bounds X="50" Y="50" Width="1200" Height="1200" />
+  </ObjectInfo>
+
+  <!-- Assigned To - top, centered full width -->
+  ${assignedText ? `<ObjectInfo>
+    <TextObject>
+      <Name>AssignedTo</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${assignedText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="50" Y="30" Width="4940" Height="180" />
+  </ObjectInfo>` : ''}
+
+  <!-- Item Number -->
+  <ObjectInfo>
+    <TextObject>
+      <Name>ItemNumber</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${itemText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="220" Width="3600" Height="170" />
+  </ObjectInfo>
+
+  <!-- Model -->
+  ${modelText ? `<ObjectInfo>
+    <TextObject>
+      <Name>Model</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${modelText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="400" Width="3600" Height="160" />
+  </ObjectInfo>` : ''}
+
+  <!-- Serial Number -->
+  ${serialText ? `<ObjectInfo>
+    <TextObject>
+      <Name>SerialNumber</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${serialText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="565" Width="3600" Height="160" />
+  </ObjectInfo>` : ''}
+
+  <!-- Hostname -->
+  ${hostnameText ? `<ObjectInfo>
+    <TextObject>
+      <Name>Hostname</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${hostnameText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="730" Width="3600" Height="150" />
+  </ObjectInfo>` : ''}
+
+  <!-- IP Address -->
+  ${ipText ? `<ObjectInfo>
+    <TextObject>
+      <Name>IPAddress</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${ipText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="895" Width="3600" Height="150" />
+  </ObjectInfo>` : ''}
+
+  <!-- Organization Name - bottom, centered full width -->
+  ${orgText ? `<ObjectInfo>
+    <TextObject>
+      <Name>OrgName</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${orgText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="50" Y="1270" Width="4940" Height="150" />
+  </ObjectInfo>` : ''}
+
+</DieCutLabel>`;
+}
+
+/**
+ * Create a label PDF for an asset (for download - unchanged)
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -120,11 +411,11 @@ export async function createLabelPDF(
   const qrContent = buildQRContent(asset, opts);
   const qrBuffer = await generateQRCode(qrContent, 120);
 
-  // Create PDF document - landscape orientation (89mm x 25mm)
+  // Create PDF document
   const doc = await PDFDocument.create();
   const page = doc.addPage([LABEL_WIDTH_PT, LABEL_HEIGHT_PT]);
 
-  // Embed bold font for all text
+  // Embed bold font
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
 
   // Embed QR code image
@@ -132,9 +423,9 @@ export async function createLabelPDF(
 
   // Layout: Landscape - QR on left, text on right
   const margin = 3;
-  const qrSize = 45; // Larger QR code
+  const qrSize = 45;
 
-  // QR code on LEFT, vertically centered
+  // QR code on LEFT
   const qrX = margin;
   const qrY = (LABEL_HEIGHT_PT - qrSize) / 2;
 
@@ -147,18 +438,18 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 3;
-  let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
+  let textY = LABEL_HEIGHT_PT - 10;
 
-  // Text styling - increased sizes
+  // Text styling
   const fontSize = 12;
   const boldFontSize = 12;
   const assignedToFontSize = 12;
   const lineHeight = 9.5;
-  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
+  const textAreaWidth = LABEL_WIDTH_PT - textX - margin;
 
-  // Assigned To (if present) - centered across full label width
+  // Assigned To - centered across full label width
   if (opts.showAssignedTo && asset.assignedTo) {
-    const assignedText = truncateText(asset.assignedTo, 28);
+    const assignedText = asset.assignedTo.substring(0, 28);
     const assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedToFontSize);
     const assignedX = (LABEL_WIDTH_PT - assignedWidth) / 2;
 
@@ -173,7 +464,7 @@ export async function createLabelPDF(
   }
 
   // Item Number - bold
-  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
+  page.drawText(`Item: ${asset.itemNumber.substring(0, 25)}`, {
     x: textX,
     y: textY,
     size: boldFontSize,
@@ -182,21 +473,16 @@ export async function createLabelPDF(
   });
   textY -= lineHeight;
 
-  // Model (always shown) - auto-fit to available width
+  // Model
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
-    const maxModelFontSize = 12;
-    const minModelFontSize = 5;
-
-    // Calculate font size to fit text within available width
-    let modelFontSize = maxModelFontSize;
+    let modelFontSize = 12;
     let modelWidth = boldFont.widthOfTextAtSize(modelText, modelFontSize);
 
-    // Scale down if text is too wide
     if (modelWidth > textAreaWidth) {
-      modelFontSize = Math.max(minModelFontSize, (textAreaWidth / modelWidth) * maxModelFontSize);
+      modelFontSize = Math.max(5, (textAreaWidth / modelWidth) * 12);
     }
 
     page.drawText(modelText, {
@@ -209,9 +495,9 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Serial Number (always shown, under Model)
+  // Serial Number
   if (asset.serialNumber) {
-    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 25), {
+    page.drawText(`S/N: ${asset.serialNumber.substring(0, 25)}`, {
       x: textX,
       y: textY,
       size: fontSize,
@@ -221,9 +507,9 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname on its own line
+  // Hostname
   if (opts.showHostname && asset.hostname) {
-    page.drawText(truncateText(asset.hostname, 30), {
+    page.drawText(asset.hostname.substring(0, 30), {
       x: textX,
       y: textY,
       size: fontSize,
@@ -233,9 +519,9 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // IP Address on its own line
+  // IP Address
   if (opts.showIpAddress && asset.ipAddress) {
-    page.drawText(truncateText(asset.ipAddress, 30), {
+    page.drawText(asset.ipAddress.substring(0, 30), {
       x: textX,
       y: textY,
       size: fontSize,
@@ -245,17 +531,15 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Organization Name - centered across full label width at bottom
+  // Organization Name - centered at bottom
   if (asset.organizationName && textY > 3) {
-    const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 12;
-    let orgFontSize = maxFontSize;
+    const orgText = asset.organizationName.substring(0, 40);
+    let orgFontSize = 12;
     let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
-
-    // Scale down if too wide for full label width
     const fullLabelWidth = LABEL_WIDTH_PT - (margin * 2);
+
     if (orgWidth > fullLabelWidth) {
-      orgFontSize = Math.max(5, (fullLabelWidth / orgWidth) * maxFontSize);
+      orgFontSize = Math.max(5, (fullLabelWidth / orgWidth) * 12);
       orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
     }
 
@@ -284,57 +568,46 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label to the specified printer using pdf-to-printer
+ * Print a label via DYMO WebService
  */
 export async function printLabel(
-  pdfBytes: Uint8Array,
-  printerName: string
+  asset: LabelAsset,
+  settings: LabelSettings,
+  printerName: string,
+  copies: number = 1
 ): Promise<void> {
-  // Write PDF to temp file
-  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.pdf`);
-  writeFileSync(tempPath, Buffer.from(pdfBytes));
+  const labelXml = buildDymoLabelXml(asset, settings);
+
+  const printParamsXml = `<LabelWriterPrintParams>
+    <Copies>${copies}</Copies>
+    <JobTitle>Asset Label</JobTitle>
+    <FlowDirection>LeftToRight</FlowDirection>
+    <PrintQuality>Text</PrintQuality>
+  </LabelWriterPrintParams>`;
+
+  const body = new URLSearchParams({
+    printerName,
+    labelXml,
+    printParamsXml,
+  });
 
   try {
-    // Use pdf-to-printer with noscale to print at 100% native PDF size
-    // PDF is already exactly 89mm x 25mm, matching the physical Dymo label
-    const printOptions: any = {
-      scale: 'noscale',
-    };
-
-    if (printerName) {
-      printOptions.printer = printerName;
-    }
-
-    await print(tempPath, printOptions);
-  } finally {
-    // Clean up temp file after a delay
-    setTimeout(() => {
-      try {
-        unlinkSync(tempPath);
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }, 2000);
+    await dymoFetch('/PrintLabel', 'POST', body.toString());
+  } catch (error) {
+    throw new Error(`Failed to print label via DYMO WebService: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 /**
- * Get list of available printers
+ * Get list of available printers from DYMO WebService
  */
 export async function getAvailablePrinters(): Promise<string[]> {
   try {
-    const printers = await getPrinters();
-    return printers.map(p => p.name);
+    const xml = await dymoFetch('/GetPrinters', 'GET');
+    const matches = xml.match(/<Name>([^<]+)<\/Name>/g) || [];
+    return matches.map((m: string) => m.replace(/<\/?Name>/g, ''));
   } catch (error) {
-    console.error('Failed to get printers:', error);
+    console.error('Failed to get DYMO printers:', error);
     return [];
   }
-}
-
-/**
- * Truncate text to fit within label width
- */
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 2) + '..';
 }
