@@ -30,19 +30,9 @@ const DEFAULT_SETTINGS: LabelSettings = {
   qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
 };
 
-// DYMO web service configuration
-// Defaults: host='127.0.0.1', port=41951 (local DYMO Label Software)
-// Can be overridden via settings or environment variables
-let DYMO_SERVICE_HOST = process.env.DYMO_SERVICE_HOST ?? '127.0.0.1';
-let DYMO_SERVICE_PORT = parseInt(process.env.DYMO_SERVICE_PORT ?? '41951', 10);
-
-/**
- * Update DYMO service configuration (called from API routes with settings from database)
- */
-export function setDymoServiceConfig(host: string, port: number): void {
-  DYMO_SERVICE_HOST = host;
-  DYMO_SERVICE_PORT = port;
-}
+// DYMO web service configuration (hardcoded - only binds to 127.0.0.1:41951)
+const DYMO_SERVICE_HOST = '127.0.0.1';
+const DYMO_SERVICE_PORT = 41951;
 
 /**
  * Generate a QR code as PNG buffer

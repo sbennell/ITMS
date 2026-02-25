@@ -123,17 +123,6 @@ function LabelSettingsSection() {
     mutation.mutate({ labelType });
   };
 
-  const handleDymoServiceHostChange = (host: string) => {
-    mutation.mutate({ dymoServiceHost: host });
-  };
-
-  const handleDymoServicePortChange = (port: string) => {
-    const portNum = parseInt(port, 10);
-    if (!isNaN(portNum) && portNum > 0 && portNum < 65536) {
-      mutation.mutate({ dymoServicePort: portNum });
-    }
-  };
-
   const isLoading = settingsLoading || printersLoading;
 
   return (
@@ -191,41 +180,6 @@ function LabelSettingsSection() {
               <option value="dymo-1933081">Dymo 1933081 (25×89mm)</option>
             </select>
           </div>
-
-          {/* DYMO Service Configuration */}
-          {settings?.labelType === 'dymo-1933081' && (
-            <div className="border-l-4 border-primary-600 pl-4 py-2 bg-blue-50">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">DYMO Web Service Configuration</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="label text-sm">Service Host</label>
-                  <input
-                    type="text"
-                    value={settings?.dymoServiceHost || '127.0.0.1'}
-                    onChange={(e) => handleDymoServiceHostChange(e.target.value)}
-                    placeholder="127.0.0.1"
-                    className="input"
-                    disabled={mutation.isPending}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">IP address or hostname of DYMO Label Software (default: 127.0.0.1)</p>
-                </div>
-                <div>
-                  <label className="label text-sm">Service Port</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="65535"
-                    value={settings?.dymoServicePort || 41951}
-                    onChange={(e) => handleDymoServicePortChange(e.target.value)}
-                    placeholder="41951"
-                    className="input"
-                    disabled={mutation.isPending}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Port number of DYMO Label Software (default: 41951)</p>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Label Content Options */}
           <div>
