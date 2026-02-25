@@ -606,15 +606,16 @@ export async function printLabel(
     console.log(`[DYMO] Label XML length: ${labelXml.length} chars`);
     console.log(`[DYMO] PrintParams XML length: ${printParamsXml.length} chars`);
 
-    // DYMO WebService expects form-encoded data - try PascalCase (standard for .NET APIs)
+    // DYMO WebService expects form-encoded data with lowercase parameters
+    // Try: printerName, label (not labelXml), printParams (not printParamsXml)
     const params = new URLSearchParams();
-    params.append('PrinterName', cleanPrinterName);
-    params.append('LabelXml', labelXml);
-    params.append('PrintParamsXml', printParamsXml);
+    params.append('printerName', cleanPrinterName);
+    params.append('label', labelXml);
+    params.append('printParams', printParamsXml);
     const formBody = params.toString();
 
-    console.log(`[DYMO] Sending POST (form-encoded, PascalCase) to /PrintLabel`);
-    console.log(`[DYMO] Parameter names: PrinterName, LabelXml, PrintParamsXml`);
+    console.log(`[DYMO] Sending POST (form-encoded) to /PrintLabel`);
+    console.log(`[DYMO] Parameter names: printerName, label, printParams`);
     console.log(`[DYMO] Total body size: ${Buffer.byteLength(formBody)} bytes`);
     await dymoFetch('/PrintLabel', 'POST', formBody);
     console.log(`[DYMO] Label printed successfully for asset ${asset.itemNumber}`);
