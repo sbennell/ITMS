@@ -15,6 +15,7 @@ import {
   createLabelPDF as createDymoPDF,
   createLabelPreview as createDymoPreview,
   printLabel as printDymo,
+  setDymoServiceConfig,
 } from '../services/labelService-dymo.js';
 
 const router = Router();
@@ -105,6 +106,11 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
     const printLabel = isDymo ? printDymo : printBrother;
 
+    // Configure DYMO service if using DYMO printer
+    if (isDymo) {
+      setDymoServiceConfig(finalSettings.dymoServiceHost, finalSettings.dymoServicePort);
+    }
+
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
@@ -165,6 +171,11 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     const isDymo = finalSettings.labelType === 'dymo-1933081';
     const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
     const printLabel = isDymo ? printDymo : printBrother;
+
+    // Configure DYMO service if using DYMO printer
+    if (isDymo) {
+      setDymoServiceConfig(finalSettings.dymoServiceHost, finalSettings.dymoServicePort);
+    }
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -294,8 +305,27 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
 });
 
 // Get available printers
-router.get('/printers', requireAuth, async (_req: Request, res: Response) => {
+router.get('/printers', requireAuth, async (req: Request, res: Response) => {
   try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+
+    // Fetch DYMO service settings
+    const settingsRecords = await prisma.settings.findMany({
+      where: {
+        key: { in: ['label.dymoServiceHost', 'label.dymoServicePort'] },
+      },
+    });
+
+    const settingsMap: Record<string, string> = {};
+    settingsRecords.forEach((s: { key: string; value: string }) => {
+      settingsMap[s.key] = s.value;
+    });
+
+    // Configure DYMO service with settings
+    const dymoServiceHost = settingsMap['label.dymoServiceHost'] || '127.0.0.1';
+    const dymoServicePort = parseInt(settingsMap['label.dymoServicePort'] || '41951', 10);
+    setDymoServiceConfig(dymoServiceHost, dymoServicePort);
+
     const printers = await getAvailablePrinters();
     res.json(printers);
   } catch (error) {
@@ -320,7 +350,10 @@ router.get('/settings', requireAuth, async (req: Request, res: Response) => {
       settingsMap[s.key] = s.value;
     });
 
+    // Ensure DYMO service config is set for getAvailablePrinters
     const settings = parseSettings(settingsMap);
+    setDymoServiceConfig(settings.dymoServiceHost, settings.dymoServicePort);
+
     res.json(settings);
   } catch (error) {
     console.error('Get settings error:', error);

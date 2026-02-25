@@ -1,9 +1,6 @@
 import bwipjs from 'bwip-js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import http from 'http';
+import { URLSearchParams } from 'url';
 
 
 export interface LabelAsset {
@@ -32,6 +29,20 @@ const DEFAULT_SETTINGS: LabelSettings = {
   showIpAddress: true,
   qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
 };
+
+// DYMO web service configuration
+// Defaults: host='127.0.0.1', port=41951 (local DYMO Label Software)
+// Can be overridden via settings or environment variables
+let DYMO_SERVICE_HOST = process.env.DYMO_SERVICE_HOST ?? '127.0.0.1';
+let DYMO_SERVICE_PORT = parseInt(process.env.DYMO_SERVICE_PORT ?? '41951', 10);
+
+/**
+ * Update DYMO service configuration (called from API routes with settings from database)
+ */
+export function setDymoServiceConfig(host: string, port: number): void {
+  DYMO_SERVICE_HOST = host;
+  DYMO_SERVICE_PORT = port;
+}
 
 /**
  * Generate a QR code as PNG buffer
@@ -423,66 +434,103 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label by saving it to a temp file and opening it with DLS.exe
- * DLS.exe will use the configured printer and print the label
+ * Print a label via DYMO Label Software web service
+ * Posts the label XML to http://127.0.0.1:41951/DYMO/DLS/Printing/PrintLabel
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
-  const tempPath = join(tmpdir(), `label-dymo-${Date.now()}.label`);
-  writeFileSync(tempPath, Buffer.from(labelBytes));
+  const labelXml = Buffer.from(labelBytes).toString('utf-8');
+  const printParams = `<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>`;
 
-  console.log('[DYMO] Label file written to:', tempPath);
-  console.log('[DYMO] Printer:', printerName);
+  const body = new URLSearchParams({
+    printerName,
+    labelXmlContent: labelXml,
+    printParamsXml: printParams,
+    paramsXml: '',
+  }).toString();
 
-  const execAsync = promisify(exec);
-  const dlsPath = process.env.DYMO_DLS_PATH ?? `C:\\Program Files (x86)\\DYMO\\DYMO Label Software\\DLS.exe`;
+  console.log('[DYMO] Printing to:', printerName);
 
-  try {
-    // Open the label file with DLS.exe to trigger printing
-    console.log('[DYMO] Opening label with DLS.exe:', dlsPath);
-    await execAsync(`"${dlsPath}" "${tempPath}"`, {
-      windowsHide: true,
-      timeout: 30000,
+  await new Promise<void>((resolve, reject) => {
+    const req = http.request({
+      hostname: DYMO_SERVICE_HOST,
+      port: DYMO_SERVICE_PORT,
+      path: '/DYMO/DLS/Printing/PrintLabel',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          console.log('[DYMO] Label printed successfully');
+          resolve();
+        } else {
+          reject(new Error(`DYMO service error: ${res.statusCode} - ${data}`));
+        }
+      });
     });
 
-    console.log('[DYMO] Label printed successfully');
-  } catch (error) {
-    console.error('[DYMO] Failed to print label:', error);
-    throw error;
-  } finally {
-    // Clean up temp file after a delay
-    setTimeout(() => {
-      try {
-        unlinkSync(tempPath);
-        console.log('[DYMO] Temp file cleaned up');
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }, 2000);
-  }
+    req.on('error', (error) => {
+      console.error('[DYMO] Connection error:', error.message);
+      reject(error);
+    });
+
+    req.write(body);
+    req.end();
+  });
 }
 
 /**
- * Get list of available DYMO printers
- * This queries the system for available printers
+ * Get list of available DYMO printers from the DYMO web service
+ * Queries http://127.0.0.1:41951/DYMO/DLS/Printing/GetPrinters
  */
 export async function getAvailablePrinters(): Promise<string[]> {
   try {
-    // Try to use WMI (Windows Management Instrumentation) to query printers
-    const execAsync = promisify(exec);
-    const { stdout } = await execAsync(
-      'wmic printconfig get name',
-      { encoding: 'utf-8' }
-    );
+    const printers = await new Promise<string[]>((resolve, reject) => {
+      const req = http.request({
+        hostname: DYMO_SERVICE_HOST,
+        port: DYMO_SERVICE_PORT,
+        path: '/DYMO/DLS/Printing/GetPrinters',
+        method: 'GET',
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            // Parse printer names from XML response
+            // Response format: <Printers><LabelWriterPrinter><Name>...</Name></LabelWriterPrinter>...</Printers>
+            const nameMatches = data.match(/<Name>([^<]+)<\/Name>/g) || [];
+            const printerNames = nameMatches.map((match) =>
+              match.replace(/<\/?Name>/g, '')
+            );
+            console.log('[DYMO] Found printers:', printerNames);
+            resolve(printerNames);
+          } else {
+            reject(new Error(`DYMO service error: ${res.statusCode}`));
+          }
+        });
+      });
 
-    // Parse printer names from WMI output
-    const lines = stdout.split('\n').filter((line) => line.trim());
-    const printerNames = lines.slice(1).map((line) => line.trim()).filter((name) => name);
+      req.on('error', (error) => {
+        // Service not running or not responding - return empty array
+        console.warn('[DYMO] Service not available:', error.message);
+        resolve([]);
+      });
 
-    console.log('[DYMO] Found printers:', printerNames);
-    return printerNames;
+      req.end();
+    });
+
+    return printers;
   } catch (error) {
     console.warn('[DYMO] Failed to query printers:', (error as Error).message);
     // Return empty array if query fails - the printer list will be populated from DB settings

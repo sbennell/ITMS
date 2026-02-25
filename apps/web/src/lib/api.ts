@@ -145,6 +145,8 @@ export interface LabelSettings {
   showHostname: boolean;
   showIpAddress: boolean;
   qrCodeContent: 'full' | 'itemNumber';
+  dymoServiceHost: string;
+  dymoServicePort: number;
   // Note: Item Number, Model, and Serial Number are always shown
 }
 

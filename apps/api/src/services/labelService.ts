@@ -29,6 +29,8 @@ export interface LabelSettings {
   showHostname: boolean;
   showIpAddress: boolean;
   qrCodeContent: 'full' | 'itemNumber';
+  dymoServiceHost: string;
+  dymoServicePort: number;
   // Note: Item Number, Model, and Serial Number are always shown
 }
 
@@ -39,6 +41,8 @@ const DEFAULT_SETTINGS: LabelSettings = {
   showHostname: true,
   showIpAddress: true,
   qrCodeContent: 'full',
+  dymoServiceHost: '127.0.0.1',
+  dymoServicePort: 41951,
 };
 
 /**
@@ -380,6 +384,8 @@ export function parseSettings(
     showHostname: get('label.showHostname') !== 'false',
     showIpAddress: get('label.showIpAddress') !== 'false',
     qrCodeContent: (get('label.qrCodeContent') === 'itemNumber' ? 'itemNumber' : 'full'),
+    dymoServiceHost: get('label.dymoServiceHost') || DEFAULT_SETTINGS.dymoServiceHost,
+    dymoServicePort: parseInt(get('label.dymoServicePort') || String(DEFAULT_SETTINGS.dymoServicePort), 10),
   };
 }
 
@@ -406,6 +412,12 @@ export function settingsToKeyValue(settings: Partial<LabelSettings>): Record<str
   }
   if (settings.qrCodeContent !== undefined) {
     result['label.qrCodeContent'] = settings.qrCodeContent;
+  }
+  if (settings.dymoServiceHost !== undefined) {
+    result['label.dymoServiceHost'] = settings.dymoServiceHost;
+  }
+  if (settings.dymoServicePort !== undefined) {
+    result['label.dymoServicePort'] = String(settings.dymoServicePort);
   }
 
   return result;
