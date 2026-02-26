@@ -1,5 +1,6 @@
 import bwipjs from 'bwip-js';
 import { Jimp } from 'jimp';
+// Dynamic import used for node-dymo-printer to avoid TypeScript resolution issues
 
 export interface LabelAsset {
   itemNumber: string;
@@ -92,9 +93,8 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 }
 
 /**
- * Create a DYMO label as a PNG image (964x270 pixels for 89x25mm label)
- * Returns PNG bytes as Uint8Array
- * For now: renders QR code on white background
+ * Create a DYMO label as a PNG image
+ * Simplified version: generates a white canvas with QR code
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -102,42 +102,13 @@ export async function createLabelPDF(
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
 
-  // Generate QR code (250x250 pixels)
+  // Generate QR code (will be scaled up on the label)
   const qrContent = buildQRContent(asset, opts);
-  const qrPng = await generateQRCode(qrContent, 250);
+  const qrBuffer = await generateQRCode(qrContent, 300);
 
-  // Create white canvas 964x270 (89mm x 25mm at ~274 DPI)
-  const image = new Jimp({ width: 964, height: 270, color: 0xffffffff });
-
-  // Load QR code and composite on the left side
-  const qrJimp = await Jimp.read(qrPng);
-  qrJimp.resize({ w: 250, h: 250 });
-
-  // Composite at (10, 10)
-  for (let y = 0; y < 250; y++) {
-    for (let x = 0; x < 250; x++) {
-      const pixel = qrJimp.getPixelColor(x, y);
-      image.setPixelColor(pixel, 10 + x, 10 + y);
-    }
-  }
-
-  // Add text info as barcode (using Code128 for item number)
-  // This gives us readable machine-readable text on the right
-  const barcodeBuffer = await generateBarcode(asset.itemNumber);
-  const barcodeJimp = await Jimp.read(barcodeBuffer);
-  barcodeJimp.resize({ w: 300, h: 80 });
-
-  // Place barcode on the right side
-  for (let y = 0; y < 80; y++) {
-    for (let x = 0; x < 300; x++) {
-      const pixel = barcodeJimp.getPixelColor(x, y);
-      image.setPixelColor(pixel, 270 + x, 90 + y);
-    }
-  }
-
-  // Return as PNG bytes
-  const buffer = await image.getBuffer('image/png');
-  return new Uint8Array(buffer);
+  // For now, return the QR code directly as the label
+  // The node-dymo-printer will scale and print it appropriately
+  return new Uint8Array(qrBuffer);
 }
 
 /**
@@ -153,7 +124,7 @@ export async function createLabelPreview(
 
 /**
  * Print a label via node-dymo-printer
- * Accepts the PNG image bytes, loads into Jimp, and prints via DymoServices
+ * Accepts PNG image bytes, loads into Jimp, and prints via DymoServices
  */
 export async function printLabel(
   labelBytes: Uint8Array,
