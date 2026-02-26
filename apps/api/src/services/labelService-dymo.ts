@@ -1,7 +1,5 @@
 import bwipjs from 'bwip-js';
-import http from 'http';
-import { URLSearchParams } from 'url';
-
+import { Jimp } from 'jimp';
 
 export interface LabelAsset {
   itemNumber: string;
@@ -27,12 +25,8 @@ const DEFAULT_SETTINGS: LabelSettings = {
   showAssignedTo: true,
   showHostname: true,
   showIpAddress: true,
-  qrCodeContent: 'itemNumber',  // Show item number only in QR for compact label
+  qrCodeContent: 'itemNumber',
 };
-
-// DYMO web service configuration (hardcoded - only binds to 127.0.0.1:41951)
-const DYMO_SERVICE_HOST = '127.0.0.1';
-const DYMO_SERVICE_PORT = 41951;
 
 /**
  * Generate a QR code as PNG buffer
@@ -66,30 +60,24 @@ export async function generateBarcode(text: string): Promise<Buffer> {
  * Build QR code content based on qrCodeContent setting
  */
 function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
-  // If qrCodeContent is set to itemNumber, return only the item number
   if (opts.qrCodeContent === 'itemNumber') {
     return asset.itemNumber;
   }
 
-  // Otherwise, build full QR content with all label info
   const lines: string[] = [];
-
   if (opts.showAssignedTo && asset.assignedTo) {
     lines.push(asset.assignedTo);
   }
   lines.push(`Item: ${asset.itemNumber}`);
-  // Model is always included
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
       : asset.model;
     lines.push(modelText);
   }
-  // Serial Number is always included (under Model)
   if (asset.serialNumber) {
     lines.push(`S/N: ${asset.serialNumber}`);
   }
-  // Hostname and IP on separate lines in QR (even though printed on one line)
   if (opts.showHostname && asset.hostname) {
     lines.push(asset.hostname);
   }
@@ -104,8 +92,9 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 }
 
 /**
- * Create a DYMO label as XML string, returned as UTF-8 bytes
- * Generates a .label file format for 25mm × 89mm (1933081) label
+ * Create a DYMO label as a PNG image (964x270 pixels for 89x25mm label)
+ * Returns PNG bytes as Uint8Array
+ * For now: renders QR code on white background
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -113,303 +102,42 @@ export async function createLabelPDF(
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
 
-  // Build QR content
+  // Generate QR code (250x250 pixels)
   const qrContent = buildQRContent(asset, opts);
+  const qrPng = await generateQRCode(qrContent, 250);
 
-  // Escape XML special characters
-  const escapeXml = (str: string): string => {
-    return str.replace(/[&<>"']/g, (char) => {
-      const map: Record<string, string> = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&apos;',
-      };
-      return map[char];
-    });
-  };
+  // Create white canvas 964x270 (89mm x 25mm at ~274 DPI)
+  const image = new Jimp({ width: 964, height: 270, color: 0xffffffff });
 
-  // Build ObjectInfo blocks (each object gets its own ObjectInfo with Bounds)
-  const objectInfos: string[] = [];
+  // Load QR code and composite on the left side
+  const qrJimp = await Jimp.read(qrPng);
+  qrJimp.resize({ w: 250, h: 250 });
 
-  // QR Code (barcode) object
-  objectInfos.push(`	<ObjectInfo>
-		<BarcodeObject>
-			<Name>BARCODE</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<Text>${escapeXml(qrContent)}</Text>
-			<Type>QRCode</Type>
-			<Size>Medium</Size>
-			<TextPosition>None</TextPosition>
-			<TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-			<CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-			<TextEmbedding>None</TextEmbedding>
-			<ECLevel>0</ECLevel>
-			<HorizontalAlignment>Center</HorizontalAlignment>
-			<QuietZonesPadding Left="0" Top="0" Right="0" Bottom="0" />
-		</BarcodeObject>
-		<Bounds X="50" Y="150" Width="900" Height="900" />
-	</ObjectInfo>`);
-
-  let yPos = 100;
-
-  // Item Number
-  objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>ItemNumber</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(`Item: ${asset.itemNumber}`)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="180" />
-	</ObjectInfo>`);
-  yPos += 200;
-
-  // Model
-  if (asset.model) {
-    const modelText = asset.manufacturer?.name
-      ? `${asset.manufacturer.name} ${asset.model}`
-      : asset.model;
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>Model</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(modelText)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
-	</ObjectInfo>`);
-    yPos += 180;
+  // Composite at (10, 10)
+  for (let y = 0; y < 250; y++) {
+    for (let x = 0; x < 250; x++) {
+      const pixel = qrJimp.getPixelColor(x, y);
+      image.setPixelColor(pixel, 10 + x, 10 + y);
+    }
   }
 
-  // Serial Number
-  if (asset.serialNumber) {
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>SerialNumber</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(`S/N: ${asset.serialNumber}`)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
-	</ObjectInfo>`);
-    yPos += 180;
+  // Add text info as barcode (using Code128 for item number)
+  // This gives us readable machine-readable text on the right
+  const barcodeBuffer = await generateBarcode(asset.itemNumber);
+  const barcodeJimp = await Jimp.read(barcodeBuffer);
+  barcodeJimp.resize({ w: 300, h: 80 });
+
+  // Place barcode on the right side
+  for (let y = 0; y < 80; y++) {
+    for (let x = 0; x < 300; x++) {
+      const pixel = barcodeJimp.getPixelColor(x, y);
+      image.setPixelColor(pixel, 270 + x, 90 + y);
+    }
   }
 
-  // Hostname
-  if (opts.showHostname && asset.hostname) {
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>Hostname</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(asset.hostname)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
-	</ObjectInfo>`);
-    yPos += 180;
-  }
-
-  // IP Address
-  if (opts.showIpAddress && asset.ipAddress) {
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>IpAddress</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(asset.ipAddress)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
-	</ObjectInfo>`);
-    yPos += 180;
-  }
-
-  // Assigned To
-  if (opts.showAssignedTo && asset.assignedTo) {
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>AssignedTo</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Left</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(asset.assignedTo)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="1100" Y="${yPos}" Width="4000" Height="160" />
-	</ObjectInfo>`);
-  }
-
-  // Organization Name (bottom)
-  if (asset.organizationName) {
-    objectInfos.push(`	<ObjectInfo>
-		<TextObject>
-			<Name>Organization</Name>
-			<ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-			<BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-			<LinkedObjectName />
-			<Rotation>Rotation0</Rotation>
-			<IsMirrored>False</IsMirrored>
-			<IsVariable>False</IsVariable>
-			<GroupID>-1</GroupID>
-			<IsOutlined>False</IsOutlined>
-			<HorizontalAlignment>Center</HorizontalAlignment>
-			<VerticalAlignment>Top</VerticalAlignment>
-			<TextFitMode>None</TextFitMode>
-			<UseFullFontHeight>True</UseFullFontHeight>
-			<Verticalized>False</Verticalized>
-			<StyledText>
-				<Element>
-					<String xml:space="preserve">${escapeXml(asset.organizationName)}</String>
-					<Attributes>
-						<Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-						<ForeColor Alpha="255" Red="0" Green="0" Blue="0" HueScale="100" />
-					</Attributes>
-				</Element>
-			</StyledText>
-		</TextObject>
-		<Bounds X="50" Y="1150" Width="4990" Height="150" />
-	</ObjectInfo>`);
-  }
-
-  // Construct complete .label XML with proper DYMO format
-  const labelXml = `<?xml version="1.0" encoding="utf-8"?>
-<DieCutLabel Version="8.0" Units="twips" MediaType="Durable">
-	<PaperOrientation>Landscape</PaperOrientation>
-	<Id>LW_DURABLE_25X89mm</Id>
-	<IsOutlined>false</IsOutlined>
-	<PaperName>1933081 Drbl 1 x 3-1/2 in</PaperName>
-	<DrawCommands>
-		<RoundRectangle X="0" Y="0" Width="1440" Height="5040" Rx="90.708661417" Ry="90.708661417" />
-	</DrawCommands>
-${objectInfos.join('\n')}
-</DieCutLabel>`;
-
-  if (process.env.DEBUG_DYMO) {
-    console.log('[DYMO] Generated label XML:', labelXml);
-  }
-
-  // Return as UTF-8 encoded bytes
-  return new Uint8Array(Buffer.from(labelXml, 'utf-8'));
+  // Return as PNG bytes
+  const buffer = await image.getBuffer('image/png');
+  return new Uint8Array(buffer);
 }
 
 /**
@@ -417,114 +145,65 @@ ${objectInfos.join('\n')}
  */
 export async function createLabelPreview(
   asset: LabelAsset,
-  settings: Partial<LabelSettings> = {}
+  _settings: Partial<LabelSettings> = {}
 ): Promise<Buffer> {
   const qrBuffer = await generateQRCode(asset.itemNumber, 200);
   return qrBuffer;
 }
 
 /**
- * Print a label via DYMO Label Software web service
- * Posts the label XML to http://127.0.0.1:41951/DYMO/DLS/Printing/PrintLabel
+ * Print a label via node-dymo-printer
+ * Accepts the PNG image bytes, loads into Jimp, and prints via DymoServices
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
-  const labelXml = Buffer.from(labelBytes).toString('utf-8');
-  const printParams = `<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>`;
-
-  const body = new URLSearchParams({
-    printerName,
-    labelXmlContent: labelXml,
-    printParamsXml: printParams,
-    paramsXml: '',
-  }).toString();
-
-  console.log('[DYMO] Printing to:', printerName);
-
-  await new Promise<void>((resolve, reject) => {
-    const req = http.request({
-      hostname: DYMO_SERVICE_HOST,
-      port: DYMO_SERVICE_PORT,
-      path: '/DYMO/DLS/Printing/PrintLabel',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(body),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          console.log('[DYMO] Label printed successfully');
-          resolve();
-        } else {
-          reject(new Error(`DYMO service error: ${res.statusCode} - ${data}`));
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      console.error('[DYMO] Connection error:', error.message);
-      reject(error);
-    });
-
-    req.write(body);
-    req.end();
-  });
-}
-
-/**
- * Get list of available DYMO printers from the DYMO web service
- * Queries http://127.0.0.1:41951/DYMO/DLS/Printing/GetPrinters
- */
-export async function getAvailablePrinters(): Promise<string[]> {
   try {
-    const printers = await new Promise<string[]>((resolve, reject) => {
-      const req = http.request({
-        hostname: DYMO_SERVICE_HOST,
-        port: DYMO_SERVICE_PORT,
-        path: '/DYMO/DLS/Printing/GetPrinters',
-        method: 'GET',
-      }, (res) => {
-        let data = '';
-        res.on('data', (chunk) => {
-          data += chunk;
-        });
-        res.on('end', () => {
-          if (res.statusCode === 200) {
-            // Parse printer names from XML response
-            // Response format: <Printers><LabelWriterPrinter><Name>...</Name></LabelWriterPrinter>...</Printers>
-            const nameMatches = data.match(/<Name>([^<]+)<\/Name>/g) || [];
-            const printerNames = nameMatches.map((match) =>
-              match.replace(/<\/?Name>/g, '')
-            );
-            console.log('[DYMO] Found printers:', printerNames);
-            resolve(printerNames);
-          } else {
-            reject(new Error(`DYMO service error: ${res.statusCode}`));
-          }
-        });
-      });
+    console.log('[DYMO] Loading label image...');
+    const jimpImage = await Jimp.read(Buffer.from(labelBytes));
 
-      req.on('error', (error) => {
-        // Service not running or not responding - return empty array
-        console.warn('[DYMO] Service not available:', error.message);
-        resolve([]);
-      });
+    console.log('[DYMO] Connecting to printer:', printerName);
 
-      req.end();
+    // Dynamic import to handle ESM module
+    const { DymoServices } = await import('node-dymo-printer');
+    const dymo = new DymoServices({
+      interface: 'WINDOWS',
+      deviceId: printerName,
     });
 
-    return printers;
+    console.log('[DYMO] Printing label...');
+    await dymo.print(jimpImage, 1);
+
+    console.log('[DYMO] Label printed successfully');
   } catch (error) {
-    console.warn('[DYMO] Failed to query printers:', (error as Error).message);
-    // Return empty array if query fails - the printer list will be populated from DB settings
-    return [];
+    console.error('[DYMO] Print error:', error);
+    throw error;
   }
 }
 
+/**
+ * Get list of available DYMO printers
+ */
+export async function getAvailablePrinters(): Promise<string[]> {
+  try {
+    console.log('[DYMO] Discovering printers...');
+
+    // Dynamic import to handle ESM module
+    const { DymoServices } = await import('node-dymo-printer');
+    const dymo = new DymoServices();
+    const printers = await dymo.listPrinters();
+
+    if (printers && printers.length > 0) {
+      const printerNames = printers.map((p: { name: string }) => p.name);
+      console.log('[DYMO] Found printers:', printerNames);
+      return printerNames;
+    }
+
+    console.log('[DYMO] No printers found');
+    return [];
+  } catch (error) {
+    console.warn('[DYMO] Failed to list printers:', error instanceof Error ? error.message : String(error));
+    return [];
+  }
+}
