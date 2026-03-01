@@ -165,7 +165,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: assignedToFontSize,
-      font: regularFont,
+      font: boldFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -251,7 +251,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: fontSize,
-      font: regularFont,
+      font: boldFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
