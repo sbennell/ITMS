@@ -222,21 +222,20 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname on its own line
-  if (opts.showHostname && asset.hostname) {
-    page.drawText(truncateText(asset.hostname, 30), {
-      x: textX,
-      y: textY,
-      size: fontSize,
-      font: regularFont,
-      color: rgb(0, 0, 0),
-    });
-    textY -= lineHeight;
-  }
-
-  // IP Address on its own line
-  if (opts.showIpAddress && asset.ipAddress) {
-    page.drawText(truncateText(asset.ipAddress, 30), {
+  // Hostname and IP Address on same line
+  if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
+    let hostIpText = '';
+    if (opts.showHostname && asset.hostname) {
+      hostIpText = asset.hostname;
+    }
+    if (opts.showIpAddress && asset.ipAddress) {
+      if (hostIpText) {
+        hostIpText += ' \\ ' + asset.ipAddress;
+      } else {
+        hostIpText = asset.ipAddress;
+      }
+    }
+    page.drawText(truncateText(hostIpText, 40), {
       x: textX,
       y: textY,
       size: fontSize,
