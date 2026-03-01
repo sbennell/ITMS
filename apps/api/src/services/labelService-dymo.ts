@@ -5,10 +5,10 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-// Dymo 1933081 label dimensions: 25mm × 89mm (height × width)
-// For landscape orientation: width = 89mm, height = 25mm
+// Dymo 1933081 label dimensions: 23mm × 89mm (height × width)
+// For landscape orientation: width = 89mm, height = 23mm
 const LABEL_WIDTH_PT = 252;   // 89mm (width)
-const LABEL_HEIGHT_PT = 71;   // 25mm (height)
+const LABEL_HEIGHT_PT = 65;   // 23mm (height)
 
 export interface LabelAsset {
   itemNumber: string;
@@ -151,10 +151,10 @@ export async function createLabelPDF(
   let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
 
   // Text styling - increased sizes
-  const fontSize = 11;
-  const boldFontSize = 11;
-  const assignedToFontSize = 11;
-  const lineHeight = 9.5;
+  const fontSize = 10;
+  const boldFontSize = 10;
+  const assignedToFontSize = 10;
+  const lineHeight = 9;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Assigned To (if present) - centered across full label width
@@ -296,9 +296,9 @@ export async function printLabel(
   writeFileSync(tempPath, Buffer.from(pdfBytes));
 
   try {
-    // Use pdf-to-printer with Dymo paper size (25mm x 89mm)
+    // Use pdf-to-printer with Dymo paper size (23mm x 89mm)
     const printOptions: any = {
-      paperSize: '25x89mm',
+      paperSize: '23x89mm',
       orientation: 'landscape',
       scale: 'fit',
     };
