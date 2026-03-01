@@ -1,6 +1,4 @@
 import bwipjs from 'bwip-js';
-import { Jimp } from 'jimp';
-// Dynamic import used for node-dymo-printer to avoid TypeScript resolution issues
 
 export interface LabelAsset {
   itemNumber: string;
@@ -94,7 +92,7 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
 
 /**
  * Create a DYMO label as a PNG image
- * Simplified version: generates a white canvas with QR code
+ * Generates QR code as the label content
  */
 export async function createLabelPDF(
   asset: LabelAsset,
@@ -102,12 +100,11 @@ export async function createLabelPDF(
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
 
-  // Generate QR code (will be scaled up on the label)
+  // Generate QR code with item info
   const qrContent = buildQRContent(asset, opts);
   const qrBuffer = await generateQRCode(qrContent, 300);
 
-  // For now, return the QR code directly as the label
-  // The node-dymo-printer will scale and print it appropriately
+  // Return QR code as label (node-dymo-printer will handle scaling and printing)
   return new Uint8Array(qrBuffer);
 }
 
@@ -124,27 +121,29 @@ export async function createLabelPreview(
 
 /**
  * Print a label via node-dymo-printer
- * Accepts PNG image bytes, loads into Jimp, and prints via DymoServices
+ * Uses the library's loadImage to handle the PNG bytes and print via DymoServices
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
   try {
-    console.log('[DYMO] Loading label image...');
-    const jimpImage = await Jimp.read(Buffer.from(labelBytes));
-
-    console.log('[DYMO] Connecting to printer:', printerName);
+    console.log('[DYMO] Loading label image and printer service...');
 
     // Dynamic import to handle ESM module
-    const { DymoServices } = await import('node-dymo-printer');
+    const { DymoServices, loadImage } = await import('node-dymo-printer');
+
+    // Load the PNG image from buffer
+    const image = await loadImage(Buffer.from(labelBytes));
+
+    console.log('[DYMO] Connecting to printer:', printerName);
     const dymo = new DymoServices({
       interface: 'WINDOWS',
       deviceId: printerName,
     });
 
     console.log('[DYMO] Printing label...');
-    await dymo.print(jimpImage, 1);
+    await dymo.print(image, 1);
 
     console.log('[DYMO] Label printed successfully');
   } catch (error) {
