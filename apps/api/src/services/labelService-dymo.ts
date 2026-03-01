@@ -165,7 +165,7 @@ export async function createLabelPDF(
 
     page.drawText(assignedText, {
       x: assignedX,
-      y: textY,
+      y: textY - 0.3,
       size: assignedToFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
@@ -263,7 +263,7 @@ export async function createLabelPDF(
     const orgX = (LABEL_WIDTH_PT - orgWidth) / 2;
     page.drawText(orgText, {
       x: orgX,
-      y: 4,
+      y: 8,
       size: orgFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
