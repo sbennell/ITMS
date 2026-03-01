@@ -157,17 +157,15 @@ export async function createLabelPDF(
   const lineHeight = 9;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
-  // Assigned To (if present) - centered across full label width
+  // Assigned To (if present) - inline with text flow
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = truncateText(asset.assignedTo, 28);
-    const assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedToFontSize);
-    const assignedX = (LABEL_WIDTH_PT - assignedWidth) / 2;
 
     page.drawText(assignedText, {
-      x: assignedX,
-      y: textY - 0.3,
+      x: textX,
+      y: textY,
       size: assignedToFontSize,
-      font: boldFont,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -245,28 +243,18 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Organization Name - centered across full label width at bottom
+  // Organization Name - inline with text flow
   if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
-    const maxFontSize = 11;
-    let orgFontSize = maxFontSize;
-    let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
 
-    // Scale down if too wide for full label width
-    const fullLabelWidth = LABEL_WIDTH_PT - (margin * 2);
-    if (orgWidth > fullLabelWidth) {
-      orgFontSize = Math.max(5, (fullLabelWidth / orgWidth) * maxFontSize);
-      orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
-    }
-
-    const orgX = (LABEL_WIDTH_PT - orgWidth) / 2;
     page.drawText(orgText, {
-      x: orgX,
-      y: 8,
-      size: orgFontSize,
-      font: boldFont,
+      x: textX,
+      y: textY,
+      size: fontSize,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
+    textY -= lineHeight;
   }
 
   return doc.save();
