@@ -126,6 +126,7 @@ export async function createLabelPDF(
 
   // Embed bold font for all text
   const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  const regularFont = await doc.embedFont(StandardFonts.Helvetica);
 
   // Embed QR code image
   const qrImage = await doc.embedPng(qrBuffer);
@@ -172,12 +173,12 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Item Number - bold
+  // Item Number
   page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
     x: textX,
     y: textY,
     size: boldFontSize,
-    font: boldFont,
+    font: regularFont,
     color: rgb(0, 0, 0),
   });
   textY -= lineHeight;
@@ -203,7 +204,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: modelFontSize,
-      font: boldFont,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -215,7 +216,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -227,7 +228,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -239,7 +240,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: regularFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
