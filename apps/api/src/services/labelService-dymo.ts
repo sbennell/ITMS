@@ -121,7 +121,7 @@ export async function createLabelPreview(
 
 /**
  * Print a label via node-dymo-printer
- * Uses the library's loadImage to handle the PNG bytes and print via DymoServices
+ * Uses NETWORK interface to connect directly to printer via TCP port 9100
  */
 export async function printLabel(
   labelBytes: Uint8Array,
@@ -136,10 +136,18 @@ export async function printLabel(
     // Load the PNG image from buffer
     const image = await loadImage(Buffer.from(labelBytes));
 
-    console.log('[DYMO] Connecting to printer:', printerName);
+    // Extract IP address from printer name if it's a network path like \\10.142.197.18\DYMO...
+    let printerHost = '10.142.197.18'; // Default to known network printer IP
+    const ipMatch = printerName.match(/\\?([\d.]+)\\/);
+    if (ipMatch && ipMatch[1]) {
+      printerHost = ipMatch[1];
+    }
+
+    console.log('[DYMO] Connecting to printer at:', printerHost);
     const dymo = new DymoServices({
-      interface: 'WINDOWS',
-      deviceId: printerName,
+      interface: 'NETWORK',
+      host: printerHost,
+      port: 9100, // Standard JetDirect port for DYMO printers
     });
 
     console.log('[DYMO] Printing label...');
