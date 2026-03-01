@@ -148,7 +148,7 @@ export async function createLabelPDF(
 
   // Text starts after QR code
   const textX = qrX + qrSize + 3;
-  let textY = LABEL_HEIGHT_PT - 10; // Start near top of label (moved down to avoid cutoff)
+  let textY = LABEL_HEIGHT_PT - 10.57; // Start near top of label (moved down 0.2mm to avoid cutoff)
 
   // Text styling - increased sizes
   const fontSize = 10;
