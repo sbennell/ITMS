@@ -1,4 +1,9 @@
 import bwipjs from 'bwip-js';
+import { execFile } from 'child_process';
+import { writeFileSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import { promisify } from 'util';
 
 export interface LabelAsset {
   itemNumber: string;
@@ -120,43 +125,57 @@ export async function createLabelPreview(
 }
 
 /**
- * Print a label via node-dymo-printer
- * Uses NETWORK interface to connect directly to printer via TCP port 9100
+ * Print a label using Windows native printing via PowerShell
+ * Saves PNG to temp file and prints to the shared printer queue
  */
 export async function printLabel(
   labelBytes: Uint8Array,
   printerName: string
 ): Promise<void> {
+  const execFileAsync = promisify(execFile);
+  const tempPath = join(tmpdir(), `dymo-label-${Date.now()}.png`);
+
   try {
-    console.log('[DYMO] Loading label image and printer service...');
+    console.log('[DYMO] Saving label to temp file:', tempPath);
+    writeFileSync(tempPath, Buffer.from(labelBytes));
 
-    // Dynamic import to handle ESM module
-    const { DymoServices, loadImage } = await import('node-dymo-printer');
+    console.log('[DYMO] Printing to printer:', printerName);
 
-    // Load the PNG image from buffer
-    const image = await loadImage(Buffer.from(labelBytes));
+    // Use PowerShell to print the image to the shared printer
+    // PowerShell script: Get-Item <file> | ForEach-Object { $_.FullName } | xargs -I {} rundll32.exe shimgvw.dll, ImageView_Print {} <printer>
+    const psCommand = `
+      $printerName = '${printerName.replace(/'/g, "''")}';
+      $filePath = '${tempPath.replace(/\\/g, '\\\\')}';
+      $printManager = New-Object System.Printing.PrintQueue;
+      (New-Object System.Drawing.Bitmap $filePath) | Out-Null;
+      Write-Host "Printing to: $printerName";
+      & rundll32.exe shimgvw.dll, ImageView_Print "$filePath" "$printerName";
+      Exit 0;
+    `;
 
-    // Extract IP address from printer name if it's a network path like \\10.142.197.18\DYMO...
-    let printerHost = '10.142.197.18'; // Default to known network printer IP
-    const ipMatch = printerName.match(/\\?([\d.]+)\\/);
-    if (ipMatch && ipMatch[1]) {
-      printerHost = ipMatch[1];
-    }
-
-    console.log('[DYMO] Connecting to printer at:', printerHost);
-    const dymo = new DymoServices({
-      interface: 'NETWORK',
-      host: printerHost,
-      port: 9100, // Standard JetDirect port for DYMO printers
+    console.log('[DYMO] Executing PowerShell print command...');
+    const { stdout, stderr } = await execFileAsync('powershell.exe', ['-Command', psCommand], {
+      timeout: 30000,
+      windowsHide: true,
     });
 
-    console.log('[DYMO] Printing label...');
-    await dymo.print(image, 1);
+    if (stderr) {
+      console.warn('[DYMO] PowerShell warning:', stderr);
+    }
 
     console.log('[DYMO] Label printed successfully');
+    console.log('[DYMO] Print output:', stdout);
   } catch (error) {
     console.error('[DYMO] Print error:', error);
-    throw error;
+    throw new Error(`Failed to print label: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // Clean up temp file
+    try {
+      if (tempPath) unlinkSync(tempPath);
+      console.log('[DYMO] Temp file cleaned up');
+    } catch (e) {
+      console.warn('[DYMO] Failed to cleanup temp file:', e);
+    }
   }
 }
 
