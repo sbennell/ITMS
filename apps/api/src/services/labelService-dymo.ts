@@ -5,9 +5,9 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-// Dymo 1933081 label dimensions: 23mm × 89mm (height × width)
-// For landscape orientation: width = 89mm, height = 23mm
-const LABEL_WIDTH_PT = 252;   // 89mm (width)
+// Dymo 1933081 label dimensions: 23mm × 57mm (height × width)
+// For landscape orientation: width = 57mm, height = 23mm
+const LABEL_WIDTH_PT = 161;   // 57mm (width)
 const LABEL_HEIGHT_PT = 65;   // 23mm (height)
 
 export interface LabelAsset {
@@ -154,7 +154,7 @@ export async function createLabelPDF(
   const fontSize = 10;
   const boldFontSize = 10;
   const assignedToFontSize = 10;
-  const lineHeight = 10;
+  const lineHeight = 9;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Assigned To (if present) - inline with text flow
