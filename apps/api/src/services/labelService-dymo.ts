@@ -5,9 +5,9 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-// Dymo 1933081 label dimensions: 23mm × 57mm (height × width)
-// For landscape orientation: width = 57mm, height = 23mm
-const LABEL_WIDTH_PT = 161;   // 57mm (width)
+// Dymo 1933081 label dimensions: 23mm × 87mm (height × width)
+// For landscape orientation: width = 87mm, height = 23mm
+const LABEL_WIDTH_PT = 247;   // 87mm (width)
 const LABEL_HEIGHT_PT = 65;   // 23mm (height)
 
 export interface LabelAsset {
