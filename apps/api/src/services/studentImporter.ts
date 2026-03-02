@@ -63,6 +63,9 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     // Parse file
     const rows = await parseFile(file, columnMapping);
 
+    // Track which students are in this import (by firstName + surname + birthdate)
+    const importedStudentKeys = new Set<string>();
+
     // Upsert students
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -76,6 +79,10 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
           if (parsed) birthdate = parsed;
         }
 
+        // Create a unique key for this student
+        const studentKey = `${row.firstName}|${row.surname}|${birthdate?.toISOString() || ''}`;
+        importedStudentKeys.add(studentKey);
+
         // Upsert by firstName + surname + birthdate combination
         const existing = await prisma.student.findFirst({
           where: {
@@ -86,7 +93,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         });
 
         if (existing) {
-          // Update
+          // Update (including status back to Active if it was marked Inactive)
           await prisma.student.update({
             where: { id: existing.id },
             data: {
@@ -128,6 +135,52 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       }
     }
 
+    // Handle students removed from CSV: mark as Inactive and unlink their assets
+    try {
+      const activeStudents = await prisma.student.findMany({
+        where: { status: { not: 'Inactive' } },
+        select: { id: true, firstName: true, surname: true, prefName: true }
+      });
+
+      let deactivated = 0;
+      for (const student of activeStudents) {
+        // Check if this student is in the current import
+        const isInThisImport = Array.from(importedStudentKeys).some(key => {
+          // Key format: "firstName|surname|ISO-date-or-empty"
+          return key.startsWith(`${student.firstName}|${student.surname}|`);
+        });
+
+        if (!isInThisImport) {
+          // Student not in this import: unlink assets and mark as Inactive
+          const studentName = `${student.prefName || student.firstName} ${student.surname}`;
+
+          await prisma.asset.updateMany({
+            where: { studentId: student.id },
+            data: { studentId: null, assignedTo: studentName }
+          });
+
+          await prisma.student.update({
+            where: { id: student.id },
+            data: { status: 'Inactive' }
+          });
+
+          deactivated++;
+        }
+      }
+
+      if (deactivated > 0) {
+        result.errors.push({
+          row: 0,
+          message: `${deactivated} student(s) marked as Inactive (removed from CSV)`
+        });
+      }
+    } catch (e) {
+      result.errors.push({
+        row: 0,
+        message: `Error processing student removals: ${e instanceof Error ? e.message : 'Unknown error'}`
+      });
+    }
+
     // Update last import timestamp
     await prisma.settings.upsert({
       where: { key: 'studentLastImport' },
@@ -139,6 +192,21 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         value: new Date().toISOString()
       }
     });
+
+    // Run reconciliation if enabled
+    const reconcileSetting = await prisma.settings.findUnique({
+      where: { key: 'studentReconcileOnImport' }
+    });
+    if (reconcileSetting?.value === 'true') {
+      const reconcileResult = await reconcileAssetsByStudentName(prisma);
+      // Merge reconciliation results into import result
+      if (reconcileResult) {
+        result.errors.push({
+          row: 0,
+          message: `Reconciliation: ${reconcileResult.linked} linked, ${reconcileResult.skipped} skipped`
+        });
+      }
+    }
   } catch (e) {
     // Catastrophic error - add to errors and return
     result.errors.push({
@@ -319,4 +387,94 @@ function parseDate(dateStr: string): Date | null {
   }
 
   return null;
+}
+
+/**
+ * Reconciles assets by matching their free-text `assignedTo` field against student names.
+ * If a unique match is found, the asset is linked to the student (studentId set, assignedTo cleared).
+ * Returns a summary of linked, skipped, and unmatched assets.
+ */
+export interface ReconcileAssetResult {
+  linked: number;
+  skipped: number;
+  unmatched: string[];
+}
+
+export async function reconcileAssetsByStudentName(prisma: PrismaClient): Promise<ReconcileAssetResult> {
+  const result: ReconcileAssetResult = {
+    linked: 0,
+    skipped: 0,
+    unmatched: []
+  };
+
+  try {
+    // 1. Find all assets with assignedTo set and no studentId
+    const assets = await prisma.asset.findMany({
+      where: {
+        assignedTo: { not: null },
+        studentId: null
+      },
+      select: { id: true, assignedTo: true }
+    });
+
+    if (assets.length === 0) {
+      return result;
+    }
+
+    // 2. Load all ACTIVE students (skip Inactive/removed ones)
+    const students = await prisma.student.findMany({
+      where: { status: 'Active' },
+      select: { id: true, firstName: true, surname: true, prefName: true }
+    });
+
+    // 3. Build a map of normalized name → studentId
+    const nameMap = new Map<string, string | null>();
+    for (const s of students) {
+      const names = [
+        `${s.firstName} ${s.surname}`,
+        s.prefName ? `${s.prefName} ${s.surname}` : null,
+        `${s.surname}, ${s.firstName}`,
+        s.prefName ? `${s.surname}, ${s.prefName}` : null
+      ].filter(Boolean);
+
+      for (const name of names) {
+        const key = name!.toLowerCase().trim();
+        if (nameMap.has(key)) {
+          nameMap.set(key, null); // Mark as ambiguous
+        } else {
+          nameMap.set(key, s.id);
+        }
+      }
+    }
+
+    // 4. Process each asset
+    const unmatchedNames = new Set<string>();
+    for (const asset of assets) {
+      const normalizedAssignedTo = asset.assignedTo!.toLowerCase().trim();
+      const studentId = nameMap.get(normalizedAssignedTo);
+
+      if (studentId === null) {
+        // Ambiguous (multiple students with same name)
+        result.skipped++;
+        unmatchedNames.add(asset.assignedTo!);
+      } else if (studentId) {
+        // Unique match found
+        await prisma.asset.update({
+          where: { id: asset.id },
+          data: { studentId, assignedTo: null }
+        });
+        result.linked++;
+      } else {
+        // No match
+        result.skipped++;
+        unmatchedNames.add(asset.assignedTo!);
+      }
+    }
+
+    result.unmatched = Array.from(unmatchedNames);
+    return result;
+  } catch (e) {
+    console.error('Error in reconcileAssetsByStudentName:', e);
+    throw e;
+  }
 }

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuth } from './auth.js';
-import { runStudentImport } from '../services/studentImporter.js';
+import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 
 const router = Router();
 
@@ -290,18 +290,31 @@ router.delete('/:id', async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
   try {
-    // Set studentId to null on all linked assets first (due to onDelete: SetNull)
+    // Get student before deleting
+    const student = await prisma.student.findUnique({
+      where: { id },
+      select: { id: true, firstName: true, surname: true, prefName: true }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Build student name to restore in assignedTo
+    const studentName = `${student.prefName || student.firstName} ${student.surname}`;
+
+    // Set studentId to null and restore name in assignedTo for all linked assets
     await prisma.asset.updateMany({
       where: { studentId: id },
-      data: { studentId: null }
+      data: { studentId: null, assignedTo: studentName }
     });
 
     // Then delete the student
-    const student = await prisma.student.delete({
+    const deletedStudent = await prisma.student.delete({
       where: { id }
     });
 
-    res.json({ success: true, student });
+    res.json({ success: true, student: deletedStudent });
   } catch (error: any) {
     console.error('Error deleting student:', error);
     if (error.code === 'P2025') {
@@ -321,6 +334,19 @@ router.post('/import/run', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error running student import:', error);
     res.status(500).json({ error: 'Failed to run import' });
+  }
+});
+
+// Reconcile assets by student name
+router.post('/reconcile-assets', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const result = await reconcileAssetsByStudentName(prisma);
+    res.json(result);
+  } catch (error) {
+    console.error('Error reconciling assets:', error);
+    res.status(500).json({ error: 'Failed to reconcile assets' });
   }
 });
 

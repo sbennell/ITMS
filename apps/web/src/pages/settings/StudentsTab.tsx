@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
-import { api, StudentImportResult } from '../../lib/api';
+import { api, StudentImportResult, ReconcileResult } from '../../lib/api';
 
 const STUDENT_FIELDS = [
   { key: 'firstName', label: 'First Name', required: true },
@@ -25,6 +25,8 @@ export default function StudentsTab() {
   const [schoolType, setSchoolType] = useState('STANDARD');
   const [csvPreview, setCsvPreview] = useState('');
   const [importResult, setImportResult] = useState<StudentImportResult | null>(null);
+  const [reconcileOnImport, setReconcileOnImport] = useState(false);
+  const [reconcileResult, setReconcileResult] = useState<ReconcileResult | null>(null);
 
   // Load settings
   useQuery({
@@ -74,6 +76,18 @@ export default function StudentsTab() {
     staleTime: 1000 * 60
   });
 
+  useQuery({
+    queryKey: ['settings', 'studentReconcileOnImport'],
+    queryFn: () => api.getSetting('studentReconcileOnImport').then(s => {
+      setReconcileOnImport(s.value === 'true');
+      return s;
+    }).catch(() => {
+      setReconcileOnImport(false);
+      return { key: 'studentReconcileOnImport', value: 'false' };
+    }),
+    staleTime: 1000 * 60
+  });
+
   const schoolTypeMutation = useMutation({
     mutationFn: (value: string) => api.updateSetting('schoolType', value),
     onSuccess: () => {
@@ -92,6 +106,23 @@ export default function StudentsTab() {
     mutationFn: (value: string) => api.updateSetting('studentImportFilename', value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings', 'studentImportFilename'] });
+    }
+  });
+
+  const reconcileOnImportMutation = useMutation({
+    mutationFn: (value: boolean) => api.updateSetting('studentReconcileOnImport', value ? 'true' : 'false'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'studentReconcileOnImport'] });
+    }
+  });
+
+  const reconcileMutation = useMutation({
+    mutationFn: () => api.reconcileStudentAssets(),
+    onSuccess: (result) => {
+      setReconcileResult(result);
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      setTimeout(() => setReconcileResult(null), 6000);
     }
   });
 
@@ -326,6 +357,64 @@ export default function StudentsTab() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Link by Name */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Link Existing Assignments by Name</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Scans assets where Assigned To contains a student's name and links them automatically.
+        </p>
+
+        <div className="mb-4 flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="reconcileOnImport"
+            checked={reconcileOnImport}
+            onChange={(e) => {
+              setReconcileOnImport(e.target.checked);
+              reconcileOnImportMutation.mutate(e.target.checked);
+            }}
+            disabled={reconcileOnImportMutation.isPending}
+            className="w-4 h-4"
+          />
+          <label htmlFor="reconcileOnImport" className="text-sm text-gray-700">
+            Run automatically after each import
+          </label>
+        </div>
+
+        <button
+          onClick={() => reconcileMutation.mutate()}
+          disabled={reconcileMutation.isPending}
+          className="btn btn-primary"
+        >
+          {reconcileMutation.isPending ? (
+            <>
+              <Loader size={18} className="animate-spin mr-2" />
+              Linking...
+            </>
+          ) : (
+            'Link by Name Now'
+          )}
+        </button>
+
+        {reconcileResult && (
+          <div className={`mt-4 p-4 rounded-lg ${
+            reconcileResult.skipped === 0 ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'
+          }`}>
+            <div className="flex gap-2 text-green-700">
+              <CheckCircle size={18} />
+              <div>
+                <p className="font-medium">{reconcileResult.linked} linked, {reconcileResult.skipped} skipped</p>
+                {reconcileResult.unmatched.length > 0 && (
+                  <p className="text-sm mt-2">
+                    Unmatched: {reconcileResult.unmatched.join(', ')}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

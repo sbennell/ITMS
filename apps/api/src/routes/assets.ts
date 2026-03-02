@@ -559,8 +559,11 @@ router.put('/:id', async (req: Request, res: Response) => {
   const id = req.params.id as string;
 
   try {
-    // Get current asset for audit log
-    const current = await prisma.asset.findUnique({ where: { id } });
+    // Get current asset for audit log and to preserve name if switching from student
+    const current = await prisma.asset.findUnique({
+      where: { id },
+      include: { student: { select: { firstName: true, surname: true, prefName: true } } }
+    });
     if (!current) {
       return res.status(404).json({ error: 'Asset not found' });
     }
@@ -630,8 +633,16 @@ router.put('/:id', async (req: Request, res: Response) => {
     }
 
     // Enforce mutual exclusivity: studentId and assignedTo cannot both be set
-    const finalAssignedTo = studentId ? null : assignedTo;
+    // If studentId is being removed (was set, now not) and no new assignedTo is provided,
+    // restore the student's name in assignedTo
+    let finalAssignedTo = studentId ? null : assignedTo;
     const finalStudentId = studentId || null;
+
+    if (!studentId && current.studentId && !assignedTo && current.student) {
+      // Switching from Student to Staff/Other mode with no new assignedTo value
+      const s = current.student;
+      finalAssignedTo = `${s.prefName || s.firstName} ${s.surname}`;
+    }
 
     const asset = await prisma.asset.update({
       where: { id },

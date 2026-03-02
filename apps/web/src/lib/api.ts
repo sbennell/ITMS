@@ -68,6 +68,12 @@ export interface StudentImportResult {
   errors: { row: number; message: string }[];
 }
 
+export interface ReconcileResult {
+  linked: number;
+  skipped: number;
+  unmatched: string[];
+}
+
 export interface Asset {
   id: string;
   itemNumber: string;
@@ -520,6 +526,7 @@ export const api = {
     method: 'DELETE'
   }),
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
+  reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
