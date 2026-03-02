@@ -4,6 +4,33 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.16.0] - 2026-03-02
+
+### Added
+
+- **DYMO Label Printer Support**
+  - New label type option: "Dymo 1933081" available in Settings
+  - Customizable label dimensions: 23mm height × 85mm width
+  - QR code positioned on left side of label, vertically centered
+  - All text fields centered in the space to the right of QR code (accounting for ~17mm QR area)
+  - Text fields include: Assigned To (bold), Item Number, Model, Serial Number, Hostname \ IP, Organization Name (bold)
+  - Improved text layout with reduced line heights and auto-fitting for wider models
+  - Download-only mode: DYMO labels can only be downloaded as PDF (no direct printing)
+  - Print button disabled when DYMO label type is selected; shows "DYMO is Download only" message
+  - Users can download DYMO label PDFs for manual printing or external label printer software
+
+### Technical Details
+
+- New label service: `labelService-dymo.ts` handles DYMO-specific PDF generation
+- Label dimensions: 85mm width × 23mm height (adjustable via constants)
+- Text centering calculated to account for QR code area (margin 3pt + QR 45pt + gap 1pt = 49pt)
+- All font sizes reduced by 1pt from previous version for better fit on smaller label
+- QR code generation consistent with existing bwip-js implementation
+- Backend checks `labelType === 'dymo-1933081'` to route requests to correct service
+- Frontend UI prevents printing when DYMO is selected, enforcing download-only workflow
+
+---
+
 ## [1.15.1] - 2026-02-23
 
 ### Added
