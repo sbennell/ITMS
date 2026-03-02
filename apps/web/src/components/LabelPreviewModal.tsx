@@ -67,6 +67,9 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     setLabelOptions(prev => ({ ...prev, qrCodeContent: value }));
   };
 
+  // Check if DYMO label type is selected
+  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -230,23 +233,29 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
             >
               Cancel
             </button>
-            <button
-              onClick={() => printMutation.mutate()}
-              disabled={printMutation.isPending}
-              className="btn btn-primary"
-            >
-              {printMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Printing...
-                </>
-              ) : (
-                <>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print
-                </>
-              )}
-            </button>
+            {isDymo ? (
+              <div className="text-sm text-gray-500 flex items-center px-3">
+                DYMO labels: Download only
+              </div>
+            ) : (
+              <button
+                onClick={() => printMutation.mutate()}
+                disabled={printMutation.isPending}
+                className="btn btn-primary"
+              >
+                {printMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Printing...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
