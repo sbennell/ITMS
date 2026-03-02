@@ -7,7 +7,7 @@ import {
   useReactTable,
   createColumnHelper
 } from '@tanstack/react-table';
-import { Plus, Search, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { api, Student } from '../lib/api';
 
 const columnHelper = createColumnHelper<Student>();
@@ -123,16 +123,8 @@ export default function StudentList() {
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
           <p className="mt-1 text-sm text-gray-500">
             {data?.pagination.total || 0} total students
+            <span className="block text-xs text-gray-400 mt-1">Students are added via CSV import only (Settings {'>'} Students)</span>
           </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            to="/students/new"
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Add Student
-          </Link>
         </div>
       </div>
 

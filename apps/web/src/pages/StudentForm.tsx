@@ -10,6 +10,13 @@ export default function StudentForm() {
   const queryClient = useQueryClient();
   const isEditing = !!id;
 
+  // Prevent manual student creation - students can only be added via CSV import
+  React.useEffect(() => {
+    if (!isEditing) {
+      navigate('/students', { replace: true });
+    }
+  }, [isEditing, navigate]);
+
   const { data: student, isLoading: studentLoading } = useQuery({
     queryKey: ['student', id],
     queryFn: () => (id ? api.getStudent(id) : Promise.resolve(undefined)),
