@@ -20,9 +20,11 @@ export async function startStudentImportWatcher(prisma: PrismaClient): Promise<F
       return null;
     }
 
-    console.log(`[StudentImportWatcher] Starting watcher for: ${importPath}`);
+    // Normalize path - convert backslashes to forward slashes for Windows compatibility
+    const normalizedPath = importPath.replace(/\\/g, '/');
+    console.log(`[StudentImportWatcher] Starting watcher for: ${normalizedPath}`);
 
-    watcher = chokidar.watch(importPath, {
+    watcher = chokidar.watch(normalizedPath, {
       ignored: /(^|[\/\\])\./,
       persistent: true,
       awaitWriteFinish: {

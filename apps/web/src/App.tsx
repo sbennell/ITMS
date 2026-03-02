@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, Component, ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Layout from './components/Layout';
@@ -25,6 +25,20 @@ export const AuthContext = createContext<AuthContextType>({ user: null, isAdmin:
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    return this.props.children;
+  }
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -59,34 +73,38 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  console.log('App component rendering');
+
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/*"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Navigate to="/assets" replace />} />
-                <Route path="/assets" element={<AssetList />} />
-                <Route path="/assets/new" element={<AssetForm />} />
-                <Route path="/assets/bulk-add" element={<BulkAddAssets />} />
-                <Route path="/assets/:id" element={<AssetDetail />} />
-                <Route path="/assets/:id/edit" element={<AssetForm />} />
-                <Route path="/students" element={<StudentList />} />
-                <Route path="/students/new" element={<StudentForm />} />
-                <Route path="/students/:id" element={<StudentDetail />} />
-                <Route path="/students/:id/edit" element={<StudentForm />} />
-                <Route path="/stocktake" element={<Stocktake />} />
-                <Route path="/network" element={<Network />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/assets" replace />} />
+                  <Route path="/assets" element={<AssetList />} />
+                  <Route path="/assets/new" element={<AssetForm />} />
+                  <Route path="/assets/bulk-add" element={<BulkAddAssets />} />
+                  <Route path="/assets/:id" element={<AssetDetail />} />
+                  <Route path="/assets/:id/edit" element={<AssetForm />} />
+                  <Route path="/students" element={<StudentList />} />
+                  <Route path="/students/new" element={<StudentForm />} />
+                  <Route path="/students/:id" element={<StudentDetail />} />
+                  <Route path="/students/:id/edit" element={<StudentForm />} />
+                  <Route path="/stocktake" element={<Stocktake />} />
+                  <Route path="/network" element={<Network />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </ErrorBoundary>
   );
 }

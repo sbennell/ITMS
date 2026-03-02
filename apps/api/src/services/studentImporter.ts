@@ -26,13 +26,15 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
   try {
     // Read settings
     const pathSetting = await prisma.settings.findUnique({ where: { key: 'studentImportPath' } });
+    const filenameSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFilename' } });
     const mappingSetting = await prisma.settings.findUnique({ where: { key: 'studentCsvMapping' } });
 
     if (!pathSetting || !pathSetting.value) {
       throw new Error('Student import path not configured in settings (studentImportPath)');
     }
 
-    const importPath = pathSetting.value;
+    // Normalize path - convert backslashes to forward slashes for Windows compatibility
+    const importPath = pathSetting.value.replace(/\\/g, '/');
     let columnMapping: Record<string, string> = {};
 
     if (mappingSetting?.value) {
@@ -49,9 +51,13 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     }
 
     // Find the file to import (CSV or XLSX)
-    const file = findImportFile(importPath);
+    const targetFilename = filenameSetting?.value || null;
+    const file = findImportFile(importPath, targetFilename);
     if (!file) {
-      throw new Error(`No CSV or Excel file found in ${importPath}`);
+      const errorMsg = targetFilename
+        ? `File not found: ${targetFilename} in ${importPath}`
+        : `No CSV or Excel file found in ${importPath}`;
+      throw new Error(errorMsg);
     }
 
     // Parse file
@@ -145,13 +151,24 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
 }
 
 /**
- * Finds the first CSV or Excel file in the given directory.
+ * Finds a CSV or Excel file in the given directory.
+ * If targetFilename is specified, looks for that exact file.
+ * Otherwise, returns the first CSV/Excel file found.
  */
-function findImportFile(dirPath: string): string | null {
+function findImportFile(dirPath: string, targetFilename: string | null): string | null {
   try {
     const fs = require('fs');
     const files = fs.readdirSync(dirPath);
 
+    // If a specific filename is configured, look for it
+    if (targetFilename) {
+      if (files.includes(targetFilename)) {
+        return path.join(dirPath, targetFilename);
+      }
+      return null;
+    }
+
+    // Otherwise, find the first CSV/Excel file
     for (const file of files) {
       const ext = path.extname(file).toLowerCase();
       if (['.csv', '.xlsx', '.xls'].includes(ext)) {
