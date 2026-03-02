@@ -235,7 +235,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
             </button>
             {isDymo ? (
               <div className="text-sm text-gray-500 flex items-center px-3">
-                DYMO labels: Download only
+                DYMO is Download only
               </div>
             ) : (
               <button
