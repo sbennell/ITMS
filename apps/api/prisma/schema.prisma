@@ -44,6 +44,8 @@ model Asset {
 
   // Assignment
   assignedTo          String?   @map("assigned_to")
+  student             Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  studentId           String?   @map("student_id")
   location            Location? @relation(fields: [locationId], references: [id])
   locationId          String?   @map("location_id")
 
@@ -70,6 +72,36 @@ model Asset {
   ipAddresses         AssetIP[]
 
   @@map("assets")
+}
+
+// ============ STUDENTS ============
+
+model Student {
+  id              String    @id @default(cuid())
+
+  // Identity
+  prefName        String?   @map("pref_name")
+  firstName       String    @map("first_name")
+  surname         String
+  homeGroup       String?   @map("home_group")
+  schoolYear      String?   @map("school_year")
+  status          String    @default("Active")
+  birthdate       DateTime? @map("birthdate")
+
+  // Credentials
+  username        String?
+  edupassUsername String?   @map("edupass_username")
+  email           String?
+  password        String?
+
+  // Metadata
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  assets          Asset[]
+
+  @@map("students")
 }
 
 // ============ LOOKUP TABLES ============

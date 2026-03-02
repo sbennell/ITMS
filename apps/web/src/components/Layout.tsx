@@ -12,7 +12,8 @@ import {
   Download,
   Loader2,
   Network,
-  BarChart2
+  BarChart2,
+  GraduationCap
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import AboutModal from './AboutModal';
@@ -23,6 +24,7 @@ import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 
 const navigation = [
   { name: 'Assets', href: '/assets', icon: Package },
+  { name: 'Students', href: '/students', icon: GraduationCap },
   { name: 'IP Addresses', href: '/network', icon: Network },
   { name: 'Reports', href: '/reports', icon: BarChart2 },
   { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck }

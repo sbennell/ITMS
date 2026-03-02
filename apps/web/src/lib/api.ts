@@ -26,6 +26,48 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json();
 }
 
+export interface Student {
+  id: string;
+  prefName: string | null;
+  firstName: string;
+  surname: string;
+  homeGroup: string | null;
+  schoolYear: string | null;
+  status: string;
+  birthdate: string | null;
+  username: string | null;
+  edupassUsername: string | null;
+  email: string | null;
+  password: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assets?: Array<{
+    id: string;
+    itemNumber: string;
+    model: string | null;
+    categoryId: string | null;
+    status: string;
+    createdAt: string;
+    category?: { id: string; name: string } | null;
+  }>;
+}
+
+export interface StudentSummary {
+  id: string;
+  firstName: string;
+  surname: string;
+  prefName: string | null;
+  schoolYear: string | null;
+  homeGroup: string | null;
+}
+
+export interface StudentImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: { row: number; message: string }[];
+}
+
 export interface Asset {
   id: string;
   itemNumber: string;
@@ -50,6 +92,8 @@ export interface Asset {
   wlanMacAddress: string | null;
   ipAddresses: AssetIPEntry[];
   assignedTo: string | null;
+  studentId: string | null;
+  student: { id: string; firstName: string; surname: string; prefName: string | null } | null;
   locationId: string | null;
   location: { id: string; name: string } | null;
   warrantyExpiration: string | null;
@@ -440,6 +484,42 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(data)
     }),
+
+  // Students
+  getStudents: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    schoolYear?: string;
+    homeGroup?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          searchParams.set(key, String(value));
+        }
+      });
+    }
+    return fetchJson<PaginatedResponse<Student>>(`/students?${searchParams}`);
+  },
+  getStudent: (id: string) => fetchJson<Student>(`/students/${id}`),
+  searchStudents: (q: string) => fetchJson<StudentSummary[]>(`/students/search?q=${encodeURIComponent(q)}`),
+  createStudent: (data: Partial<Student>) => fetchJson<Student>('/students', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  updateStudent: (id: string, data: Partial<Student>) => fetchJson<Student>(`/students/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+  deleteStudent: (id: string) => fetchJson<{ success: boolean }>(`/students/${id}`, {
+    method: 'DELETE'
+  }),
+  runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),

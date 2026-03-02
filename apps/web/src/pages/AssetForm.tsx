@@ -3,8 +3,9 @@ import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, Save, Trash2, Plus } from 'lucide-react';
-import { api, Asset } from '../lib/api';
+import { api, Asset, StudentSummary } from '../lib/api';
 import { STATUS_LABELS, CONDITION_LABELS } from '../lib/utils';
+import StudentSearchCombobox from '../components/StudentSearchCombobox';
 
 type AssetFormData = {
   itemNumber: string;
@@ -25,6 +26,7 @@ type AssetFormData = {
   lanMacAddress: string;
   wlanMacAddress: string;
   assignedTo: string;
+  studentId: string;
   locationId: string;
   warrantyExpiration: string;
   endOfLifeDate: string;
@@ -50,6 +52,8 @@ export default function AssetForm() {
   const status = watch('status');
   const [newIpAddress, setNewIpAddress] = useState('');
   const [newIpLabel, setNewIpLabel] = useState('');
+  const [assignmentMode, setAssignmentMode] = useState<'student' | 'staff'>('staff');
+  const [selectedStudent, setSelectedStudent] = useState<StudentSummary | null>(null);
 
   // Fetch asset if editing
   const { data: asset } = useQuery({
@@ -122,6 +126,7 @@ export default function AssetForm() {
         lanMacAddress: asset.lanMacAddress || '',
         wlanMacAddress: asset.wlanMacAddress || '',
         assignedTo: asset.assignedTo || '',
+        studentId: asset.studentId || '',
         locationId: asset.locationId || '',
         warrantyExpiration: asset.warrantyExpiration ? asset.warrantyExpiration.split('T')[0] : '',
         endOfLifeDate: asset.endOfLifeDate ? asset.endOfLifeDate.split('T')[0] : '',
@@ -129,6 +134,15 @@ export default function AssetForm() {
         decommissionDate: asset.decommissionDate ? asset.decommissionDate.split('T')[0] : '',
         comments: asset.comments || ''
       });
+
+      // Initialize assignment mode based on whether studentId is set
+      if (asset.studentId && asset.student) {
+        setAssignmentMode('student');
+        setSelectedStudent(asset.student);
+      } else {
+        setAssignmentMode('staff');
+        setSelectedStudent(null);
+      }
     }
   }, [asset, reset]);
 
@@ -294,9 +308,61 @@ export default function AssetForm() {
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Assignment & Location</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Assigned To</label>
-              <input {...register('assignedTo')} className="input" placeholder="Name or department" />
+            <div className="md:col-span-2">
+              <label className="label mb-2">Assigned To</label>
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignmentMode('student');
+                    setValue('assignedTo', '');
+                  }}
+                  className={`px-3 py-2 rounded font-medium text-sm ${
+                    assignmentMode === 'student'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignmentMode('staff');
+                    setSelectedStudent(null);
+                  }}
+                  className={`px-3 py-2 rounded font-medium text-sm ${
+                    assignmentMode === 'staff'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Staff / Other
+                </button>
+              </div>
+
+              {assignmentMode === 'student' ? (
+                <StudentSearchCombobox
+                  value={selectedStudent}
+                  onChange={(student) => {
+                    setSelectedStudent(student);
+                    setValue('studentId', student?.id || '');
+                    setValue('assignedTo', '');
+                  }}
+                  placeholder="Search for student..."
+                />
+              ) : (
+                <input
+                  {...register('assignedTo')}
+                  className="input w-full"
+                  placeholder="Name or department"
+                  onChange={(e) => {
+                    register('assignedTo').onChange(e);
+                    setValue('studentId', '');
+                    setSelectedStudent(null);
+                  }}
+                />
+              )}
             </div>
             <div>
               <label className="label">Location</label>

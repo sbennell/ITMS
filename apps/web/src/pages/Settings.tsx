@@ -5,12 +5,14 @@ import NetworkingTab from './settings/NetworkingTab';
 import LookupsTab from './settings/LookupsTab';
 import DataTab from './settings/DataTab';
 import AccountTab from './settings/AccountTab';
+import StudentsTab from './settings/StudentsTab';
 
-type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'account';
+type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'account' | 'students';
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general', label: 'General' },
   { id: 'users', label: 'Users' },
+  { id: 'students', label: 'Students' },
   { id: 'networking', label: 'Networking' },
   { id: 'lookups', label: 'Lookups' },
   { id: 'data', label: 'Data' },
@@ -20,6 +22,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
 const TabComponents: Record<TabId, React.ComponentType> = {
   general: GeneralTab,
   users: UsersTab,
+  students: StudentsTab,
   networking: NetworkingTab,
   lookups: LookupsTab,
   data: DataTab,

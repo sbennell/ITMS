@@ -13,6 +13,8 @@ import labelRoutes from './routes/labels.js';
 import systemRoutes from './routes/system.js';
 import networkRoutes from './routes/network.js';
 import reportRoutes from './routes/reports.js';
+import studentRoutes from './routes/students.js';
+import { startStudentImportWatcher, closeStudentImportWatcher } from './services/studentImportWatcher.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -42,6 +44,7 @@ app.locals.prisma = prisma;
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/students', studentRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/stocktakes', stocktakeRoutes);
 app.use('/api/import', importRoutes);
@@ -74,12 +77,18 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
+  await closeStudentImportWatcher();
   await prisma.$disconnect();
   process.exit(0);
 });
 
-app.listen(PORT, () => {
+let studentImportWatcher: any = null;
+
+app.listen(PORT, async () => {
   console.log(`IT Management System (ITMS) API running on http://localhost:${PORT}`);
+
+  // Initialize student import watcher
+  studentImportWatcher = await startStudentImportWatcher(prisma);
 });
 
 export { prisma };

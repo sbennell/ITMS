@@ -90,7 +90,15 @@ router.get('/', async (req: Request, res: Response) => {
           manufacturer: true,
           supplier: true,
           location: true,
-          ipAddresses: true
+          ipAddresses: true,
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              prefName: true
+            }
+          }
         }
       })
     ]);
@@ -392,6 +400,14 @@ router.get('/:id', async (req: Request, res: Response) => {
         location: true,
         ipAddresses: true,
         attachments: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            surname: true,
+            prefName: true
+          }
+        },
         auditLogs: {
           orderBy: { timestamp: 'desc' },
           take: 20,
@@ -441,6 +457,7 @@ router.post('/', async (req: Request, res: Response) => {
       ipAddress,
       ipAddresses,
       assignedTo,
+      studentId,
       locationId,
       warrantyExpiration,
       endOfLifeDate,
@@ -461,6 +478,10 @@ router.post('/', async (req: Request, res: Response) => {
       ipsToCreate = [{ ip: ipAddress }];
     }
 
+    // Enforce mutual exclusivity: studentId and assignedTo cannot both be set
+    const finalAssignedTo = studentId ? null : assignedTo;
+    const finalStudentId = studentId || null;
+
     const asset = await prisma.asset.create({
       data: {
         itemNumber,
@@ -480,7 +501,8 @@ router.post('/', async (req: Request, res: Response) => {
         devicePassword,
         lanMacAddress,
         wlanMacAddress,
-        assignedTo,
+        assignedTo: finalAssignedTo,
+        studentId: finalStudentId,
         locationId,
         warrantyExpiration: warrantyExpiration ? new Date(warrantyExpiration) : null,
         endOfLifeDate: endOfLifeDate ? new Date(endOfLifeDate) : null,
@@ -498,7 +520,15 @@ router.post('/', async (req: Request, res: Response) => {
         manufacturer: true,
         supplier: true,
         location: true,
-        ipAddresses: true
+        ipAddresses: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            surname: true,
+            prefName: true
+          }
+        }
       }
     });
 
@@ -556,6 +586,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       ipAddress,
       ipAddresses,
       assignedTo,
+      studentId,
       locationId,
       warrantyExpiration,
       endOfLifeDate,
@@ -598,6 +629,10 @@ router.put('/:id', async (req: Request, res: Response) => {
       // else: let the create logic below handle it (no primary IP exists)
     }
 
+    // Enforce mutual exclusivity: studentId and assignedTo cannot both be set
+    const finalAssignedTo = studentId ? null : assignedTo;
+    const finalStudentId = studentId || null;
+
     const asset = await prisma.asset.update({
       where: { id },
       data: {
@@ -618,7 +653,8 @@ router.put('/:id', async (req: Request, res: Response) => {
         devicePassword,
         lanMacAddress,
         wlanMacAddress,
-        assignedTo,
+        assignedTo: finalAssignedTo,
+        studentId: finalStudentId,
         locationId,
         warrantyExpiration: warrantyExpiration ? new Date(warrantyExpiration) : null,
         endOfLifeDate: endOfLifeDate ? new Date(endOfLifeDate) : null,
@@ -631,7 +667,15 @@ router.put('/:id', async (req: Request, res: Response) => {
         manufacturer: true,
         supplier: true,
         location: true,
-        ipAddresses: true
+        ipAddresses: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            surname: true,
+            prefName: true
+          }
+        }
       }
     });
 
@@ -662,7 +706,15 @@ router.put('/:id', async (req: Request, res: Response) => {
         manufacturer: true,
         supplier: true,
         location: true,
-        ipAddresses: true
+        ipAddresses: true,
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            surname: true,
+            prefName: true
+          }
+        }
       }
     });
 

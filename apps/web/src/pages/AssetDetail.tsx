@@ -121,7 +121,21 @@ export default function AssetDetail() {
         <div className="card p-6">
           <h2 className="text-lg font-semibold mb-4">Assignment & Location</h2>
           <dl className="space-y-3">
-            <DetailRow label="Assigned To" value={asset.assignedTo} />
+            <div className="flex justify-between">
+              <dt className="text-sm font-medium text-gray-500">Assigned To</dt>
+              <dd className="text-sm text-gray-900">
+                {asset.studentId && asset.student ? (
+                  <Link
+                    to={`/students/${asset.student.id}`}
+                    className="text-primary-600 hover:text-primary-800 font-medium"
+                  >
+                    {asset.student.prefName || asset.student.firstName} {asset.student.surname}
+                  </Link>
+                ) : (
+                  asset.assignedTo || '-'
+                )}
+              </dd>
+            </div>
             <DetailRow label="Location" value={asset.location?.name} />
           </dl>
         </div>
