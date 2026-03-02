@@ -146,9 +146,12 @@ export async function createLabelPDF(
     height: qrSize,
   });
 
-  // Text centered horizontally on label
+  // Text centered horizontally in the space to the right of QR code
   let textY = LABEL_HEIGHT_PT - 13; // Start near top of label (moved down 0.2mm to avoid cutoff)
-  const labelCenterX = LABEL_WIDTH_PT / 2;
+  const qrAreaEnd = margin + qrSize + 3; // End of QR code area (~17mm)
+  const textAreaStart = qrAreaEnd;
+  const textAreaEnd = LABEL_WIDTH_PT - margin;
+  const labelCenterX = textAreaStart + ((textAreaEnd - textAreaStart) / 2);
 
   // Text styling - increased sizes
   const fontSize = 10;
