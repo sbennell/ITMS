@@ -263,7 +263,7 @@ export async function createLabelPDF(
   }
 
   // Organization Name - centered
-  if (asset.organizationName && textY > 4) {
+  if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
     const orgWidth = boldFont.widthOfTextAtSize(orgText, fontSize);
     const orgX = labelCenterX - (orgWidth / 2);
