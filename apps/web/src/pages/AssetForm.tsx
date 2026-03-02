@@ -53,7 +53,7 @@ export default function AssetForm() {
   const [newIpAddress, setNewIpAddress] = useState('');
   const [newIpLabel, setNewIpLabel] = useState('');
   const [assignmentMode, setAssignmentMode] = useState<'student' | 'staff'>('staff');
-  const [selectedStudent, setSelectedStudent] = useState<StudentSummary | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Partial<StudentSummary> | null>(null);
 
   // Fetch asset if editing
   const { data: asset } = useQuery({

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
-import { api, Student } from '../lib/api';
+import { api } from '../lib/api';
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();

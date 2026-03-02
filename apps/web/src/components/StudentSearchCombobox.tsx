@@ -4,7 +4,7 @@ import { ChevronDown, X } from 'lucide-react';
 import { api, StudentSummary } from '../lib/api';
 
 interface StudentSearchComboboxProps {
-  value: StudentSummary | null;
+  value: Partial<StudentSummary> | null;
   onChange: (student: StudentSummary | null) => void;
   placeholder?: string;
 }

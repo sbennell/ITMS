@@ -33,11 +33,11 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (search) {
       where.OR = [
-        { firstName: { contains: search as string, mode: 'insensitive' } },
-        { surname: { contains: search as string, mode: 'insensitive' } },
-        { prefName: { contains: search as string, mode: 'insensitive' } },
-        { email: { contains: search as string, mode: 'insensitive' } },
-        { username: { contains: search as string, mode: 'insensitive' } }
+        { firstName: { contains: search as string } },
+        { surname: { contains: search as string } },
+        { prefName: { contains: search as string } },
+        { email: { contains: search as string } },
+        { username: { contains: search as string } }
       ];
     }
 
@@ -112,10 +112,10 @@ router.get('/search', async (req: Request, res: Response) => {
     const students = await prisma.student.findMany({
       where: {
         OR: [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { surname: { contains: query, mode: 'insensitive' } },
-          { prefName: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } }
+          { firstName: { contains: query } },
+          { surname: { contains: query } },
+          { prefName: { contains: query } },
+          { email: { contains: query } }
         ]
       },
       select: {

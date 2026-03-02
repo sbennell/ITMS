@@ -225,9 +225,6 @@ interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 const FormField = React.forwardRef<HTMLInputElement, FormFieldProps>(
   ({ label, error, required, children, type = 'text', ...props }, ref) => {
-    const isSelect = type === 'select';
-    const Component = isSelect ? 'select' : 'input';
-
     return (
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
