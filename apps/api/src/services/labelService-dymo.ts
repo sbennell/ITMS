@@ -275,7 +275,7 @@ export async function createLabelPDF(
       font: boldFont,
       color: rgb(0, 0, 0),
     });
-    textY -= lineHeight;
+    textY -= lineHeight + 1;
   }
 
   return doc.save();
