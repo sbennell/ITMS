@@ -154,7 +154,7 @@ export async function createLabelPDF(
   const fontSize = 10;
   const boldFontSize = 10;
   const assignedToFontSize = 10;
-  const lineHeight = 9;
+  const lineHeight = 10;
   const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
 
   // Assigned To (if present) - inline with text flow
