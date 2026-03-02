@@ -131,7 +131,7 @@ export async function createLabelPDF(
   // Embed QR code image
   const qrImage = await doc.embedPng(qrBuffer);
 
-  // Layout: Landscape - QR on left, text on right
+  // Layout: Centered text
   const margin = 3;
   const qrSize = 45; // Larger QR code
 
@@ -146,23 +146,25 @@ export async function createLabelPDF(
     height: qrSize,
   });
 
-  // Text starts after QR code
-  const textX = qrX + qrSize + 3;
+  // Text centered horizontally on label
   let textY = LABEL_HEIGHT_PT - 13; // Start near top of label (moved down 0.2mm to avoid cutoff)
+  const labelCenterX = LABEL_WIDTH_PT / 2;
 
   // Text styling - increased sizes
   const fontSize = 10;
   const boldFontSize = 10;
   const assignedToFontSize = 10;
   const lineHeight = 9;
-  const textAreaWidth = LABEL_WIDTH_PT - textX - margin; // Available width for text
+  const textAreaWidth = LABEL_WIDTH_PT - (margin * 2); // Available width for centered text
 
-  // Assigned To (if present) - inline with text flow
+  // Assigned To (if present) - centered
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = truncateText(asset.assignedTo, 28);
+    const assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedToFontSize);
+    const assignedX = labelCenterX - (assignedWidth / 2);
 
     page.drawText(assignedText, {
-      x: textX,
+      x: assignedX,
       y: textY,
       size: assignedToFontSize,
       font: boldFont,
@@ -172,8 +174,12 @@ export async function createLabelPDF(
   }
 
   // Item Number
-  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 25), {
-    x: textX,
+  const itemText = truncateText(`Item: ${asset.itemNumber}`, 25);
+  const itemWidth = regularFont.widthOfTextAtSize(itemText, boldFontSize);
+  const itemX = labelCenterX - (itemWidth / 2);
+
+  page.drawText(itemText, {
+    x: itemX,
     y: textY,
     size: boldFontSize,
     font: regularFont,
@@ -181,7 +187,7 @@ export async function createLabelPDF(
   });
   textY -= lineHeight;
 
-  // Model (always shown) - auto-fit to available width
+  // Model (always shown) - auto-fit and centered
   if (asset.model) {
     const modelText = asset.manufacturer?.name
       ? `${asset.manufacturer.name} ${asset.model}`
@@ -191,15 +197,17 @@ export async function createLabelPDF(
 
     // Calculate font size to fit text within available width
     let modelFontSize = maxModelFontSize;
-    let modelWidth = boldFont.widthOfTextAtSize(modelText, modelFontSize);
+    let modelWidth = regularFont.widthOfTextAtSize(modelText, modelFontSize);
 
     // Scale down if text is too wide
     if (modelWidth > textAreaWidth) {
       modelFontSize = Math.max(minModelFontSize, (textAreaWidth / modelWidth) * maxModelFontSize);
+      modelWidth = regularFont.widthOfTextAtSize(modelText, modelFontSize);
     }
 
+    const modelX = labelCenterX - (modelWidth / 2);
     page.drawText(modelText, {
-      x: textX,
+      x: modelX,
       y: textY,
       size: modelFontSize,
       font: regularFont,
@@ -208,10 +216,14 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Serial Number (always shown, under Model)
+  // Serial Number (always shown, under Model) - centered
   if (asset.serialNumber) {
-    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 25), {
-      x: textX,
+    const snText = truncateText(`S/N: ${asset.serialNumber}`, 25);
+    const snWidth = regularFont.widthOfTextAtSize(snText, fontSize);
+    const snX = labelCenterX - (snWidth / 2);
+
+    page.drawText(snText, {
+      x: snX,
       y: textY,
       size: fontSize,
       font: regularFont,
@@ -220,7 +232,7 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Hostname and IP Address on same line
+  // Hostname and IP Address on same line - centered
   if ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress)) {
     let hostIpText = '';
     if (opts.showHostname && asset.hostname) {
@@ -233,8 +245,12 @@ export async function createLabelPDF(
         hostIpText = asset.ipAddress;
       }
     }
-    page.drawText(truncateText(hostIpText, 40), {
-      x: textX,
+    const hostIpFullText = truncateText(hostIpText, 40);
+    const hostIpWidth = regularFont.widthOfTextAtSize(hostIpFullText, fontSize);
+    const hostIpX = labelCenterX - (hostIpWidth / 2);
+
+    page.drawText(hostIpFullText, {
+      x: hostIpX,
       y: textY,
       size: fontSize,
       font: regularFont,
@@ -243,12 +259,14 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Organization Name - inline with text flow
+  // Organization Name - centered
   if (asset.organizationName && textY > 3) {
     const orgText = truncateText(asset.organizationName, 40);
+    const orgWidth = boldFont.widthOfTextAtSize(orgText, fontSize);
+    const orgX = labelCenterX - (orgWidth / 2);
 
     page.drawText(orgText, {
-      x: textX,
+      x: orgX,
       y: textY,
       size: fontSize,
       font: boldFont,
