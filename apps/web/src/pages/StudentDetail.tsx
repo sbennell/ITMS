@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function StudentDetail() {
@@ -57,13 +57,6 @@ export default function StudentDetail() {
             </p>
           </div>
         </div>
-        <Link
-          to={`/students/${student.id}/edit`}
-          className="btn btn-secondary flex items-center gap-2"
-        >
-          <Pencil size={18} />
-          Edit
-        </Link>
       </div>
 
       {/* Info Cards */}
