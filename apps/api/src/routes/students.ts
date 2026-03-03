@@ -41,8 +41,15 @@ router.get('/', async (req: Request, res: Response) => {
       ];
     }
 
+    // Build status filter with AND to exclude "Left"
     if (status && status !== '_all') {
-      where.status = status as string;
+      where.AND = [
+        { status: status as string },
+        { status: { not: 'Left' } }
+      ];
+    } else {
+      // Always exclude students with "Left" status
+      where.status = { not: 'Left' };
     }
 
     if (schoolYear && schoolYear !== '_all') {
@@ -136,7 +143,7 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
-// Get unique student statuses
+// Get unique student statuses (excluding "Left")
 router.get('/statuses', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
@@ -144,6 +151,7 @@ router.get('/statuses', async (req: Request, res: Response) => {
     const statuses = await prisma.student.findMany({
       select: { status: true },
       distinct: ['status'],
+      where: { status: { not: 'Left' } },
       orderBy: { status: 'asc' }
     });
 
