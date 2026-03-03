@@ -71,6 +71,11 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       const row = rows[i];
       const rowNum = i + 2; // +2 because headers are row 1, data starts at row 2
 
+      // Skip students with "Left" status
+      if (row.status === 'Left') {
+        continue;
+      }
+
       try {
         // Parse birthdate if provided
         let birthdate: Date | null = null;
