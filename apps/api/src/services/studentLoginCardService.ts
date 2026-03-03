@@ -54,102 +54,111 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
   const FONT_SIZE_MAIN = 11;
   const FONT_SIZE_FOOTER = 10;
 
-  // Chunk sorted students into pages
-  for (let pageIdx = 0; pageIdx < Math.ceil(sortedStudents.length / CARDS_PER_PAGE); pageIdx++) {
-    const page = doc.addPage([PAGE_W, PAGE_H]);
-    const pageStudents = sortedStudents.slice(
-      pageIdx * CARDS_PER_PAGE,
-      (pageIdx + 1) * CARDS_PER_PAGE
-    );
+  // Generate cards with page breaks for each home group
+  let currentPage = doc.addPage([PAGE_W, PAGE_H]);
+  let cardsOnPage = 0;
+  let currentHomeGroup = sortedStudents[0]?.homeGroup || null;
 
-    pageStudents.forEach((student, i) => {
-      const col = i % COLS;
-      const row = Math.floor(i / COLS);
-      const x = MARGIN + col * (CARD_W + COL_GUTTER);
-      // pdf-lib origin is bottom-left, so Y increases from bottom
-      const y = PAGE_H - MARGIN - (row + 1) * CARD_H - row * ROW_GUTTER;
+  sortedStudents.forEach((student, studentIdx) => {
+    // Start new page if home group changes or page is full
+    if (
+      (student.homeGroup !== currentHomeGroup && cardsOnPage > 0) ||
+      cardsOnPage >= CARDS_PER_PAGE
+    ) {
+      currentPage = doc.addPage([PAGE_W, PAGE_H]);
+      cardsOnPage = 0;
+      currentHomeGroup = student.homeGroup;
+    }
 
-      // Draw dashed card border
-      page.drawRectangle({
-        x,
-        y,
-        width: CARD_W,
-        height: CARD_H,
-        borderWidth: 0.5,
-        borderColor: rgb(0.7, 0.7, 0.7),
-        borderDashArray: [3, 3],
-        borderLineCap: LineCapStyle.Round,
-      });
+    const i = cardsOnPage;
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const x = MARGIN + col * (CARD_W + COL_GUTTER);
+    // pdf-lib origin is bottom-left, so Y increases from bottom
+    const y = PAGE_H - MARGIN - (row + 1) * CARD_H - row * ROW_GUTTER;
 
-      // Draw card content - sequential layout, vertically centered
-      // Content: 3 lines (60pt) + gap (4pt) + separator (0.3pt) + footer (10pt) ≈ 74pt
-      // Vertical centering: (CARD_H - content_height) / 2 as top offset
-      const contentHeight = LINE_HEIGHT * 3 + 4 + 10;
-      const topOffset = (CARD_H - contentHeight) / 2;
-      let textY = y + CARD_H - PAD - topOffset;
-
-      // Helper to draw credential line: "Label: value" (centered)
-      const drawLine = (label: string, value: string | null) => {
-        const displayValue = value || '-';
-        const labelWidth = bold.widthOfTextAtSize(label + ' ', FONT_SIZE_MAIN);
-        const valueWidth = regular.widthOfTextAtSize(displayValue, FONT_SIZE_MAIN);
-        const totalWidth = labelWidth + valueWidth;
-        const lineX = x + (CARD_W - totalWidth) / 2;
-
-        page.drawText(label, {
-          x: lineX,
-          y: textY,
-          size: FONT_SIZE_MAIN,
-          font: bold,
-          color: rgb(0, 0, 0),
-        });
-
-        page.drawText(displayValue, {
-          x: lineX + labelWidth,
-          y: textY,
-          size: FONT_SIZE_MAIN,
-          font: regular,
-          color: rgb(0, 0, 0),
-        });
-
-        textY -= LINE_HEIGHT;
-      };
-
-      // Draw credential fields
-      drawLine('Username:', student.username);
-      drawLine('Password:', student.password);
-      drawLine('Email:', student.email);
-
-      // Gap and separator line
-      page.drawLine({
-        start: { x: x + PAD, y: textY },
-        end: { x: x + CARD_W - PAD, y: textY },
-        thickness: 0.3,
-        color: rgb(0.8, 0.8, 0.8),
-      });
-
-      // Footer positioned below separator with breathing room
-      textY -= 10; // Larger gap after separator for footer spacing
-      const footerText = [
-        `${student.firstName} ${student.surname}`,
-        student.schoolYear,
-        student.homeGroup,
-      ]
-        .filter(Boolean)
-        .join(' - ');
-
-      const footerWidth = regular.widthOfTextAtSize(footerText, FONT_SIZE_FOOTER);
-      const footerX = x + (CARD_W - footerWidth) / 2;
-
-      page.drawText(footerText, {
-        x: footerX,
-        y: textY,
-        size: FONT_SIZE_FOOTER,
-        font: regular,
-        color: rgb(0.5, 0.5, 0.5),
-      });
+    // Draw dashed card border
+    currentPage.drawRectangle({
+      x,
+      y,
+      width: CARD_W,
+      height: CARD_H,
+      borderWidth: 0.5,
+      borderColor: rgb(0.7, 0.7, 0.7),
+      borderDashArray: [3, 3],
+      borderLineCap: LineCapStyle.Round,
     });
-  }
+
+    // Draw card content - sequential layout, vertically centered
+    // Content: 3 lines (60pt) + gap (4pt) + separator (0.3pt) + footer (10pt) ≈ 74pt
+    // Vertical centering: (CARD_H - content_height) / 2 as top offset
+    const contentHeight = LINE_HEIGHT * 3 + 4 + 10;
+    const topOffset = (CARD_H - contentHeight) / 2;
+    let textY = y + CARD_H - PAD - topOffset;
+
+    // Helper to draw credential line: "Label: value" (centered)
+    const drawLine = (label: string, value: string | null) => {
+      const displayValue = value || '-';
+      const labelWidth = bold.widthOfTextAtSize(label + ' ', FONT_SIZE_MAIN);
+      const valueWidth = regular.widthOfTextAtSize(displayValue, FONT_SIZE_MAIN);
+      const totalWidth = labelWidth + valueWidth;
+      const lineX = x + (CARD_W - totalWidth) / 2;
+
+      currentPage.drawText(label, {
+        x: lineX,
+        y: textY,
+        size: FONT_SIZE_MAIN,
+        font: bold,
+        color: rgb(0, 0, 0),
+      });
+
+      currentPage.drawText(displayValue, {
+        x: lineX + labelWidth,
+        y: textY,
+        size: FONT_SIZE_MAIN,
+        font: regular,
+        color: rgb(0, 0, 0),
+      });
+
+      textY -= LINE_HEIGHT;
+    };
+
+    // Draw credential fields
+    drawLine('Username:', student.username);
+    drawLine('Password:', student.password);
+    drawLine('Email:', student.email);
+
+    // Gap and separator line
+    currentPage.drawLine({
+      start: { x: x + PAD, y: textY },
+      end: { x: x + CARD_W - PAD, y: textY },
+      thickness: 0.3,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+
+    // Footer positioned below separator with breathing room
+    textY -= 10; // Larger gap after separator for footer spacing
+    const footerText = [
+      `${student.firstName} ${student.surname}`,
+      student.schoolYear,
+      student.homeGroup,
+    ]
+      .filter(Boolean)
+      .join(' - ');
+
+    const footerWidth = regular.widthOfTextAtSize(footerText, FONT_SIZE_FOOTER);
+    const footerX = x + (CARD_W - footerWidth) / 2;
+
+    currentPage.drawText(footerText, {
+      x: footerX,
+      y: textY,
+      size: FONT_SIZE_FOOTER,
+      font: regular,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+
+    cardsOnPage++;
+  });
 
   return doc.save();
 }
