@@ -137,10 +137,10 @@ export default function StudentLoginCardsModal({
         {/* Info text */}
         <p className="text-xs text-gray-500 mb-6">
           {scope === 'all'
-            ? 'Downloads all active students (excludes students with "Left" status)'
+            ? 'Downloads all active students with 16 cards per page (excludes "Left" status)'
             : scope === 'byYearLevel'
-            ? 'Downloads selected year level with 8 cards per page'
-            : 'Downloads selected home group with 8 cards per page'}
+            ? 'Downloads selected year level with 16 cards per page'
+            : 'Downloads selected home group with 16 cards per page'}
         </p>
 
         {/* Actions */}
