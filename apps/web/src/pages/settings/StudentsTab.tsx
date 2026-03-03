@@ -25,6 +25,7 @@ export default function StudentsTab() {
   const [importResult, setImportResult] = useState<StudentImportResult | null>(null);
   const [reconcileOnImport, setReconcileOnImport] = useState(false);
   const [reconcileResult, setReconcileResult] = useState<ReconcileResult | null>(null);
+  const [mappingSaveResult, setMappingSaveResult] = useState<'success' | 'error' | null>(null);
 
   // Load settings
   useQuery({
@@ -63,7 +64,7 @@ export default function StudentsTab() {
       } catch {}
       return s;
     }),
-    staleTime: 1000 * 60
+    staleTime: 0  // Always refetch immediately to avoid stale cache issues
   });
 
   useQuery({
@@ -121,6 +122,12 @@ export default function StudentsTab() {
       api.updateSetting('studentCsvMapping', JSON.stringify(value)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings', 'studentCsvMapping'] });
+      setMappingSaveResult('success');
+      setTimeout(() => setMappingSaveResult(null), 3000);
+    },
+    onError: () => {
+      setMappingSaveResult('error');
+      setTimeout(() => setMappingSaveResult(null), 3000);
     }
   });
 
@@ -263,6 +270,16 @@ export default function StudentsTab() {
         >
           {mappingMutation.isPending ? 'Saving...' : 'Save Mapping'}
         </button>
+
+        {mappingSaveResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm ${
+            mappingSaveResult === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-700'
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            {mappingSaveResult === 'success' ? '✅ Mapping saved successfully' : '❌ Failed to save mapping'}
+          </div>
+        )}
       </div>
 
       {/* Manual Import Trigger */}
