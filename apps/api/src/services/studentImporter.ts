@@ -65,8 +65,8 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       const row = rows[i];
       const rowNum = i + 2; // +2 because headers are row 1, data starts at row 2
 
-      // Skip students with "Left" status
-      if (row.status === 'Left') {
+      // Skip students with "Left" status (case-insensitive)
+      if (row.status?.toLowerCase() === 'left') {
         continue;
       }
 
@@ -104,7 +104,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
               prefName: row.prefName || null,
               homeGroup: row.homeGroup || null,
               schoolYear: row.schoolYear || null,
-              status: row.status || 'Active',
+              status: (row.status ? normalizeStatus(row.status) : 'Active'),
               username: row.username || null,
               edupassUsername: row.edupassUsername || null,
               email: row.email || null,
@@ -135,8 +135,8 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
           return key.startsWith(`${student.firstName}|${student.surname}|`);
         });
 
-        // Delete if: not in current import OR has "Left" status
-        if (!isInThisImport || student.status === 'Left') {
+        // Delete if: not in current import OR has "Left" status (case-insensitive)
+        if (!isInThisImport || student.status?.toLowerCase() === 'left') {
           // Student not in this import or has "Left" status: unlink assets (preserve name) and delete student
           const studentName = `${student.prefName || student.firstName} ${student.surname}`;
 
@@ -343,6 +343,14 @@ function parseDate(dateStr: string): Date | null {
   }
 
   return null;
+}
+
+/**
+ * Normalize status field to title case (e.g., "LEFT" -> "Left", "left" -> "Left")
+ */
+function normalizeStatus(status: string): string {
+  if (!status) return status;
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
 }
 
 /**
