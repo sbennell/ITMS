@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -64,6 +64,29 @@ export default function StudentList() {
   const sortBy = searchParams.get('sortBy') || 'firstName';
   const sortOrder = searchParams.get('sortOrder') || 'asc';
 
+  const updateParams = (updates: Record<string, string | undefined>) => {
+    const newParams = new URLSearchParams(searchParams);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        newParams.set(key, value);
+      } else {
+        newParams.delete(key);
+      }
+    });
+    if (!updates.page) {
+      newParams.set('page', '1');
+    }
+    setSearchParams(newParams);
+  };
+
+  // Debounced search as you type
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateParams({ search: searchInput || undefined });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, updateParams]);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['students', { page, limit, search, status, schoolYear, homeGroup, sortBy, sortOrder }],
     queryFn: () => api.getStudents({ page, limit, search, status, schoolYear, homeGroup, sortBy, sortOrder })
@@ -89,21 +112,6 @@ export default function StudentList() {
     columns,
     getCoreRowModel: getCoreRowModel()
   });
-
-  const updateParams = (updates: Record<string, string | undefined>) => {
-    const newParams = new URLSearchParams(searchParams);
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) {
-        newParams.set(key, value);
-      } else {
-        newParams.delete(key);
-      }
-    });
-    if (!updates.page) {
-      newParams.set('page', '1');
-    }
-    setSearchParams(newParams);
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
