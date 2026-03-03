@@ -7,8 +7,9 @@ import {
   useReactTable,
   createColumnHelper
 } from '@tanstack/react-table';
-import { Search, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Filter, X, Download } from 'lucide-react';
 import { api, Student } from '../lib/api';
+import StudentLoginCardsModal from '../components/StudentLoginCardsModal';
 
 const columnHelper = createColumnHelper<Student>();
 
@@ -54,6 +55,7 @@ export default function StudentList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
+  const [showLoginCardsModal, setShowLoginCardsModal] = useState(false);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -145,6 +147,13 @@ export default function StudentList() {
             <span className="block text-xs text-gray-400 mt-1">Students are added via CSV import only (Settings {'>'} Students)</span>
           </p>
         </div>
+        <button
+          onClick={() => setShowLoginCardsModal(true)}
+          className="btn btn-secondary flex items-center gap-2"
+        >
+          <Download size={18} />
+          Login Cards
+        </button>
       </div>
 
       {/* Search Bar */}
@@ -321,6 +330,15 @@ export default function StudentList() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Login Cards Modal */}
+      {showLoginCardsModal && (
+        <StudentLoginCardsModal
+          onClose={() => setShowLoginCardsModal(false)}
+          yearLevels={yearLevels}
+          homeGroups={homeGroups}
+        />
       )}
     </div>
   );

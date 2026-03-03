@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { requireAuth } from './auth.js';
 import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
+import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
 
 const router = Router();
 
@@ -270,6 +271,65 @@ router.get('/import/headers', async (req: Request, res: Response) => {
     }
     console.error('Error reading import file headers:', error);
     res.status(500).json({ error: 'Failed to read import file headers' });
+  }
+});
+
+// Download student login cards as PDF
+router.get('/login-cards', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const { homeGroup, schoolYear, studentId } = req.query;
+
+    // Build where clause
+    const where: Prisma.StudentWhereInput = {
+      status: { not: 'Left' }
+    };
+
+    if (studentId) {
+      where.id = studentId as string;
+    } else if (homeGroup) {
+      where.homeGroup = homeGroup as string;
+    } else if (schoolYear) {
+      where.schoolYear = schoolYear as string;
+    }
+
+    // Fetch students sorted alphabetically
+    const students = await prisma.student.findMany({
+      where,
+      orderBy: [{ surname: 'asc' }, { firstName: 'asc' }],
+      select: {
+        firstName: true,
+        surname: true,
+        homeGroup: true,
+        schoolYear: true,
+        username: true,
+        email: true,
+        password: true
+      }
+    });
+
+    // Generate PDF
+    const pdfBytes = await generateStudentLoginCards(students);
+
+    // Determine filename based on filter
+    let filename = 'login-cards-all.pdf';
+    if (studentId) {
+      const student = students[0];
+      filename = student ? `login-card-${student.surname.replace(/\s+/g, '-')}.pdf` : 'login-card.pdf';
+    } else if (homeGroup) {
+      filename = `login-cards-${(homeGroup as string).replace(/\s+/g, '-')}.pdf`;
+    } else if (schoolYear) {
+      filename = `login-cards-year${schoolYear}.pdf`;
+    }
+
+    // Send PDF response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(pdfBytes));
+  } catch (error) {
+    console.error('Error generating login cards:', error);
+    res.status(500).json({ error: 'Failed to generate login cards' });
   }
 });
 

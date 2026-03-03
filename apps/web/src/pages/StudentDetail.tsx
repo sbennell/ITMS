@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function StudentDetail() {
@@ -39,6 +39,11 @@ export default function StudentDetail() {
 
   const fullName = `${student.firstName} ${student.surname}`;
 
+  const handleDownloadLoginCard = () => {
+    const url = api.getStudentLoginCardsUrl({ studentId: student.id });
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -57,6 +62,13 @@ export default function StudentDetail() {
             </p>
           </div>
         </div>
+        <button
+          onClick={handleDownloadLoginCard}
+          className="btn btn-secondary flex items-center gap-2"
+        >
+          <Download size={18} />
+          Login Card
+        </button>
       </div>
 
       {/* Info Cards */}

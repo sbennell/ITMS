@@ -527,6 +527,13 @@ export const api = {
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),
   getStudentHomeGroups: () => fetchJson<string[]>('/students/home-groups'),
   getStudentImportHeaders: () => fetchJson<string[]>('/students/import/headers'),
+  getStudentLoginCardsUrl: (params: { homeGroup?: string; schoolYear?: string; studentId?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.studentId) qs.set('studentId', params.studentId);
+    else if (params.homeGroup) qs.set('homeGroup', params.homeGroup);
+    else if (params.schoolYear) qs.set('schoolYear', params.schoolYear);
+    return `${API_BASE}/students/login-cards${qs.toString() ? `?${qs}` : ''}`;
+  },
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
