@@ -12,7 +12,8 @@ export interface LoginCardStudent {
 
 /**
  * Generate student login cards as a PDF document
- * Layout: A4 portrait, 2 columns × 4 rows = 8 cards per page
+ * Layout: A4 portrait, 2 columns × 8 rows = 16 cards per page
+ * Content fills card height evenly with no whitespace gaps
  */
 export async function generateStudentLoginCards(students: LoginCardStudent[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
@@ -22,21 +23,22 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
   // Page dimensions (A4 portrait)
   const PAGE_W = 595;
   const PAGE_H = 842;
-  const MARGIN = 30;
-  const GUTTER = 12;
+  const MARGIN = 15;
+  const COL_GUTTER = 8;
+  const ROW_GUTTER = 4;
   const COLS = 2;
-  const ROWS = 4;
+  const ROWS = 8;
 
-  // Calculate card dimensions
-  const CARD_W = (PAGE_W - MARGIN * 2 - GUTTER * (COLS - 1)) / COLS; // ~262pt
-  const CARD_H = (PAGE_H - MARGIN * 2 - GUTTER * (ROWS - 1)) / ROWS; // ~185pt
-  const CARDS_PER_PAGE = COLS * ROWS; // 8
+  // Calculate card dimensions - fills page evenly
+  const CARD_W = (PAGE_W - MARGIN * 2 - COL_GUTTER * (COLS - 1)) / COLS; // ~278pt
+  const CARD_H = (PAGE_H - MARGIN * 2 - ROW_GUTTER * (ROWS - 1)) / ROWS; // ~98pt
+  const CARDS_PER_PAGE = COLS * ROWS; // 16
 
-  // Card internal padding
-  const PAD = 12;
-  const LINE_HEIGHT = 14;
-  const FONT_SIZE_MAIN = 9;
-  const FONT_SIZE_FOOTER = 8;
+  // Card internal padding and fonts
+  const PAD = 8;
+  const LINE_HEIGHT = 20;
+  const FONT_SIZE_MAIN = 11;
+  const FONT_SIZE_FOOTER = 10;
 
   // Chunk students into pages
   for (let pageIdx = 0; pageIdx < Math.ceil(students.length / CARDS_PER_PAGE); pageIdx++) {
@@ -49,9 +51,9 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
     pageStudents.forEach((student, i) => {
       const col = i % COLS;
       const row = Math.floor(i / COLS);
-      const x = MARGIN + col * (CARD_W + GUTTER);
+      const x = MARGIN + col * (CARD_W + COL_GUTTER);
       // pdf-lib origin is bottom-left, so Y increases from bottom
-      const y = PAGE_H - MARGIN - (row + 1) * CARD_H - row * GUTTER;
+      const y = PAGE_H - MARGIN - (row + 1) * CARD_H - row * ROW_GUTTER;
 
       // Draw dashed card border
       page.drawRectangle({
@@ -65,16 +67,23 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
         borderLineCap: LineCapStyle.Round,
       });
 
-      // Draw card content
-      let textY = y + CARD_H - PAD - 10;
+      // Draw card content - sequential layout, vertically centered
+      // Content: 3 lines (60pt) + gap (4pt) + separator (0.3pt) + footer (10pt) ≈ 74pt
+      // Vertical centering: (CARD_H - content_height) / 2 as top offset
+      const contentHeight = LINE_HEIGHT * 3 + 4 + 10;
+      const topOffset = (CARD_H - contentHeight) / 2;
+      let textY = y + CARD_H - PAD - topOffset;
 
-      // Helper to draw a credential line: "Label: value"
+      // Helper to draw credential line: "Label: value" (centered)
       const drawLine = (label: string, value: string | null) => {
         const displayValue = value || '-';
         const labelWidth = bold.widthOfTextAtSize(label + ' ', FONT_SIZE_MAIN);
+        const valueWidth = regular.widthOfTextAtSize(displayValue, FONT_SIZE_MAIN);
+        const totalWidth = labelWidth + valueWidth;
+        const lineX = x + (CARD_W - totalWidth) / 2;
 
         page.drawText(label, {
-          x: x + PAD,
+          x: lineX,
           y: textY,
           size: FONT_SIZE_MAIN,
           font: bold,
@@ -82,7 +91,7 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
         });
 
         page.drawText(displayValue, {
-          x: x + PAD + labelWidth,
+          x: lineX + labelWidth,
           y: textY,
           size: FONT_SIZE_MAIN,
           font: regular,
@@ -97,17 +106,17 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
       drawLine('Password:', student.password);
       drawLine('Email:', student.email);
 
-      // Draw separator line
-      textY -= 4;
+      // Gap and separator line
       page.drawLine({
         start: { x: x + PAD, y: textY },
         end: { x: x + CARD_W - PAD, y: textY },
-        thickness: 0.4,
+        thickness: 0.3,
         color: rgb(0.8, 0.8, 0.8),
       });
 
-      // Draw footer: "Name - Year - HomeGroup" (gray, centered)
-      const footerParts = [
+      // Footer positioned below separator with breathing room
+      textY -= 10; // Larger gap after separator for footer spacing
+      const footerText = [
         `${student.firstName} ${student.surname}`,
         student.schoolYear,
         student.homeGroup,
@@ -115,12 +124,12 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
         .filter(Boolean)
         .join(' - ');
 
-      const footerWidth = regular.widthOfTextAtSize(footerParts, FONT_SIZE_FOOTER);
+      const footerWidth = regular.widthOfTextAtSize(footerText, FONT_SIZE_FOOTER);
       const footerX = x + (CARD_W - footerWidth) / 2;
 
-      page.drawText(footerParts, {
+      page.drawText(footerText, {
         x: footerX,
-        y: y + PAD,
+        y: textY,
         size: FONT_SIZE_FOOTER,
         font: regular,
         color: rgb(0.5, 0.5, 0.5),
