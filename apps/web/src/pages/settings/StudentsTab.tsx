@@ -26,6 +26,7 @@ export default function StudentsTab() {
   const [reconcileOnImport, setReconcileOnImport] = useState(false);
   const [reconcileResult, setReconcileResult] = useState<ReconcileResult | null>(null);
   const [mappingSaveResult, setMappingSaveResult] = useState<'success' | 'error' | null>(null);
+  const [lastImport, setLastImport] = useState<string | null>(null);
 
   // Load settings
   useQuery({
@@ -69,7 +70,10 @@ export default function StudentsTab() {
 
   useQuery({
     queryKey: ['settings', 'studentLastImport'],
-    queryFn: () => api.getSetting('studentLastImport').then(s => s),
+    queryFn: () => api.getSetting('studentLastImport').then(s => {
+      setLastImport(s.value || null);
+      return s;
+    }),
     staleTime: 1000 * 60
   });
 
@@ -136,6 +140,7 @@ export default function StudentsTab() {
     onSuccess: (result) => {
       setImportResult(result);
       queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'studentLastImport'] });
       setTimeout(() => setImportResult(null), 5000);
     }
   });
@@ -288,6 +293,17 @@ export default function StudentsTab() {
         <p className="text-sm text-gray-600 mb-4">
           Trigger an import of the CSV/Excel file from the configured folder.
         </p>
+
+        {lastImport && (
+          <p className="text-sm text-gray-600 mb-4">
+            Last import: {new Date(lastImport).toLocaleString()}
+          </p>
+        )}
+        {!lastImport && (
+          <p className="text-sm text-gray-500 mb-4 italic">
+            Never imported
+          </p>
+        )}
 
         <button
           onClick={() => importMutation.mutate()}
