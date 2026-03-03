@@ -400,10 +400,16 @@ export async function reconcileAssetsByStudentName(prisma: PrismaClient): Promis
         s.prefName ? `${s.surname}, ${s.prefName}` : null
       ].filter(Boolean);
 
+      // Build set of unique normalized names for this student (avoid duplicates when prefName = firstName)
+      const uniqueNames = new Set<string>();
       for (const name of names) {
-        const key = name!.toLowerCase().trim();
+        uniqueNames.add(name!.toLowerCase().trim());
+      }
+
+      // Add each unique name to the map
+      for (const key of uniqueNames) {
         if (nameMap.has(key)) {
-          nameMap.set(key, null); // Mark as ambiguous
+          nameMap.set(key, null); // Mark as ambiguous (different students, same name)
         } else {
           nameMap.set(key, s.id);
         }
