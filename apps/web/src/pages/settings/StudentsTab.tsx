@@ -165,8 +165,13 @@ export default function StudentsTab() {
                 value={type}
                 checked={schoolType === type}
                 onChange={(e) => {
-                  setSchoolType(e.target.value);
-                  schoolTypeMutation.mutate(e.target.value);
+                  const newType = e.target.value;
+                  setSchoolType(newType);
+                  // Clear EduPass mapping if switching away from DE
+                  if (newType !== 'DE' && mapping['edupassUsername']) {
+                    setMapping({ ...mapping, edupassUsername: '' });
+                  }
+                  schoolTypeMutation.mutate(newType);
                 }}
                 disabled={schoolTypeMutation.isPending}
               />
@@ -236,33 +241,39 @@ export default function StudentsTab() {
               </tr>
             </thead>
             <tbody>
-              {STUDENT_FIELDS.map((field) => (
-                <tr key={field.key} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <span className="text-sm font-medium text-gray-900">
-                      {field.label}
-                      {field.required && <span className="text-red-500">*</span>}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={mapping[field.key] || ''}
-                      onChange={(e) =>
-                        setMapping({ ...mapping, [field.key]: e.target.value })
-                      }
-                      className="input text-sm w-full"
-                      disabled={csvHeaders.length === 0}
-                    >
-                      <option value="">— Not mapped —</option>
-                      {csvHeaders.map((header) => (
-                        <option key={header} value={header}>
-                          {header}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+              {STUDENT_FIELDS.map((field) => {
+                // Hide EduPass Username field unless school type is DE
+                if (field.key === 'edupassUsername' && schoolType !== 'DE') {
+                  return null;
+                }
+                return (
+                  <tr key={field.key} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-medium text-gray-900">
+                        {field.label}
+                        {field.required && <span className="text-red-500">*</span>}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={mapping[field.key] || ''}
+                        onChange={(e) =>
+                          setMapping({ ...mapping, [field.key]: e.target.value })
+                        }
+                        className="input text-sm w-full"
+                        disabled={csvHeaders.length === 0}
+                      >
+                        <option value="">— Not mapped —</option>
+                        {csvHeaders.map((header) => (
+                          <option key={header} value={header}>
+                            {header}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
