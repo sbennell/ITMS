@@ -37,7 +37,7 @@ export default function StudentDetail() {
     );
   }
 
-  const fullName = `${student.prefName || student.firstName} ${student.surname}`;
+  const fullName = `${student.firstName} ${student.surname}`;
 
   return (
     <div className="space-y-6">
@@ -64,7 +64,6 @@ export default function StudentDetail() {
         {/* Personal Information */}
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
           <h2 className="text-lg font-bold text-gray-900 border-b pb-3">Personal Information</h2>
-          <DetailRow label="Preferred Name" value={student.prefName || '-'} />
           <DetailRow label="First Name" value={student.firstName} />
           <DetailRow label="Surname" value={student.surname} />
           <DetailRow label="Home Group" value={student.homeGroup || '-'} />
@@ -89,10 +88,6 @@ export default function StudentDetail() {
           )}
           <DetailRow label="Email" value={student.email || '-'} />
           <DetailRow label="Password" value={student.password || '-'} />
-          <DetailRow
-            label="Created"
-            value={new Date(student.createdAt).toLocaleDateString()}
-          />
         </div>
       </div>
 

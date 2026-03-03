@@ -28,7 +28,6 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export interface Student {
   id: string;
-  prefName: string | null;
   firstName: string;
   surname: string;
   homeGroup: string | null;
@@ -39,8 +38,6 @@ export interface Student {
   edupassUsername: string | null;
   email: string | null;
   password: string | null;
-  createdAt: string;
-  updatedAt: string;
   assets?: Array<{
     id: string;
     itemNumber: string;
@@ -56,7 +53,6 @@ export interface StudentSummary {
   id: string;
   firstName: string;
   surname: string;
-  prefName: string | null;
   schoolYear: string | null;
   homeGroup: string | null;
 }

@@ -74,7 +74,7 @@ export default function StudentSearchCombobox({
   };
 
   const displayValue = value
-    ? `${value.prefName || value.firstName} ${value.surname}`
+    ? `${value.firstName} ${value.surname}`
     : '';
 
   return (
@@ -139,7 +139,7 @@ export default function StudentSearchCombobox({
                   type="button"
                 >
                   <div className="font-medium">
-                    {student.prefName || student.firstName} {student.surname}
+                    {student.firstName} {student.surname}
                   </div>
                   <div className="text-xs text-gray-500">
                     {student.schoolYear && `Year ${student.schoolYear}`}
