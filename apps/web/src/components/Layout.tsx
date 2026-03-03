@@ -24,10 +24,10 @@ import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 
 const navigation = [
   { name: 'Assets', href: '/assets', icon: Package },
-  { name: 'Students', href: '/students', icon: GraduationCap },
   { name: 'IP Addresses', href: '/network', icon: Network },
   { name: 'Reports', href: '/reports', icon: BarChart2 },
-  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck }
+  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck },
+  { name: 'Students', href: '/students', icon: GraduationCap }
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
