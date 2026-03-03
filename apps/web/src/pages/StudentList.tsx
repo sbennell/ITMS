@@ -13,8 +13,8 @@ import { api, Student } from '../lib/api';
 const columnHelper = createColumnHelper<Student>();
 
 const columns = [
-  columnHelper.accessor('prefName', {
-    header: 'Preferred Name',
+  columnHelper.accessor('firstName', {
+    header: 'First Name',
     cell: (info) => (
       <Link
         to={`/students/${info.row.original.id}`}
@@ -23,10 +23,6 @@ const columns = [
         {info.getValue() || '-'}
       </Link>
     )
-  }),
-  columnHelper.accessor('firstName', {
-    header: 'First Name',
-    cell: (info) => info.getValue() || '-'
   }),
   columnHelper.accessor('surname', {
     header: 'Surname',
