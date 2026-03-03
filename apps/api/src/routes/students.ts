@@ -33,12 +33,36 @@ router.get('/', async (req: Request, res: Response) => {
     const where: Prisma.StudentWhereInput = {};
 
     if (search) {
-      where.OR = [
-        { firstName: { contains: search as string } },
-        { surname: { contains: search as string } },
-        { email: { contains: search as string } },
-        { username: { contains: search as string } }
+      const searchStr = search as string;
+      const searchParts = searchStr.trim().split(/\s+/);
+
+      // Build search conditions for full name and individual parts
+      const searchConditions: Prisma.StudentWhereInput[] = [
+        { firstName: { contains: searchStr } },
+        { surname: { contains: searchStr } },
+        { email: { contains: searchStr } },
+        { username: { contains: searchStr } }
       ];
+
+      // If search contains space, also try full name combinations
+      if (searchParts.length >= 2) {
+        // Try "firstName surname" combination
+        searchConditions.push({
+          AND: [
+            { firstName: { contains: searchParts[0] } },
+            { surname: { contains: searchParts[1] } }
+          ]
+        });
+        // Try reverse "surname firstName" combination
+        searchConditions.push({
+          AND: [
+            { firstName: { contains: searchParts[1] } },
+            { surname: { contains: searchParts[0] } }
+          ]
+        });
+      }
+
+      where.OR = searchConditions;
     }
 
     // Build status filter with AND to exclude "Left"
@@ -115,13 +139,36 @@ router.get('/search', async (req: Request, res: Response) => {
       return res.json([]);
     }
 
+    const queryParts = query.split(/\s+/);
+
+    // Build search conditions for full name and individual parts
+    const searchConditions: Prisma.StudentWhereInput[] = [
+      { firstName: { contains: query } },
+      { surname: { contains: query } },
+      { email: { contains: query } }
+    ];
+
+    // If search contains space, also try full name combinations
+    if (queryParts.length >= 2) {
+      // Try "firstName surname" combination
+      searchConditions.push({
+        AND: [
+          { firstName: { contains: queryParts[0] } },
+          { surname: { contains: queryParts[1] } }
+        ]
+      });
+      // Try reverse "surname firstName" combination
+      searchConditions.push({
+        AND: [
+          { firstName: { contains: queryParts[1] } },
+          { surname: { contains: queryParts[0] } }
+        ]
+      });
+    }
+
     const students = await prisma.student.findMany({
       where: {
-        OR: [
-          { firstName: { contains: query } },
-          { surname: { contains: query } },
-          { email: { contains: query } }
-        ]
+        OR: searchConditions
       },
       select: {
         id: true,
