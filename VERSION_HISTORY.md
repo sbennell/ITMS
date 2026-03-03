@@ -4,6 +4,34 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.17.0] - 2026-03-03
+
+### Added
+
+- **Student Management**
+  - Complete student management system with CSV import support
+  - Student list with pagination, filtering, and advanced search
+  - Full-name search support (e.g., "John Smith") with intelligent matching
+  - Debounced search as-you-type for improved performance
+  - Student detail page showing personal information, account details, and assigned assets
+  - CSV Column Mapping for flexible student data imports
+  - Asset-to-student linking with automatic name reconciliation
+  - EduPass Username field conditional on "Department of Education" school type
+  - Automatic asset reconciliation when student names match existing asset assignments
+  - Students sidebar navigation item placed after Stocktake
+
+### Technical Details
+
+- New Student Prisma model with fields: firstName, surname, homeGroup, schoolYear, status, birthdate, username, edupassUsername, email, password
+- Student import service with CSV parsing and upsert logic
+- File watcher for automatic student imports on file changes
+- Asset-to-student FK relationship with studentId field
+- Student search endpoints with intelligent name matching using startsWith for precision
+- Conditional CSV mapping UI based on schoolType setting
+- Asset reconciliation logic matching student names to existing assets
+
+---
+
 ## [1.16.0] - 2026-03-02
 
 ### Added

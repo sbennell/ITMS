@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.16.0**
+**Version 1.17.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -43,6 +43,15 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **Hostname Discovery**: View device hostnames alongside IP addresses for network identification
 - **Search & Link Modal**: Debounced search to find and link assets to IP addresses
 - **Performance Optimized**: Support for large subnets up to /20 (4094 IPs)
+
+### Student Management
+- **Student Records**: Maintain comprehensive student database with personal and account details
+- **CSV Import**: Automated student data import with flexible column mapping
+- **Flexible Search**: Advanced search by name, email, username, and full-name matching
+- **Asset Assignment**: Link assets to students with automatic reconciliation by name
+- **School Customization**: Conditional fields based on school type (Standard or Department of Education)
+- **Import Automation**: File watcher for automatic imports when student data changes
+- **Quick View**: Student detail pages with assigned assets and account information
 
 ### Data Management
 - **Import/Export**: Import assets from Excel/CSV, export to Excel
@@ -162,6 +171,16 @@ Asset_System/
 - `PUT /api/network/subnets/:id` - Update subnet (admin-only)
 - `DELETE /api/network/subnets/:id` - Delete subnet (admin-only)
 - `GET /api/network/subnets/:id/ips` - Get all IPs in subnet with asset associations
+
+### Students
+- `GET /api/students` - List students (with pagination, filtering, sorting)
+- `GET /api/students/:id` - Get single student with assigned assets
+- `GET /api/students/search?q=` - Search students by name, email, username
+- `GET /api/students/statuses` - Get available student statuses
+- `GET /api/students/year-levels` - Get school year levels
+- `GET /api/students/home-groups` - Get home groups
+- `POST /api/students/import/run` - Trigger manual student import
+- `POST /api/students/reconcile-assets` - Link assets to students by name matching
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories
