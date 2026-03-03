@@ -16,6 +16,20 @@ export interface LoginCardStudent {
  * Content fills card height evenly with no whitespace gaps
  */
 export async function generateStudentLoginCards(students: LoginCardStudent[]): Promise<Uint8Array> {
+  // Sort students by year level, home group, then first name
+  const sortedStudents = [...students].sort((a, b) => {
+    // Sort by school year (year level)
+    if ((a.schoolYear || '') !== (b.schoolYear || '')) {
+      return (a.schoolYear || '').localeCompare(b.schoolYear || '');
+    }
+    // Then by home group
+    if ((a.homeGroup || '') !== (b.homeGroup || '')) {
+      return (a.homeGroup || '').localeCompare(b.homeGroup || '');
+    }
+    // Then by first name
+    return a.firstName.localeCompare(b.firstName);
+  });
+
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
@@ -40,10 +54,10 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
   const FONT_SIZE_MAIN = 11;
   const FONT_SIZE_FOOTER = 10;
 
-  // Chunk students into pages
-  for (let pageIdx = 0; pageIdx < Math.ceil(students.length / CARDS_PER_PAGE); pageIdx++) {
+  // Chunk sorted students into pages
+  for (let pageIdx = 0; pageIdx < Math.ceil(sortedStudents.length / CARDS_PER_PAGE); pageIdx++) {
     const page = doc.addPage([PAGE_W, PAGE_H]);
-    const pageStudents = students.slice(
+    const pageStudents = sortedStudents.slice(
       pageIdx * CARDS_PER_PAGE,
       (pageIdx + 1) * CARDS_PER_PAGE
     );
