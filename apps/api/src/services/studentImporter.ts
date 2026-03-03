@@ -98,23 +98,10 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         });
 
         if (existing) {
-          // Update (including status back to Active if it was marked Inactive)
-          await prisma.student.update({
-            where: { id: existing.id },
-            data: {
-              prefName: row.prefName || undefined,
-              homeGroup: row.homeGroup || undefined,
-              schoolYear: row.schoolYear || undefined,
-              status: row.status || 'Active',
-              username: row.username || undefined,
-              edupassUsername: row.edupassUsername || undefined,
-              email: row.email || undefined,
-              password: row.password || undefined
-            }
-          });
-          result.updated++;
+          // Skip existing students - don't update
+          result.skipped++;
         } else {
-          // Create
+          // Create only new students
           await prisma.student.create({
             data: {
               firstName: row.firstName,
@@ -140,10 +127,10 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       }
     }
 
-    // Handle students removed from CSV: delete them and unlink their assets
+    // Handle students removed from CSV or with "Left" status: delete them and unlink their assets
     try {
       const allStudents = await prisma.student.findMany({
-        select: { id: true, firstName: true, surname: true, prefName: true }
+        select: { id: true, firstName: true, surname: true, prefName: true, status: true }
       });
 
       let deleted = 0;
@@ -154,8 +141,9 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
           return key.startsWith(`${student.firstName}|${student.surname}|`);
         });
 
-        if (!isInThisImport) {
-          // Student not in this import: unlink assets (preserve name) and delete student
+        // Delete if: not in current import OR has "Left" status
+        if (!isInThisImport || student.status === 'Left') {
+          // Student not in this import or has "Left" status: unlink assets (preserve name) and delete student
           const studentName = `${student.prefName || student.firstName} ${student.surname}`;
 
           // Update assets first (before cascading delete)
@@ -176,7 +164,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       if (deleted > 0) {
         result.errors.push({
           row: 0,
-          message: `${deleted} student(s) deleted (not in CSV)`
+          message: `${deleted} student(s) deleted (not in CSV or has Left status)`
         });
       }
     } catch (e) {
