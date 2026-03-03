@@ -78,6 +78,16 @@ export default function StudentList() {
     queryFn: api.getStudentStatuses
   });
 
+  const { data: yearLevels = [] } = useQuery({
+    queryKey: ['studentYearLevels'],
+    queryFn: api.getStudentYearLevels
+  });
+
+  const { data: homeGroups = [] } = useQuery({
+    queryKey: ['studentHomeGroups'],
+    queryFn: api.getStudentHomeGroups
+  });
+
   const table = useReactTable({
     data: data?.data || [],
     columns,
@@ -196,25 +206,29 @@ export default function StudentList() {
               className="input text-sm"
             >
               <option value="">All Years</option>
-              <option value="7">Year 7</option>
-              <option value="8">Year 8</option>
-              <option value="9">Year 9</option>
-              <option value="10">Year 10</option>
-              <option value="11">Year 11</option>
-              <option value="12">Year 12</option>
+              {yearLevels.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Home Group
             </label>
-            <input
-              type="text"
-              placeholder="e.g., 7A, 8B"
+            <select
               value={homeGroup}
               onChange={(e) => updateParams({ homeGroup: e.target.value || undefined })}
               className="input text-sm"
-            />
+            >
+              <option value="">All Home Groups</option>
+              {homeGroups.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       )}

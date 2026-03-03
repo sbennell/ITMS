@@ -155,6 +155,44 @@ router.get('/statuses', async (req: Request, res: Response) => {
   }
 });
 
+// Get unique year levels
+router.get('/year-levels', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const yearLevels = await prisma.student.findMany({
+      select: { schoolYear: true },
+      distinct: ['schoolYear'],
+      orderBy: { schoolYear: 'asc' }
+    });
+
+    const uniqueYearLevels = yearLevels.map(y => y.schoolYear).filter(Boolean);
+    res.json(uniqueYearLevels);
+  } catch (error) {
+    console.error('Error fetching year levels:', error);
+    res.status(500).json({ error: 'Failed to fetch year levels' });
+  }
+});
+
+// Get unique home groups
+router.get('/home-groups', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const homeGroups = await prisma.student.findMany({
+      select: { homeGroup: true },
+      distinct: ['homeGroup'],
+      orderBy: { homeGroup: 'asc' }
+    });
+
+    const uniqueHomeGroups = homeGroups.map(h => h.homeGroup).filter(Boolean);
+    res.json(uniqueHomeGroups);
+  } catch (error) {
+    console.error('Error fetching home groups:', error);
+    res.status(500).json({ error: 'Failed to fetch home groups' });
+  }
+});
+
 // Get single student
 router.get('/:id', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;

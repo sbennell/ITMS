@@ -528,6 +528,8 @@ export const api = {
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
+  getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),
+  getStudentHomeGroups: () => fetchJson<string[]>('/students/home-groups'),
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
