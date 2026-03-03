@@ -80,7 +80,6 @@ model Student {
   id              String    @id @default(cuid())
 
   // Identity
-  prefName        String?   @map("pref_name")
   firstName       String    @map("first_name")
   surname         String
   homeGroup       String?   @map("home_group")

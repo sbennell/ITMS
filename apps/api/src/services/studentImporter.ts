@@ -101,7 +101,6 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
               firstName: row.firstName,
               surname: row.surname,
               birthdate,
-              prefName: row.prefName || null,
               homeGroup: row.homeGroup || null,
               schoolYear: row.schoolYear || null,
               status: (row.status ? normalizeStatus(row.status) : 'Active'),
@@ -124,7 +123,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     // Handle students removed from CSV or with "Left" status: delete them and unlink their assets
     try {
       const allStudents = await prisma.student.findMany({
-        select: { id: true, firstName: true, surname: true, prefName: true, status: true }
+        select: { id: true, firstName: true, surname: true, status: true }
       });
 
       let deleted = 0;
@@ -138,7 +137,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         // Delete if: not in current import OR has "Left" status (case-insensitive)
         if (!isInThisImport || student.status?.toLowerCase() === 'left') {
           // Student not in this import or has "Left" status: unlink assets (preserve name) and delete student
-          const studentName = `${student.prefName || student.firstName} ${student.surname}`;
+          const studentName = `${student.firstName} ${student.surname}`;
 
           // Update assets first (before cascading delete)
           await prisma.asset.updateMany({
@@ -387,7 +386,7 @@ export async function reconcileAssetsByStudentName(prisma: PrismaClient): Promis
 
     // 2. Load all students for matching
     const students = await prisma.student.findMany({
-      select: { id: true, firstName: true, surname: true, prefName: true }
+      select: { id: true, firstName: true, surname: true }
     });
 
     // 3. Build a map of normalized name → studentId
@@ -395,15 +394,13 @@ export async function reconcileAssetsByStudentName(prisma: PrismaClient): Promis
     for (const s of students) {
       const names = [
         `${s.firstName} ${s.surname}`,
-        s.prefName ? `${s.prefName} ${s.surname}` : null,
-        `${s.surname}, ${s.firstName}`,
-        s.prefName ? `${s.surname}, ${s.prefName}` : null
-      ].filter(Boolean);
+        `${s.surname}, ${s.firstName}`
+      ];
 
-      // Build set of unique normalized names for this student (avoid duplicates when prefName = firstName)
+      // Build set of unique normalized names for this student
       const uniqueNames = new Set<string>();
       for (const name of names) {
-        uniqueNames.add(name!.toLowerCase().trim());
+        uniqueNames.add(name.toLowerCase().trim());
       }
 
       // Add each unique name to the map

@@ -6,7 +6,6 @@ import { api, StudentImportResult, ReconcileResult } from '../../lib/api';
 const STUDENT_FIELDS = [
   { key: 'firstName', label: 'First Name', required: true },
   { key: 'surname', label: 'Surname', required: true },
-  { key: 'prefName', label: 'Preferred Name', required: false },
   { key: 'homeGroup', label: 'Home Group', required: false },
   { key: 'schoolYear', label: 'School Year', required: false },
   { key: 'status', label: 'Status', required: false },

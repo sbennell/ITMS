@@ -95,8 +95,7 @@ router.get('/', async (req: Request, res: Response) => {
             select: {
               id: true,
               firstName: true,
-              surname: true,
-              prefName: true
+              surname: true
             }
           }
         }
@@ -404,8 +403,7 @@ router.get('/:id', async (req: Request, res: Response) => {
           select: {
             id: true,
             firstName: true,
-            surname: true,
-            prefName: true
+            surname: true
           }
         },
         auditLogs: {
@@ -525,8 +523,7 @@ router.post('/', async (req: Request, res: Response) => {
           select: {
             id: true,
             firstName: true,
-            surname: true,
-            prefName: true
+            surname: true
           }
         }
       }
@@ -562,7 +559,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     // Get current asset for audit log and to preserve name if switching from student
     const current = await prisma.asset.findUnique({
       where: { id },
-      include: { student: { select: { firstName: true, surname: true, prefName: true } } }
+      include: { student: { select: { firstName: true, surname: true } } }
     });
     if (!current) {
       return res.status(404).json({ error: 'Asset not found' });
@@ -641,7 +638,7 @@ router.put('/:id', async (req: Request, res: Response) => {
     if (!studentId && current.studentId && !assignedTo && current.student) {
       // Switching from Student to Staff/Other mode with no new assignedTo value
       const s = current.student;
-      finalAssignedTo = `${s.prefName || s.firstName} ${s.surname}`;
+      finalAssignedTo = `${s.firstName} ${s.surname}`;
     }
 
     const asset = await prisma.asset.update({
@@ -683,8 +680,7 @@ router.put('/:id', async (req: Request, res: Response) => {
           select: {
             id: true,
             firstName: true,
-            surname: true,
-            prefName: true
+            surname: true
           }
         }
       }
@@ -722,8 +718,7 @@ router.put('/:id', async (req: Request, res: Response) => {
           select: {
             id: true,
             firstName: true,
-            surname: true,
-            prefName: true
+            surname: true
           }
         }
       }

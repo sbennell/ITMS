@@ -52,7 +52,7 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
     // Construct assignedTo: use assignedTo if set, otherwise construct from student name
     let assignedTo = asset.assignedTo;
     if (!assignedTo && asset.student) {
-      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+      assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
     }
 
     // Select correct preview function based on label type
@@ -117,7 +117,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Construct assignedTo: use assignedTo if set, otherwise construct from student name
     let assignedTo = asset.assignedTo;
     if (!assignedTo && asset.student) {
-      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+      assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
     }
 
     // Generate and print label
@@ -196,7 +196,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
         // Construct assignedTo: use assignedTo if set, otherwise construct from student name
         let assignedTo = asset.assignedTo;
         if (!assignedTo && asset.student) {
-          assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+          assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
         }
 
         const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
@@ -296,7 +296,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
       // Construct assignedTo: use assignedTo if set, otherwise construct from student name
       let assignedTo = asset.assignedTo;
       if (!assignedTo && asset.student) {
-        assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+        assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
       }
 
       const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
@@ -455,7 +455,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Construct assignedTo: use assignedTo if set, otherwise construct from student name
     let assignedTo = asset.assignedTo;
     if (!assignedTo && asset.student) {
-      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+      assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
     }
 
     const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };

@@ -36,7 +36,6 @@ router.get('/', async (req: Request, res: Response) => {
       where.OR = [
         { firstName: { contains: search as string } },
         { surname: { contains: search as string } },
-        { prefName: { contains: search as string } },
         { email: { contains: search as string } },
         { username: { contains: search as string } }
       ];
@@ -76,7 +75,6 @@ router.get('/', async (req: Request, res: Response) => {
         take: limitNum,
         select: {
           id: true,
-          prefName: true,
           firstName: true,
           surname: true,
           homeGroup: true,
@@ -122,7 +120,6 @@ router.get('/search', async (req: Request, res: Response) => {
         OR: [
           { firstName: { contains: query } },
           { surname: { contains: query } },
-          { prefName: { contains: query } },
           { email: { contains: query } }
         ]
       },
@@ -130,7 +127,6 @@ router.get('/search', async (req: Request, res: Response) => {
         id: true,
         firstName: true,
         surname: true,
-        prefName: true,
         schoolYear: true,
         homeGroup: true
       },
@@ -275,7 +271,6 @@ router.post('/', async (req: Request, res: Response) => {
 
   try {
     const {
-      prefName,
       firstName,
       surname,
       homeGroup,
@@ -295,7 +290,6 @@ router.post('/', async (req: Request, res: Response) => {
 
     const student = await prisma.student.create({
       data: {
-        prefName: prefName || null,
         firstName,
         surname,
         homeGroup: homeGroup || null,
@@ -326,7 +320,6 @@ router.put('/:id', async (req: Request, res: Response) => {
 
   try {
     const {
-      prefName,
       firstName,
       surname,
       homeGroup,
@@ -346,7 +339,6 @@ router.put('/:id', async (req: Request, res: Response) => {
 
     // Build update data
     const updateData: any = {
-      prefName: prefName || null,
       firstName,
       surname,
       homeGroup: homeGroup || null,
@@ -387,7 +379,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // Get student before deleting
     const student = await prisma.student.findUnique({
       where: { id },
-      select: { id: true, firstName: true, surname: true, prefName: true }
+      select: { id: true, firstName: true, surname: true }
     });
 
     if (!student) {
@@ -395,7 +387,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     // Build student name to restore in assignedTo
-    const studentName = `${student.prefName || student.firstName} ${student.surname}`;
+    const studentName = `${student.firstName} ${student.surname}`;
 
     // Set studentId to null and restore name in assignedTo for all linked assets
     await prisma.asset.updateMany({
