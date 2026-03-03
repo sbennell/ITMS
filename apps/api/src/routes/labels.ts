@@ -27,7 +27,7 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
     if (!asset) {
@@ -49,9 +49,15 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
+    // Construct assignedTo: use assignedTo if set, otherwise construct from student name
+    let assignedTo = asset.assignedTo;
+    if (!assignedTo && asset.student) {
+      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+    }
+
     // Select correct preview function based on label type
     const createLabelPreview = settings.labelType === 'dymo-1933081' ? createDymoPreview : createBrotherPreview;
-    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP } as LabelAsset, settings);
+    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP, assignedTo } as LabelAsset, settings);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `inline; filename="label-${asset.itemNumber}.png"`);
@@ -71,7 +77,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
     if (!asset) {
@@ -108,8 +114,14 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
+    // Construct assignedTo: use assignedTo if set, otherwise construct from student name
+    let assignedTo = asset.assignedTo;
+    if (!assignedTo && asset.student) {
+      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+    }
+
     // Generate and print label
-    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
@@ -169,7 +181,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
       where: { id: { in: assetIds } },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
     let printed = 0;
@@ -181,7 +193,13 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
         // Resolve first IP (all IPs are equal now)
         const primaryIP = asset.ipAddresses?.[0]?.ip;
 
-        const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+        // Construct assignedTo: use assignedTo if set, otherwise construct from student name
+        let assignedTo = asset.assignedTo;
+        if (!assignedTo && asset.student) {
+          assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+        }
+
+        const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
         const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
           await printLabel(pdfBytes, settings.printerName);
@@ -260,7 +278,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Fetch all assets
     const assets = await prisma.asset.findMany({
       where: { id: { in: assetIds } },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
     if (assets.length === 0) {
@@ -275,7 +293,13 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
       // Resolve first IP (all IPs are equal now)
       const primaryIP = asset.ipAddresses?.[0]?.ip;
 
-      const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+      // Construct assignedTo: use assignedTo if set, otherwise construct from student name
+      let assignedTo = asset.assignedTo;
+      if (!assignedTo && asset.student) {
+        assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+      }
+
+      const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
       const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
       const labelPdf = await PDFDocument.load(pdfBytes);
       const [page] = await combinedPdf.copyPages(labelPdf, [0]);
@@ -392,7 +416,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
-      include: { manufacturer: true, ipAddresses: true },
+      include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
     if (!asset) {
@@ -428,7 +452,13 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
 
-    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName };
+    // Construct assignedTo: use assignedTo if set, otherwise construct from student name
+    let assignedTo = asset.assignedTo;
+    if (!assignedTo && asset.student) {
+      assignedTo = `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`;
+    }
+
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
     const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'application/pdf');

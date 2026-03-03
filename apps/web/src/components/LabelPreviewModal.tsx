@@ -93,9 +93,11 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
               style={{ width: '300px', minHeight: '130px' }}
             >
               {/* Assigned To - centered at top */}
-              {labelOptions.showAssignedTo && asset.assignedTo && (
+              {labelOptions.showAssignedTo && (asset.student || asset.assignedTo) && (
                 <p className="text-sm font-bold text-center truncate px-2 pt-2">
-                  {asset.assignedTo}
+                  {asset.student
+                    ? `${asset.student.prefName || asset.student.firstName} ${asset.student.surname}`
+                    : asset.assignedTo}
                 </p>
               )}
 

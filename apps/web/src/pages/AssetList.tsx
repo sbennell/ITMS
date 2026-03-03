@@ -52,7 +52,20 @@ const columns = [
   }),
   columnHelper.accessor('assignedTo', {
     header: 'Assigned To',
-    cell: (info) => info.getValue() || '-'
+    cell: (info) => {
+      const asset = info.row.original;
+      if (asset.student) {
+        return (
+          <Link
+            to={`/students/${asset.student.id}`}
+            className="text-primary-600 hover:text-primary-800 font-medium"
+          >
+            {asset.student.prefName || asset.student.firstName} {asset.student.surname}
+          </Link>
+        );
+      }
+      return info.getValue() || '-';
+    }
   }),
   columnHelper.accessor('location', {
     header: 'Location',

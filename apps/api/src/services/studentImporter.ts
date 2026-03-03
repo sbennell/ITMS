@@ -135,15 +135,14 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       }
     }
 
-    // Handle students removed from CSV: mark as Inactive and unlink their assets
+    // Handle students removed from CSV: delete them and unlink their assets
     try {
-      const activeStudents = await prisma.student.findMany({
-        where: { status: { not: 'Inactive' } },
+      const allStudents = await prisma.student.findMany({
         select: { id: true, firstName: true, surname: true, prefName: true }
       });
 
-      let deactivated = 0;
-      for (const student of activeStudents) {
+      let deleted = 0;
+      for (const student of allStudents) {
         // Check if this student is in the current import
         const isInThisImport = Array.from(importedStudentKeys).some(key => {
           // Key format: "firstName|surname|ISO-date-or-empty"
@@ -151,27 +150,28 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         });
 
         if (!isInThisImport) {
-          // Student not in this import: unlink assets and mark as Inactive
+          // Student not in this import: unlink assets (preserve name) and delete student
           const studentName = `${student.prefName || student.firstName} ${student.surname}`;
 
+          // Update assets first (before cascading delete)
           await prisma.asset.updateMany({
             where: { studentId: student.id },
             data: { studentId: null, assignedTo: studentName }
           });
 
-          await prisma.student.update({
-            where: { id: student.id },
-            data: { status: 'Inactive' }
+          // Delete the student
+          await prisma.student.delete({
+            where: { id: student.id }
           });
 
-          deactivated++;
+          deleted++;
         }
       }
 
-      if (deactivated > 0) {
+      if (deleted > 0) {
         result.errors.push({
           row: 0,
-          message: `${deactivated} student(s) marked as Inactive (removed from CSV)`
+          message: `${deleted} student(s) deleted (not in CSV)`
         });
       }
     } catch (e) {
@@ -421,9 +421,8 @@ export async function reconcileAssetsByStudentName(prisma: PrismaClient): Promis
       return result;
     }
 
-    // 2. Load all ACTIVE students (skip Inactive/removed ones)
+    // 2. Load all students for matching
     const students = await prisma.student.findMany({
-      where: { status: 'Active' },
       select: { id: true, firstName: true, surname: true, prefName: true }
     });
 

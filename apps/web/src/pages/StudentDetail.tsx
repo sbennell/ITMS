@@ -1,14 +1,10 @@
-import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { api } from '../lib/api';
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: student, isLoading, error } = useQuery({
     queryKey: ['student', id],
@@ -22,18 +18,6 @@ export default function StudentDetail() {
   });
 
   const isDESchool = schoolType?.value === 'DE';
-
-  const handleDelete = async () => {
-    if (!id) return;
-    setIsDeleting(true);
-    try {
-      await api.deleteStudent(id);
-      navigate('/students');
-    } catch (error) {
-      alert('Error deleting student: ' + (error instanceof Error ? error.message : 'Unknown error'));
-      setIsDeleting(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -73,51 +57,14 @@ export default function StudentDetail() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link
-            to={`/students/${student.id}/edit`}
-            className="btn btn-secondary flex items-center gap-2"
-          >
-            <Pencil size={18} />
-            Edit
-          </Link>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="btn btn-danger flex items-center gap-2"
-          >
-            <Trash2 size={18} />
-            Delete
-          </button>
-        </div>
+        <Link
+          to={`/students/${student.id}/edit`}
+          className="btn btn-secondary flex items-center gap-2"
+        >
+          <Pencil size={18} />
+          Edit
+        </Link>
       </div>
-
-      {/* Delete Confirmation */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Delete Student</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete {fullName}? This action cannot be undone. Any asset assignments to this student will be cleared.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="btn btn-secondary flex-1"
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="btn btn-danger flex-1"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Info Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

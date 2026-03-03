@@ -283,12 +283,14 @@ export async function createLabelPDF(
 
 /**
  * Create a label preview as PNG image
+ * Returns the QR code that will be on the label
  */
 export async function createLabelPreview(
   asset: LabelAsset,
   settings: Partial<LabelSettings> = {}
 ): Promise<Buffer> {
-  const qrBuffer = await generateQRCode(asset.itemNumber, 200);
+  const qrContent = buildQRContent(asset, { ...DEFAULT_SETTINGS, ...settings });
+  const qrBuffer = await generateQRCode(qrContent, 200);
   return qrBuffer;
 }
 

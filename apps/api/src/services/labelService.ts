@@ -295,9 +295,10 @@ export async function createLabelPreview(
   asset: LabelAsset,
   settings: Partial<LabelSettings> = {}
 ): Promise<Buffer> {
-  // For preview, we'll return the QR code with asset info encoded
-  // A more sophisticated implementation could render the full label as an image
-  const qrBuffer = await generateQRCode(asset.itemNumber, 200);
+  const opts = { ...DEFAULT_SETTINGS, ...settings };
+  // Return the QR code with full content (includes assignedTo if enabled)
+  const qrContent = buildQRContent(asset, opts);
+  const qrBuffer = await generateQRCode(qrContent, 200);
   return qrBuffer;
 }
 
