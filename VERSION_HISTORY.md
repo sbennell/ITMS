@@ -4,6 +4,31 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.18.0] - 2026-03-04
+
+### Added
+
+- **Student Login Cards PDF Generator**
+  - Download printable student login cards as PDF from Students list and detail pages
+  - Three download scopes: All students, filtered by year level, or filtered by home group
+  - A4 portrait format with 16 compact cards per page (2 columns × 8 rows)
+  - Centered credential display: Username, Password, Email with bold labels and regular values
+  - Vertically centered card content with proper spacing distribution
+  - Student footer with name, year level, and home group in larger, readable font
+  - Professional dashed borders around each card with separator line
+  - Automatic sorting by year level → home group → first name
+  - Automatic page breaks when home group changes for better organization
+  - Clean, space-efficient layout with no wasted whitespace
+
+### Technical Details
+
+- New service: studentLoginCardService.ts using pdf-lib for PDF generation
+- New API endpoint: GET /api/students/login-cards with query parameters for filtering
+- Card layout calculations for optimal spacing and readability
+- Responsive sorting logic for organizing students by academic groupings
+
+---
+
 ## [1.17.0] - 2026-03-03
 
 ### Added
