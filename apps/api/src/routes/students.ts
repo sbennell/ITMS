@@ -44,19 +44,19 @@ router.get('/', async (req: Request, res: Response) => {
         { username: { contains: searchStr } }
       ];
 
-      // If search contains space, also try full name combinations
+      // If search contains space, also try full name combinations with startsWith
       if (searchParts.length >= 2) {
-        // Try "firstName surname" combination
+        // Try "firstName surname" combination (surname starts with second part)
         searchConditions.push({
           AND: [
             { firstName: { contains: searchParts[0] } },
-            { surname: { contains: searchParts[1] } }
+            { surname: { startsWith: searchParts[1] } }
           ]
         });
-        // Try reverse "surname firstName" combination
+        // Try reverse "surname firstName" combination (firstName starts with second part)
         searchConditions.push({
           AND: [
-            { firstName: { contains: searchParts[1] } },
+            { firstName: { startsWith: searchParts[1] } },
             { surname: { contains: searchParts[0] } }
           ]
         });
@@ -148,19 +148,19 @@ router.get('/search', async (req: Request, res: Response) => {
       { email: { contains: query } }
     ];
 
-    // If search contains space, also try full name combinations
+    // If search contains space, also try full name combinations with startsWith
     if (queryParts.length >= 2) {
-      // Try "firstName surname" combination
+      // Try "firstName surname" combination (surname starts with second part)
       searchConditions.push({
         AND: [
           { firstName: { contains: queryParts[0] } },
-          { surname: { contains: queryParts[1] } }
+          { surname: { startsWith: queryParts[1] } }
         ]
       });
-      // Try reverse "surname firstName" combination
+      // Try reverse "surname firstName" combination (firstName starts with second part)
       searchConditions.push({
         AND: [
-          { firstName: { contains: queryParts[1] } },
+          { firstName: { startsWith: queryParts[1] } },
           { surname: { contains: queryParts[0] } }
         ]
       });
