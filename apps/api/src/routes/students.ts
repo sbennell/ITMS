@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { readFileSync } from 'fs';
 import { requireAuth } from './auth.js';
 import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 
@@ -198,6 +199,34 @@ router.get('/home-groups', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching home groups:', error);
     res.status(500).json({ error: 'Failed to fetch home groups' });
+  }
+});
+
+// Get import file headers
+router.get('/import/headers', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const fileSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFile' } });
+
+    if (!fileSetting?.value) {
+      return res.status(400).json({ error: 'Import file not configured' });
+    }
+
+    const filePath = fileSetting.value.replace(/\\/g, '/');
+    const content = readFileSync(filePath, 'utf8');
+    const firstLine = content.split(/\r?\n/)[0];
+    const headers = firstLine
+      .split(',')
+      .map(h => h.trim().replace(/^"|"$/g, ''));
+
+    res.json(headers);
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      return res.status(404).json({ error: 'Import file not found' });
+    }
+    console.error('Error reading import file headers:', error);
+    res.status(500).json({ error: 'Failed to read import file headers' });
   }
 });
 

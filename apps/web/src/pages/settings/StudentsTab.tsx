@@ -22,7 +22,6 @@ export default function StudentsTab() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [importFile, setImportFile] = useState('');
   const [schoolType, setSchoolType] = useState('STANDARD');
-  const [csvPreview, setCsvPreview] = useState('');
   const [importResult, setImportResult] = useState<StudentImportResult | null>(null);
   const [reconcileOnImport, setReconcileOnImport] = useState(false);
   const [reconcileResult, setReconcileResult] = useState<ReconcileResult | null>(null);
@@ -47,6 +46,13 @@ export default function StudentsTab() {
       return { key: 'studentImportFile', value: '' };
     }),
     staleTime: 1000 * 60
+  });
+
+  const { data: csvHeaders = [], isError: headersError } = useQuery({
+    queryKey: ['studentImportHeaders'],
+    queryFn: api.getStudentImportHeaders,
+    enabled: !!importFile,
+    retry: false
   });
 
   useQuery({
@@ -89,6 +95,7 @@ export default function StudentsTab() {
     mutationFn: (value: string) => api.updateSetting('studentImportFile', value),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings', 'studentImportFile'] });
+      queryClient.invalidateQueries({ queryKey: ['studentImportHeaders'] });
     }
   });
 
@@ -125,17 +132,6 @@ export default function StudentsTab() {
       setTimeout(() => setImportResult(null), 5000);
     }
   });
-
-  const handlePreviewHeaders = () => {
-    if (!csvPreview.trim()) return;
-    const headers = csvPreview.split(/[,\t]/).map(h => h.trim());
-    const newMapping: Record<string, string> = {};
-    headers.forEach((header, idx) => {
-      const field = STUDENT_FIELDS[idx];
-      if (field) newMapping[field.key] = header;
-    });
-    setMapping(newMapping);
-  };
 
   const handleSaveMapping = () => {
     mappingMutation.mutate(mapping);
@@ -202,23 +198,22 @@ export default function StudentsTab() {
           Map the columns in your CSV file to student fields. The importer will match by these headers.
         </p>
 
-        {/* Preview Helper */}
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-sm font-medium text-blue-900 mb-2">Quick Setup: Paste CSV Headers</p>
-          <textarea
-            value={csvPreview}
-            onChange={(e) => setCsvPreview(e.target.value)}
-            placeholder="Paste the first row of your CSV (comma or tab separated)"
-            className="input w-full text-sm mb-2"
-            rows={2}
-          />
-          <button
-            onClick={handlePreviewHeaders}
-            className="btn btn-secondary text-sm"
-          >
-            Auto-fill from Headers
-          </button>
-        </div>
+        {/* Status messages */}
+        {!importFile && (
+          <div className="mb-6 p-3 bg-amber-50 rounded-lg border border-amber-200 text-sm text-amber-700">
+            Set the Import File path above to load available headers.
+          </div>
+        )}
+        {importFile && csvHeaders.length === 0 && !headersError && (
+          <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
+            Reading headers from file...
+          </div>
+        )}
+        {headersError && (
+          <div className="mb-6 p-3 bg-red-50 rounded-lg border border-red-200 text-sm text-red-700">
+            Could not read headers — check the file path is correct.
+          </div>
+        )}
 
         {/* Mapping Table */}
         <div className="overflow-x-auto border rounded-lg">
@@ -226,7 +221,7 @@ export default function StudentsTab() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-700">Internal Field</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-700">CSV Header Name</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-700">Select CSV Column</th>
               </tr>
             </thead>
             <tbody>
@@ -239,15 +234,21 @@ export default function StudentsTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <input
-                      type="text"
+                    <select
                       value={mapping[field.key] || ''}
                       onChange={(e) =>
                         setMapping({ ...mapping, [field.key]: e.target.value })
                       }
-                      placeholder="e.g., Given Name"
                       className="input text-sm w-full"
-                    />
+                      disabled={csvHeaders.length === 0}
+                    >
+                      <option value="">— Not mapped —</option>
+                      {csvHeaders.map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                 </tr>
               ))}

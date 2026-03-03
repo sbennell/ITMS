@@ -530,6 +530,7 @@ export const api = {
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),
   getStudentHomeGroups: () => fetchJson<string[]>('/students/home-groups'),
+  getStudentImportHeaders: () => fetchJson<string[]>('/students/import/headers'),
 
   // Lookups
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
