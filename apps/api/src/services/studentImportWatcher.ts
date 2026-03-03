@@ -6,26 +6,25 @@ let watcher: FSWatcher | null = null;
 let debounceTimer: NodeJS.Timeout | null = null;
 
 /**
- * Starts watching the student import folder for file changes.
+ * Starts watching the student import file for changes.
  * Returns a watcher instance that can be stopped.
- * Returns null if the import path is not configured.
+ * Returns null if the import file is not configured.
  */
 export async function startStudentImportWatcher(prisma: PrismaClient): Promise<FSWatcher | null> {
   try {
-    const pathSetting = await prisma.settings.findUnique({ where: { key: 'studentImportPath' } });
-    const importPath = pathSetting?.value;
+    const fileSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFile' } });
+    const importFile = fileSetting?.value;
 
-    if (!importPath) {
-      console.log('[StudentImportWatcher] No import path configured, skipping watcher startup');
+    if (!importFile) {
+      console.log('[StudentImportWatcher] No import file configured, skipping watcher startup');
       return null;
     }
 
     // Normalize path - convert backslashes to forward slashes for Windows compatibility
-    const normalizedPath = importPath.replace(/\\/g, '/');
+    const normalizedPath = importFile.replace(/\\/g, '/');
     console.log(`[StudentImportWatcher] Starting watcher for: ${normalizedPath}`);
 
     watcher = chokidar.watch(normalizedPath, {
-      ignored: /(^|[\/\\])\./,
       persistent: true,
       awaitWriteFinish: {
         stabilityThreshold: 2000,

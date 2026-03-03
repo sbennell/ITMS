@@ -20,8 +20,7 @@ const STUDENT_FIELDS = [
 export default function StudentsTab() {
   const queryClient = useQueryClient();
   const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [importPath, setImportPath] = useState('');
-  const [importFilename, setImportFilename] = useState('');
+  const [importFile, setImportFile] = useState('');
   const [schoolType, setSchoolType] = useState('STANDARD');
   const [csvPreview, setCsvPreview] = useState('');
   const [importResult, setImportResult] = useState<StudentImportResult | null>(null);
@@ -39,22 +38,13 @@ export default function StudentsTab() {
   });
 
   useQuery({
-    queryKey: ['settings', 'studentImportPath'],
-    queryFn: () => api.getSetting('studentImportPath').then(s => {
-      setImportPath(s.value);
-      return s;
-    }),
-    staleTime: 1000 * 60
-  });
-
-  useQuery({
-    queryKey: ['settings', 'studentImportFilename'],
-    queryFn: () => api.getSetting('studentImportFilename').then(s => {
-      setImportFilename(s.value || '');
+    queryKey: ['settings', 'studentImportFile'],
+    queryFn: () => api.getSetting('studentImportFile').then(s => {
+      setImportFile(s.value || '');
       return s;
     }).catch(() => {
-      setImportFilename('');
-      return { key: 'studentImportFilename', value: '' };
+      setImportFile('');
+      return { key: 'studentImportFile', value: '' };
     }),
     staleTime: 1000 * 60
   });
@@ -95,17 +85,10 @@ export default function StudentsTab() {
     }
   });
 
-  const pathMutation = useMutation({
-    mutationFn: (value: string) => api.updateSetting('studentImportPath', value),
+  const fileMutation = useMutation({
+    mutationFn: (value: string) => api.updateSetting('studentImportFile', value),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'studentImportPath'] });
-    }
-  });
-
-  const filenameMutation = useMutation({
-    mutationFn: (value: string) => api.updateSetting('studentImportFilename', value),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings', 'studentImportFilename'] });
+      queryClient.invalidateQueries({ queryKey: ['settings', 'studentImportFile'] });
     }
   });
 
@@ -188,50 +171,26 @@ export default function StudentsTab() {
         </div>
       </div>
 
-      {/* Import Path */}
+      {/* Import File */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Auto-Import Folder</h3>
+        <h3 className="text-lg font-semibold mb-4">Import File</h3>
         <p className="text-sm text-gray-600 mb-4">
-          The folder path where student CSV/Excel files are placed for automatic import.
+          The full path to the CSV file to automatically import student records from.
         </p>
         <div className="flex gap-2">
           <input
             type="text"
-            value={importPath}
-            onChange={(e) => setImportPath(e.target.value)}
-            placeholder="e.g., /data/student-import"
+            value={importFile}
+            onChange={(e) => setImportFile(e.target.value)}
+            placeholder="e.g., C:\data\students\students.csv"
             className="input flex-1"
           />
           <button
-            onClick={() => pathMutation.mutate(importPath)}
-            disabled={pathMutation.isPending}
+            onClick={() => fileMutation.mutate(importFile)}
+            disabled={fileMutation.isPending}
             className="btn btn-primary"
           >
-            {pathMutation.isPending ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
-
-      {/* Import Filename */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Import Filename (Optional)</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          If set, only this specific filename will be imported. Leave blank to import any CSV/Excel file found in the folder.
-        </p>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={importFilename}
-            onChange={(e) => setImportFilename(e.target.value)}
-            placeholder="e.g., student_master_list.csv"
-            className="input flex-1"
-          />
-          <button
-            onClick={() => filenameMutation.mutate(importFilename)}
-            disabled={filenameMutation.isPending}
-            className="btn btn-primary"
-          >
-            {filenameMutation.isPending ? 'Saving...' : 'Save'}
+            {fileMutation.isPending ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -314,7 +273,7 @@ export default function StudentsTab() {
 
         <button
           onClick={() => importMutation.mutate()}
-          disabled={importMutation.isPending || !importPath}
+          disabled={importMutation.isPending || !importFile}
           className="btn btn-primary"
         >
           {importMutation.isPending ? (

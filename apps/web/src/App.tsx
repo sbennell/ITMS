@@ -9,7 +9,6 @@ import AssetForm from './pages/AssetForm';
 import BulkAddAssets from './pages/BulkAddAssets';
 import StudentList from './pages/StudentList';
 import StudentDetail from './pages/StudentDetail';
-import StudentForm from './pages/StudentForm';
 import Settings from './pages/Settings';
 import Stocktake from './pages/Stocktake';
 import Network from './pages/Network';
@@ -92,9 +91,7 @@ export default function App() {
                   <Route path="/assets/:id" element={<AssetDetail />} />
                   <Route path="/assets/:id/edit" element={<AssetForm />} />
                   <Route path="/students" element={<StudentList />} />
-                  <Route path="/students/new" element={<StudentForm />} />
                   <Route path="/students/:id" element={<StudentDetail />} />
-                  <Route path="/students/:id/edit" element={<StudentForm />} />
                   <Route path="/stocktake" element={<Stocktake />} />
                   <Route path="/network" element={<Network />} />
                   <Route path="/reports" element={<Reports />} />

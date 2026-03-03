@@ -25,16 +25,15 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
 
   try {
     // Read settings
-    const pathSetting = await prisma.settings.findUnique({ where: { key: 'studentImportPath' } });
-    const filenameSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFilename' } });
+    const fileSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFile' } });
     const mappingSetting = await prisma.settings.findUnique({ where: { key: 'studentCsvMapping' } });
 
-    if (!pathSetting || !pathSetting.value) {
-      throw new Error('Student import path not configured in settings (studentImportPath)');
+    if (!fileSetting || !fileSetting.value) {
+      throw new Error('Student import file not configured in settings (studentImportFile)');
     }
 
     // Normalize path - convert backslashes to forward slashes for Windows compatibility
-    const importPath = pathSetting.value.replace(/\\/g, '/');
+    const importFile = fileSetting.value.replace(/\\/g, '/');
     let columnMapping: Record<string, string> = {};
 
     if (mappingSetting?.value) {
@@ -50,18 +49,13 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
       throw new Error('Column mapping must include firstName and surname');
     }
 
-    // Find the file to import (CSV or XLSX)
-    const targetFilename = filenameSetting?.value || null;
-    const file = findImportFile(importPath, targetFilename);
-    if (!file) {
-      const errorMsg = targetFilename
-        ? `File not found: ${targetFilename} in ${importPath}`
-        : `No CSV or Excel file found in ${importPath}`;
-      throw new Error(errorMsg);
+    // Verify the file exists
+    if (!readFileSync(importFile, 'utf8')) {
+      throw new Error(`File not found: ${importFile}`);
     }
 
     // Parse file
-    const rows = await parseFile(file, columnMapping);
+    const rows = await parseFile(importFile, columnMapping);
 
     // Track which students are in this import (by firstName + surname + birthdate)
     const importedStudentKeys = new Set<string>();
@@ -209,37 +203,6 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
   }
 
   return result;
-}
-
-/**
- * Finds a CSV or Excel file in the given directory.
- * If targetFilename is specified, looks for that exact file.
- * Otherwise, returns the first CSV/Excel file found.
- */
-function findImportFile(dirPath: string, targetFilename: string | null): string | null {
-  try {
-    const fs = require('fs');
-    const files = fs.readdirSync(dirPath);
-
-    // If a specific filename is configured, look for it
-    if (targetFilename) {
-      if (files.includes(targetFilename)) {
-        return path.join(dirPath, targetFilename);
-      }
-      return null;
-    }
-
-    // Otherwise, find the first CSV/Excel file
-    for (const file of files) {
-      const ext = path.extname(file).toLowerCase();
-      if (['.csv', '.xlsx', '.xls'].includes(ext)) {
-        return path.join(dirPath, file);
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 /**
