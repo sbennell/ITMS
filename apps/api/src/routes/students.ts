@@ -136,6 +136,25 @@ router.get('/search', async (req: Request, res: Response) => {
   }
 });
 
+// Get unique student statuses
+router.get('/statuses', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const statuses = await prisma.student.findMany({
+      select: { status: true },
+      distinct: ['status'],
+      orderBy: { status: 'asc' }
+    });
+
+    const uniqueStatuses = statuses.map(s => s.status).filter(Boolean);
+    res.json(uniqueStatuses);
+  } catch (error) {
+    console.error('Error fetching student statuses:', error);
+    res.status(500).json({ error: 'Failed to fetch student statuses' });
+  }
+});
+
 // Get single student
 router.get('/:id', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;

@@ -73,6 +73,11 @@ export default function StudentList() {
     queryFn: () => api.getStudents({ page, limit, search, status, schoolYear, homeGroup, sortBy, sortOrder })
   });
 
+  const { data: statuses = [] } = useQuery({
+    queryKey: ['studentStatuses'],
+    queryFn: api.getStudentStatuses
+  });
+
   const table = useReactTable({
     data: data?.data || [],
     columns,
@@ -174,8 +179,11 @@ export default function StudentList() {
               className="input text-sm"
             >
               <option value="">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              {statuses.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </div>
           <div>
