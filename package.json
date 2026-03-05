@@ -1,6 +1,6 @@
 {
   "name": "ITMS",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "private": true,
   "description": "IT Management System - Web Interface",
   "workspaces": [

@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.18.1] - 2026-03-06
+
+### Fixed
+
+- **CSV Import - UTF-8 BOM Handling**
+  - Fixed "Invalid Opening Quote" error when importing CSV files exported from Excel
+  - CSV parser now removes UTF-8 BOM (Byte Order Mark) before parsing
+  - BOM is a special character that some applications add to UTF-8 files
+  - Imports now work seamlessly with Excel-exported CSV files
+
+---
+
 ## [1.18.0] - 2026-03-04
 
 ### Added
