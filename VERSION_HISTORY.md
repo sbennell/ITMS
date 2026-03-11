@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.18.3] - 2026-03-12
+
+### Added
+
+- **New Asset Status: Missing**
+  - Added "Missing" status to track lost or missing assets
+  - Displayed with red badge styling (matches alert severity)
+  - Available in asset forms and status filters
+  - Allows tracking of missing/lost assets separately from decommissioned items
+
+---
+
 ## [1.18.2] - 2026-03-06
 
 ### Changed
