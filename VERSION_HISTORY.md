@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.18.2] - 2026-03-06
+
+### Changed
+
+- **Asset List UI Improvements**
+  - Removed Hostname column from asset list table
+  - Added Serial Number column after Model column for better asset identification
+  - Improves visibility of critical asset identification information
+
+---
+
 ## [1.18.1] - 2026-03-06
 
 ### Fixed

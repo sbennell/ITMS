@@ -35,6 +35,10 @@ const columns = [
     header: 'Model',
     cell: (info) => info.getValue() || '-'
   }),
+  columnHelper.accessor('serialNumber', {
+    header: 'Serial Number',
+    cell: (info) => info.getValue() || '-'
+  }),
   columnHelper.accessor('category', {
     header: 'Category',
     cell: (info) => info.getValue()?.name || '-'
@@ -70,10 +74,6 @@ const columns = [
   columnHelper.accessor('location', {
     header: 'Location',
     cell: (info) => info.getValue()?.name || '-'
-  }),
-  columnHelper.accessor('hostname', {
-    header: 'Hostname',
-    cell: (info) => info.getValue() || '-'
   })
 ];
 
