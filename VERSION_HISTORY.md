@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.18.4] - 2026-03-20
+
+### Fixed
+
+- **Student CSV Import Updates**
+  - Fixed student import to update existing records (matched by firstName + surname + birthdate)
+  - Previously existing students were skipped; now status, homeGroup, schoolYear, username, and email fields are updated from CSV
+  - Allows re-importing student data to refresh changed information
+
+---
+
 ## [1.18.3] - 2026-03-12
 
 ### Added

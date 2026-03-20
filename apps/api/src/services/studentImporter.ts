@@ -92,8 +92,20 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         });
 
         if (existing) {
-          // Skip existing students - don't update
-          result.skipped++;
+          // Update existing students with new data from CSV
+          await prisma.student.update({
+            where: { id: existing.id },
+            data: {
+              homeGroup: row.homeGroup || null,
+              schoolYear: row.schoolYear || null,
+              status: (row.status ? normalizeStatus(row.status) : 'Active'),
+              username: row.username || null,
+              edupassUsername: row.edupassUsername || null,
+              email: row.email || null,
+              password: row.password || null
+            }
+          });
+          result.updated++;
         } else {
           // Create only new students
           await prisma.student.create({
