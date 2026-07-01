@@ -106,6 +106,269 @@ function buildQRContent(asset: LabelAsset, opts: LabelSettings): string {
   return lines.join('\n');
 }
 
+function escapeXml(str: string): string {
+  return str.replace(/[<>&'"]/g, c => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    "'": '&apos;',
+    '"': '&quot;',
+  }[c] || c));
+}
+
+/**
+ * Build a native DYMO DieCutLabel XML for the Dymo 1933081 (1"x3.5" address-style)
+ * label, printed directly through DYMO Label Software's local web service from the
+ * browser. Coordinates are in twips (1440 per inch); label is 5040x1440 twips.
+ */
+export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): string {
+  const opts = { ...DEFAULT_SETTINGS, ...settings };
+  const qrContent = buildQRContent(asset, opts);
+
+  const assignedText = opts.showAssignedTo && asset.assignedTo
+    ? escapeXml(asset.assignedTo.substring(0, 28))
+    : '';
+  const itemText = `Item: ${escapeXml(asset.itemNumber.substring(0, 25))}`;
+  const modelText = asset.model
+    ? escapeXml((asset.manufacturer?.name ? `${asset.manufacturer.name} ` : '') + asset.model)
+    : '';
+  const serialText = asset.serialNumber
+    ? `S/N: ${escapeXml(asset.serialNumber.substring(0, 25))}`
+    : '';
+  const hostnameText = opts.showHostname && asset.hostname
+    ? escapeXml(asset.hostname.substring(0, 30))
+    : '';
+  const ipText = opts.showIpAddress && asset.ipAddress
+    ? escapeXml(asset.ipAddress.substring(0, 30))
+    : '';
+  const orgText = asset.organizationName
+    ? escapeXml(asset.organizationName.substring(0, 40))
+    : '';
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<DieCutLabel Version="8.0" Units="twips">
+  <PaperOrientation>Landscape</PaperOrientation>
+  <Id>Address</Id>
+  <PaperName>30252 Address</PaperName>
+  <DrawCommands>
+    <RoundRectangle X="0" Y="0" Width="5040" Height="1440" Rx="270" Ry="270" />
+  </DrawCommands>
+
+  <!-- QR Code on the left: ~22mm square -->
+  <ObjectInfo>
+    <BarcodeObject>
+      <Name>QRCode</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <Text>${escapeXml(qrContent)}</Text>
+      <Type>QRCode</Type>
+      <Size>Large</Size>
+      <TextPosition>None</TextPosition>
+      <TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+      <CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+      <TextEmbedding>None</TextEmbedding>
+      <ECLevel>0</ECLevel>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+    </BarcodeObject>
+    <Bounds X="50" Y="50" Width="1200" Height="1200" />
+  </ObjectInfo>
+
+  <!-- Assigned To - top, centered full width -->
+  ${assignedText ? `<ObjectInfo>
+    <TextObject>
+      <Name>AssignedTo</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${assignedText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="50" Y="30" Width="4940" Height="180" />
+  </ObjectInfo>` : ''}
+
+  <!-- Item Number -->
+  <ObjectInfo>
+    <TextObject>
+      <Name>ItemNumber</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${itemText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="220" Width="3600" Height="170" />
+  </ObjectInfo>
+
+  <!-- Model -->
+  ${modelText ? `<ObjectInfo>
+    <TextObject>
+      <Name>Model</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${modelText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="400" Width="3600" Height="160" />
+  </ObjectInfo>` : ''}
+
+  <!-- Serial Number -->
+  ${serialText ? `<ObjectInfo>
+    <TextObject>
+      <Name>SerialNumber</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${serialText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="565" Width="3600" Height="160" />
+  </ObjectInfo>` : ''}
+
+  <!-- Hostname -->
+  ${hostnameText ? `<ObjectInfo>
+    <TextObject>
+      <Name>Hostname</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${hostnameText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="730" Width="3600" Height="150" />
+  </ObjectInfo>` : ''}
+
+  <!-- IP Address -->
+  ${ipText ? `<ObjectInfo>
+    <TextObject>
+      <Name>IPAddress</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Left</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${ipText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="1340" Y="895" Width="3600" Height="150" />
+  </ObjectInfo>` : ''}
+
+  <!-- Organization Name - bottom, centered full width -->
+  ${orgText ? `<ObjectInfo>
+    <TextObject>
+      <Name>OrgName</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>True</IsVariable>
+      <HorizontalAlignment>Center</HorizontalAlignment>
+      <VerticalAlignment>Middle</VerticalAlignment>
+      <TextFitMode>ShrinkToFit</TextFitMode>
+      <UseFullFontHeight>True</UseFullFontHeight>
+      <Verticalized>False</Verticalized>
+      <StyledText>
+        <Element>
+          <String>${orgText}</String>
+          <Attributes>
+            <Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+          </Attributes>
+        </Element>
+      </StyledText>
+    </TextObject>
+    <Bounds X="50" Y="1270" Width="4940" Height="150" />
+  </ObjectInfo>` : ''}
+
+</DieCutLabel>`;
+}
+
 /**
  * Create a label PDF for an asset (Dymo 1933081 - 25mm×89mm)
  * Landscape PDF (89mm x 25mm) with QR on left, text on right

@@ -15,6 +15,7 @@ import {
   createLabelPDF as createDymoPDF,
   createLabelPreview as createDymoPreview,
   printLabel as printDymo,
+  buildDymoLabelXml,
 } from '../services/labelService-dymo.js';
 
 const router = Router();
@@ -467,6 +468,129 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
   } catch (error) {
     console.error('Label download error:', error);
     res.status(500).json({ error: 'Failed to generate label PDF' });
+  }
+});
+
+// Get DYMO label XML for an asset (printed client-side via the browser-local DYMO service)
+router.get('/dymo-xml/:assetId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+    const assetId = req.params.assetId as string;
+
+    const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
+    const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
+    const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
+    const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
+
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId },
+      include: { manufacturer: true, ipAddresses: true, student: true },
+    });
+
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    const settingsRecords = await prisma.settings.findMany({
+      where: {
+        key: { in: ['label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+      },
+    });
+    const settingsMap: Record<string, string> = {};
+    settingsRecords.forEach((s: { key: string; value: string }) => {
+      settingsMap[s.key] = s.value;
+    });
+    const settings = parseSettings(settingsMap);
+    const organizationName = settingsMap['organization'] || null;
+
+    const finalSettings = {
+      ...settings,
+      ...(showAssignedTo !== undefined && { showAssignedTo }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
+    };
+
+    const primaryIP = asset.ipAddresses?.[0]?.ip;
+
+    let assignedTo = asset.assignedTo;
+    if (!assignedTo && asset.student) {
+      assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
+    }
+
+    const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
+    const xml = buildDymoLabelXml(labelAsset, finalSettings);
+
+    res.json({ itemNumber: asset.itemNumber, xml });
+  } catch (error) {
+    console.error('DYMO label XML error:', error);
+    res.status(500).json({ error: 'Failed to generate DYMO label XML' });
+  }
+});
+
+// Get DYMO label XML for a batch of assets (printed client-side via the browser-local DYMO service)
+router.get('/dymo-xml-batch', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+    const assetIdsParam = req.query.assetIds as string;
+
+    if (!assetIdsParam) {
+      return res.status(400).json({ error: 'assetIds parameter is required' });
+    }
+
+    const assetIds = assetIdsParam.split(',');
+
+    const showAssignedTo = req.query.showAssignedTo !== undefined ? req.query.showAssignedTo === 'true' : undefined;
+    const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
+    const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
+    const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
+
+    const settingsRecords = await prisma.settings.findMany({
+      where: {
+        key: { in: ['label.showAssignedTo', 'label.showHostname', 'label.showIpAddress', 'label.qrCodeContent', 'organization'] },
+      },
+    });
+    const settingsMap: Record<string, string> = {};
+    settingsRecords.forEach((s: { key: string; value: string }) => {
+      settingsMap[s.key] = s.value;
+    });
+    const settings = parseSettings(settingsMap);
+    const organizationName = settingsMap['organization'] || null;
+
+    const finalSettings = {
+      ...settings,
+      ...(showAssignedTo !== undefined && { showAssignedTo }),
+      ...(showHostname !== undefined && { showHostname }),
+      ...(showIpAddress !== undefined && { showIpAddress }),
+      ...(qrCodeContent !== undefined && { qrCodeContent }),
+    };
+
+    const assets = await prisma.asset.findMany({
+      where: { id: { in: assetIds } },
+      include: { manufacturer: true, ipAddresses: true, student: true },
+    });
+
+    const labels = assets.map((asset) => {
+      const primaryIP = asset.ipAddresses?.[0]?.ip;
+      let assignedTo = asset.assignedTo;
+      if (!assignedTo && asset.student) {
+        assignedTo = `${asset.student.firstName} ${asset.student.surname}`;
+      }
+      const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
+      return {
+        assetId: asset.id,
+        itemNumber: asset.itemNumber,
+        xml: buildDymoLabelXml(labelAsset, finalSettings),
+      };
+    });
+
+    const foundIds = assets.map(a => a.id);
+    const notFound = assetIds.filter((id: string) => !foundIds.includes(id));
+
+    res.json({ labels, notFound });
+  } catch (error) {
+    console.error('DYMO batch label XML error:', error);
+    res.status(500).json({ error: 'Failed to generate DYMO label XML batch' });
   }
 });
 

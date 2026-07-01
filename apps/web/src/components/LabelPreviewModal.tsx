@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Printer, Download, Loader2, Settings } from 'lucide-react';
 import { api, Asset, LabelSettings } from '../lib/api';
+import { printDymoLabel } from '../lib/dymoLabelPrinter';
+import { useDymoPrinting } from '../hooks/useDymoPrinting';
 
 interface LabelPreviewModalProps {
   asset: Asset;
@@ -49,6 +51,18 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     },
   });
 
+  // Check if DYMO label type is selected
+  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
+  const dymo = useDymoPrinting(isDymo);
+
+  const dymoPrintMutation = useMutation({
+    mutationFn: async () => {
+      const { xml } = await api.getDymoLabelXml(asset.id, labelOptions);
+      await printDymoLabel(xml, dymo.selectedPrinter, 1);
+    },
+    onSuccess: () => onClose(),
+  });
+
   const handleDownload = () => {
     const params = new URLSearchParams();
     if (labelOptions.showAssignedTo !== undefined) params.set('showAssignedTo', String(labelOptions.showAssignedTo));
@@ -66,9 +80,6 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
   const handleQRCodeContentChange = (value: 'full' | 'itemNumber') => {
     setLabelOptions(prev => ({ ...prev, qrCodeContent: value }));
   };
-
-  // Check if DYMO label type is selected
-  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -204,10 +215,37 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
             </div>
           )}
 
+          {/* DYMO printer selection - detected on this device */}
+          {isDymo && dymo.available && (
+            <div>
+              <label className="label">DYMO Printer (this device)</label>
+              <select
+                value={dymo.selectedPrinter}
+                onChange={(e) => dymo.setSelectedPrinter(e.target.value)}
+                className="input"
+              >
+                {dymo.printers.length === 0 && <option value="">No DYMO printers found</option>}
+                {dymo.printers.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {isDymo && !dymo.checking && !dymo.available && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+              {dymo.reason || 'DYMO Label Software not detected on this device'} — use Download PDF instead.
+            </div>
+          )}
+
           {/* Error message */}
           {printMutation.isError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
               {printMutation.error instanceof Error ? printMutation.error.message : 'Print failed'}
+            </div>
+          )}
+          {dymoPrintMutation.isError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+              {dymoPrintMutation.error instanceof Error ? dymoPrintMutation.error.message : 'Print failed'}
             </div>
           )}
 
@@ -236,9 +274,34 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
               Cancel
             </button>
             {isDymo ? (
-              <div className="text-sm text-gray-500 flex items-center px-3">
-                DYMO is Download only
-              </div>
+              dymo.checking ? (
+                <div className="text-sm text-gray-500 flex items-center px-3">
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Checking for DYMO Label Software...
+                </div>
+              ) : dymo.available ? (
+                <button
+                  onClick={() => dymoPrintMutation.mutate()}
+                  disabled={dymoPrintMutation.isPending || !dymo.selectedPrinter}
+                  className="btn btn-primary"
+                >
+                  {dymoPrintMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Printing...
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-4 h-4 mr-2" />
+                      Print
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="text-sm text-gray-500 flex items-center px-3">
+                  Download only
+                </div>
+              )
             ) : (
               <button
                 onClick={() => printMutation.mutate()}

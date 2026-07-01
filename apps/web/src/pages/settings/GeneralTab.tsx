@@ -145,27 +145,38 @@ function LabelSettingsSection() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Printer Selection */}
-          <div>
-            <label className="label">Printer</label>
-            <select
-              value={settings?.printerName || ''}
-              onChange={(e) => handlePrinterChange(e.target.value)}
-              className="input"
-              disabled={mutation.isPending}
-            >
-              <option value="">Select a printer...</option>
-              {printers?.map((printer) => (
-                <option key={printer} value={printer}>{printer}</option>
-              ))}
-              {settings?.printerName && !printers?.includes(settings.printerName) && (
-                <option value={settings.printerName}>{settings.printerName} (not found)</option>
+          {/* Printer Selection - only applies to Brother, which prints via the server.
+              DYMO prints directly from each user's browser, so the printer is picked
+              per-device in the print dialog instead of here. */}
+          {settings?.labelType === 'dymo-1933081' ? (
+            <div>
+              <label className="label">Printer</label>
+              <p className="text-xs text-gray-500">
+                DYMO printers are detected automatically on each device when printing — no server-side printer needed.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="label">Printer</label>
+              <select
+                value={settings?.printerName || ''}
+                onChange={(e) => handlePrinterChange(e.target.value)}
+                className="input"
+                disabled={mutation.isPending}
+              >
+                <option value="">Select a printer...</option>
+                {printers?.map((printer) => (
+                  <option key={printer} value={printer}>{printer}</option>
+                ))}
+                {settings?.printerName && !printers?.includes(settings.printerName) && (
+                  <option value={settings.printerName}>{settings.printerName} (not found)</option>
+                )}
+              </select>
+              {printers?.length === 0 && (
+                <p className="mt-1 text-xs text-gray-500">No printers detected</p>
               )}
-            </select>
-            {printers?.length === 0 && (
-              <p className="mt-1 text-xs text-gray-500">No printers detected</p>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Label Size / Type */}
           <div>

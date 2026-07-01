@@ -4,6 +4,27 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.19.0] - 2026-07-02
+
+### Added
+
+- **DYMO Label Printing from the Browser**
+  - DYMO labels can now be printed directly, instead of download-only
+  - Detects DYMO Label Software running on the user's own device and lists its local printers
+  - Print modal and batch print modal show a per-device printer picker for DYMO labels
+  - Falls back to "Download PDF" with a specific reason (not installed / not running / unsupported browser) when DYMO Label Software isn't detected on the device
+
+### Technical Details
+
+- Root cause of previous DYMO printing attempts: the printer is attached to each user's own PC, not the server, so backend calls to the local DYMO web service (127.0.0.1:41951) could never reach it. Printing now happens client-side in the browser instead, where that address correctly resolves to the user's own machine.
+- Vendored DYMO's official `dymo.connect.framework.js` SDK (`apps/web/public/vendor/`), lazy-loaded only when a DYMO print UI is shown
+- New `buildDymoLabelXml()` in `labelService-dymo.ts` generates native DYMO DieCutLabel XML; new endpoints `GET /labels/dymo-xml/:assetId` and `GET /labels/dymo-xml-batch` return label XML only, with the actual print call made by the browser
+- New `apps/web/src/lib/dymoLabelPrinter.ts` and `useDymoPrinting` hook wrap the SDK for environment detection, printer listing, and printing
+- Settings page hides the (server-side) printer dropdown for DYMO, since printing is now selected per-device in the print dialog
+- Existing server-side DYMO PDF print path (`pdf-to-printer`) left in place for the "Download PDF" fallback
+
+---
+
 ## [1.18.4] - 2026-03-20
 
 ### Fixed

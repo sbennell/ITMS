@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-export const APP_VERSION = '1.18.4';
+export const APP_VERSION = '1.19.0';
 
 export interface ChangelogEntry {
   version: string;

@@ -647,6 +647,24 @@ export const api = {
       body: JSON.stringify({ assetIds, copies: copies || 1, ...settings })
     }),
   getPrinters: () => fetchJson<string[]>('/labels/printers'),
+  getDymoLabelXml: (assetId: string, settings?: Partial<LabelSettings>) => {
+    const params = new URLSearchParams();
+    if (settings?.showAssignedTo !== undefined) params.set('showAssignedTo', String(settings.showAssignedTo));
+    if (settings?.showHostname !== undefined) params.set('showHostname', String(settings.showHostname));
+    if (settings?.showIpAddress !== undefined) params.set('showIpAddress', String(settings.showIpAddress));
+    if (settings?.qrCodeContent !== undefined) params.set('qrCodeContent', settings.qrCodeContent);
+    const queryString = params.toString();
+    return fetchJson<{ itemNumber: string; xml: string }>(`/labels/dymo-xml/${assetId}${queryString ? '?' + queryString : ''}`);
+  },
+  getDymoLabelXmlBatch: (assetIds: string[], settings?: Partial<LabelSettings>) => {
+    const params = new URLSearchParams();
+    params.set('assetIds', assetIds.join(','));
+    if (settings?.showAssignedTo !== undefined) params.set('showAssignedTo', String(settings.showAssignedTo));
+    if (settings?.showHostname !== undefined) params.set('showHostname', String(settings.showHostname));
+    if (settings?.showIpAddress !== undefined) params.set('showIpAddress', String(settings.showIpAddress));
+    if (settings?.qrCodeContent !== undefined) params.set('qrCodeContent', settings.qrCodeContent);
+    return fetchJson<{ labels: { assetId: string; itemNumber: string; xml: string }[]; notFound: string[] }>(`/labels/dymo-xml-batch?${params.toString()}`);
+  },
   getLabelSettings: () => fetchJson<LabelSettings>('/labels/settings'),
   updateLabelSettings: (settings: Partial<LabelSettings>) =>
     fetchJson<LabelSettings>('/labels/settings', {

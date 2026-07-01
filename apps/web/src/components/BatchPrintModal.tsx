@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Printer, Download, Loader2, Settings } from 'lucide-react';
-import { api, LabelSettings } from '../lib/api';
+import { api, BatchPrintResult, LabelSettings } from '../lib/api';
+import { printDymoLabel } from '../lib/dymoLabelPrinter';
+import { useDymoPrinting } from '../hooks/useDymoPrinting';
 
 interface BatchPrintModalProps {
   assetIds: string[];
@@ -43,6 +45,39 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
       }
     },
   });
+
+  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
+  const dymo = useDymoPrinting(isDymo);
+
+  const dymoPrintMutation = useMutation({
+    mutationFn: async (): Promise<BatchPrintResult> => {
+      const { labels, notFound } = await api.getDymoLabelXmlBatch(assetIds, labelOptions);
+      let printed = 0;
+      let failed = notFound.length;
+      const errors: string[] = [];
+      if (notFound.length > 0) errors.push(`Assets not found: ${notFound.length}`);
+
+      for (const label of labels) {
+        try {
+          await printDymoLabel(label.xml, dymo.selectedPrinter, 1);
+          printed++;
+        } catch (error) {
+          failed++;
+          errors.push(`${label.itemNumber}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      return { success: failed === 0, printed, failed, errors: errors.length > 0 ? errors : undefined };
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        onSuccess();
+        onClose();
+      }
+    },
+  });
+
+  const activeMutation = isDymo ? dymoPrintMutation : printMutation;
 
   const handleDownload = () => {
     const params = new URLSearchParams();
@@ -115,18 +150,40 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
             </div>
           )}
 
+          {/* DYMO printer selection - detected on this device */}
+          {isDymo && dymo.available && (
+            <div>
+              <label className="label">DYMO Printer (this device)</label>
+              <select
+                value={dymo.selectedPrinter}
+                onChange={(e) => dymo.setSelectedPrinter(e.target.value)}
+                className="input"
+              >
+                {dymo.printers.length === 0 && <option value="">No DYMO printers found</option>}
+                {dymo.printers.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {isDymo && !dymo.checking && !dymo.available && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+              {dymo.reason || 'DYMO Label Software not detected on this device'} — use Download PDF instead.
+            </div>
+          )}
+
           {/* Error message */}
-          {printMutation.isError && (
+          {activeMutation.isError && (
             <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {printMutation.error instanceof Error ? printMutation.error.message : 'Print failed'}
+              {activeMutation.error instanceof Error ? activeMutation.error.message : 'Print failed'}
             </div>
           )}
 
           {/* Success message */}
-          {printMutation.isSuccess && printMutation.data.success && (
+          {activeMutation.isSuccess && activeMutation.data.success && (
             <div className="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-              Printed {printMutation.data.printed} labels
-              {printMutation.data.failed > 0 && `, ${printMutation.data.failed} failed`}
+              Printed {activeMutation.data.printed} labels
+              {activeMutation.data.failed > 0 && `, ${activeMutation.data.failed} failed`}
             </div>
           )}
         </div>
@@ -147,12 +204,22 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
             >
               Cancel
             </button>
+            {isDymo && dymo.checking ? (
+              <div className="text-sm text-gray-500 flex items-center px-3">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Checking for DYMO Label Software...
+              </div>
+            ) : isDymo && !dymo.available ? (
+              <div className="text-sm text-gray-500 flex items-center px-3">
+                Download only
+              </div>
+            ) : (
             <button
-              onClick={() => printMutation.mutate()}
-              disabled={printMutation.isPending}
+              onClick={() => activeMutation.mutate()}
+              disabled={activeMutation.isPending || (isDymo && !dymo.selectedPrinter)}
               className="btn btn-primary"
             >
-              {printMutation.isPending ? (
+              {activeMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Printing...
@@ -164,6 +231,7 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
                 </>
               )}
             </button>
+            )}
           </div>
         </div>
       </div>
