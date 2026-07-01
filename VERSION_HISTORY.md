@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.19.1] - 2026-07-02
+
+### Fixed
+
+- **DYMO Label Printing - XML Schema Errors**
+  - Fixed "PrintLabel" failing with HTTP 400 against DYMO Label Software's local web service
+  - QR code `BarcodeObject` now includes the required `QuietZonesPadding` element
+  - Text object `Attributes` now include `ForeColor` alongside `Font`, as DYMO's schema requires both
+  - Removed XML comments from the generated label template - DYMO's label parser doesn't tolerate them, unlike a standard XML parser
+  - DYMO labels now print successfully end-to-end from the browser
+
+---
+
 ## [1.19.0] - 2026-07-02
 
 ### Added
