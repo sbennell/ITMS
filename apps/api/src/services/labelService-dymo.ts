@@ -198,6 +198,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${assignedText}</String>
           <Attributes>
             <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -225,6 +226,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${itemText}</String>
           <Attributes>
             <Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -252,6 +254,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${modelText}</String>
           <Attributes>
             <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -279,6 +282,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${serialText}</String>
           <Attributes>
             <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -306,6 +310,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${hostnameText}</String>
           <Attributes>
             <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -333,6 +338,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${ipText}</String>
           <Attributes>
             <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
@@ -360,6 +366,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
           <String>${orgText}</String>
           <Attributes>
             <Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
