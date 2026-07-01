@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { checkDymoAvailable, getLastDymoPrinter, listDymoPrinters, setLastDymoPrinter } from '../lib/dymoLabelPrinter';
+import {
+  checkDymoAvailable,
+  DymoPrinterSummary,
+  getLastDymoPrinter,
+  getLastDymoRoll,
+  listDymoPrinters,
+  setLastDymoPrinter,
+  setLastDymoRoll,
+  TwinTurboRoll,
+} from '../lib/dymoLabelPrinter';
 
 /**
  * Detects DYMO Label Software running on the current device (browser-local, per
@@ -10,8 +19,9 @@ export function useDymoPrinting(enabled: boolean) {
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState(false);
   const [reason, setReason] = useState<string | undefined>();
-  const [printers, setPrinters] = useState<string[]>([]);
+  const [printers, setPrinters] = useState<DymoPrinterSummary[]>([]);
   const [selectedPrinter, setSelectedPrinterState] = useState('');
+  const [selectedRoll, setSelectedRollState] = useState<TwinTurboRoll>('Auto');
 
   useEffect(() => {
     if (!enabled) return;
@@ -29,7 +39,8 @@ export function useDymoPrinting(enabled: boolean) {
         if (cancelled) return;
         setPrinters(list);
         const last = getLastDymoPrinter();
-        setSelectedPrinterState(last && list.includes(last) ? last : (list[0] || ''));
+        setSelectedPrinterState(last && list.some((p) => p.name === last) ? last : (list[0]?.name || ''));
+        setSelectedRollState(getLastDymoRoll());
       }
 
       setChecking(false);
@@ -45,5 +56,22 @@ export function useDymoPrinting(enabled: boolean) {
     setLastDymoPrinter(name);
   };
 
-  return { checking, available, reason, printers, selectedPrinter, setSelectedPrinter };
+  const setSelectedRoll = (roll: TwinTurboRoll) => {
+    setSelectedRollState(roll);
+    setLastDymoRoll(roll);
+  };
+
+  const isTwinTurbo = printers.find((p) => p.name === selectedPrinter)?.isTwinTurbo ?? false;
+
+  return {
+    checking,
+    available,
+    reason,
+    printers,
+    selectedPrinter,
+    setSelectedPrinter,
+    isTwinTurbo,
+    selectedRoll,
+    setSelectedRoll,
+  };
 }

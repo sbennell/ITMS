@@ -4,6 +4,24 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.0] - 2026-07-02
+
+### Added
+
+- **DYMO LabelWriter 450 Twin Turbo - Roll Selection**
+  - New "Roll (Twin Turbo)" dropdown (Auto / Left / Right) in the print dialog and batch print dialog for DYMO labels
+  - Only shown when the detected local printer is actually a Twin Turbo model - no change for single-roll LabelWriters
+  - Fixes labels always printing to the right-side roll on Twin Turbo printers, with no way to choose the left roll instead
+  - Roll choice is remembered per-device (localStorage), same as the printer selection
+
+### Technical Details
+
+- `dymo.connect.framework.js` reports `isTwinTurbo` per detected printer and accepts a `TwinTurboRoll` ("Auto"/"Left"/"Right") print parameter - both were already supported by the vendored SDK, just not wired into the UI
+- `apps/web/src/lib/dymoLabelPrinter.ts`: `listDymoPrinters()` now returns `{ name, isTwinTurbo }`; `printDymoLabel()` takes an optional roll argument
+- `useDymoPrinting` hook tracks the selected roll and persists it via `dymo.lastRoll` in localStorage
+
+---
+
 ## [1.19.1] - 2026-07-02
 
 ### Fixed

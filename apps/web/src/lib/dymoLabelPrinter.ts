@@ -3,9 +3,17 @@
 // service on the user's own machine (127.0.0.1:41951). This must run in the browser —
 // the backend server has no access to a printer attached to someone else's PC.
 
+export type TwinTurboRoll = 'Auto' | 'Left' | 'Right';
+
 interface DymoPrinterInfo {
   name: string;
   printerType: string;
+  isTwinTurbo: boolean;
+}
+
+export interface DymoPrinterSummary {
+  name: string;
+  isTwinTurbo: boolean;
 }
 
 interface DymoCheckEnvironmentResult {
@@ -17,7 +25,7 @@ interface DymoCheckEnvironmentResult {
 interface DymoFramework {
   checkEnvironment(onSuccess: (result: DymoCheckEnvironmentResult) => void, onError?: (error: unknown) => void): void;
   getLabelWriterPrintersAsync(): Promise<DymoPrinterInfo[]>;
-  createLabelWriterPrintParamsXml(params: { copies?: number; flowDirection?: string }): string;
+  createLabelWriterPrintParamsXml(params: { copies?: number; flowDirection?: string; twinTurboRoll?: TwinTurboRoll }): string;
   printLabelAsync(printerName: string, printParamsXml: string, labelXml: string, labelSetXml: string): Promise<void>;
 }
 
@@ -29,6 +37,7 @@ declare global {
 
 const SDK_URL = '/vendor/dymo.connect.framework.js';
 const LAST_PRINTER_KEY = 'dymo.lastPrinterName';
+const LAST_ROLL_KEY = 'dymo.lastRoll';
 
 let sdkLoadPromise: Promise<void> | null = null;
 
@@ -94,19 +103,32 @@ export async function checkDymoAvailable(): Promise<DymoAvailability> {
   });
 }
 
-export async function listDymoPrinters(): Promise<string[]> {
+export async function listDymoPrinters(): Promise<DymoPrinterSummary[]> {
   const framework = window.dymo?.label?.framework;
   if (!framework) return [];
   const printers = await framework.getLabelWriterPrintersAsync();
-  return printers.map((p) => p.name);
+  return printers.map((p) => ({ name: p.name, isTwinTurbo: p.isTwinTurbo }));
 }
 
-export async function printDymoLabel(xml: string, printerName: string, copies = 1): Promise<void> {
+/**
+ * @param twinTurboRoll Which roll to use on a LabelWriter 450 Twin Turbo (or similar
+ * dual-roll printer). Ignored for single-roll printers.
+ */
+export async function printDymoLabel(
+  xml: string,
+  printerName: string,
+  copies = 1,
+  twinTurboRoll?: TwinTurboRoll
+): Promise<void> {
   const framework = window.dymo?.label?.framework;
   if (!framework) {
     throw new Error('DYMO SDK is not loaded');
   }
-  const printParamsXml = framework.createLabelWriterPrintParamsXml({ copies, flowDirection: 'LeftToRight' });
+  const printParamsXml = framework.createLabelWriterPrintParamsXml({
+    copies,
+    flowDirection: 'LeftToRight',
+    ...(twinTurboRoll ? { twinTurboRoll } : {}),
+  });
   await framework.printLabelAsync(printerName, printParamsXml, xml, '');
 }
 
@@ -116,4 +138,13 @@ export function getLastDymoPrinter(): string {
 
 export function setLastDymoPrinter(printerName: string): void {
   localStorage.setItem(LAST_PRINTER_KEY, printerName);
+}
+
+export function getLastDymoRoll(): TwinTurboRoll {
+  const value = localStorage.getItem(LAST_ROLL_KEY);
+  return value === 'Left' || value === 'Right' ? value : 'Auto';
+}
+
+export function setLastDymoRoll(roll: TwinTurboRoll): void {
+  localStorage.setItem(LAST_ROLL_KEY, roll);
 }

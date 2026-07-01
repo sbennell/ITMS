@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Printer, Download, Loader2, Settings } from 'lucide-react';
 import { api, Asset, LabelSettings } from '../lib/api';
-import { printDymoLabel } from '../lib/dymoLabelPrinter';
+import { printDymoLabel, TwinTurboRoll } from '../lib/dymoLabelPrinter';
 import { useDymoPrinting } from '../hooks/useDymoPrinting';
 
 interface LabelPreviewModalProps {
@@ -58,7 +58,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
   const dymoPrintMutation = useMutation({
     mutationFn: async () => {
       const { xml } = await api.getDymoLabelXml(asset.id, labelOptions);
-      await printDymoLabel(xml, dymo.selectedPrinter, 1);
+      await printDymoLabel(xml, dymo.selectedPrinter, 1, dymo.isTwinTurbo ? dymo.selectedRoll : undefined);
     },
     onSuccess: () => onClose(),
   });
@@ -226,8 +226,22 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
               >
                 {dymo.printers.length === 0 && <option value="">No DYMO printers found</option>}
                 {dymo.printers.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.name} value={p.name}>{p.name}</option>
                 ))}
+              </select>
+            </div>
+          )}
+          {isDymo && dymo.available && dymo.isTwinTurbo && (
+            <div>
+              <label className="label">Roll (Twin Turbo)</label>
+              <select
+                value={dymo.selectedRoll}
+                onChange={(e) => dymo.setSelectedRoll(e.target.value as TwinTurboRoll)}
+                className="input"
+              >
+                <option value="Auto">Auto</option>
+                <option value="Left">Left</option>
+                <option value="Right">Right</option>
               </select>
             </div>
           )}
