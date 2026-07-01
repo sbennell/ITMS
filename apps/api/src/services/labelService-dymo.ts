@@ -174,7 +174,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
       <HorizontalAlignment>Center</HorizontalAlignment>
       <QuietZonesPadding Left="0" Top="0" Right="0" Bottom="0" />
     </BarcodeObject>
-    <Bounds X="50" Y="50" Width="1134" Height="1134" />
+    <Bounds X="50" Y="50" Width="700" Height="700" />
   </ObjectInfo>
 
   ${assignedText ? `<ObjectInfo>
