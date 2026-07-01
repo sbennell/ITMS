@@ -519,7 +519,7 @@ router.get('/dymo-xml/:assetId', requireAuth, async (req: Request, res: Response
     }
 
     const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
-    const xml = buildDymoLabelXml(labelAsset, finalSettings);
+    const xml = await buildDymoLabelXml(labelAsset, finalSettings);
 
     res.json({ itemNumber: asset.itemNumber, xml });
   } catch (error) {
@@ -570,7 +570,7 @@ router.get('/dymo-xml-batch', requireAuth, async (req: Request, res: Response) =
       include: { manufacturer: true, ipAddresses: true, student: true },
     });
 
-    const labels = assets.map((asset) => {
+    const labels = await Promise.all(assets.map(async (asset) => {
       const primaryIP = asset.ipAddresses?.[0]?.ip;
       let assignedTo = asset.assignedTo;
       if (!assignedTo && asset.student) {
@@ -580,9 +580,9 @@ router.get('/dymo-xml-batch', requireAuth, async (req: Request, res: Response) =
       return {
         assetId: asset.id,
         itemNumber: asset.itemNumber,
-        xml: buildDymoLabelXml(labelAsset, finalSettings),
+        xml: await buildDymoLabelXml(labelAsset, finalSettings),
       };
-    });
+    }));
 
     const foundIds = assets.map(a => a.id);
     const notFound = assetIds.filter((id: string) => !foundIds.includes(id));

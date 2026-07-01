@@ -121,9 +121,14 @@ function escapeXml(str: string): string {
  * label, printed directly through DYMO Label Software's local web service from the
  * browser. Coordinates are in twips (1440 per inch); label is 5040x1440 twips.
  */
-export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): string {
+export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
   const qrContent = buildQRContent(asset, opts);
+  // DYMO's native BarcodeObject doesn't reliably honor Bounds for QR sizing (its
+  // internal "Size: Large" auto-sizing clips/shrinks unpredictably regardless of the
+  // requested Bounds) - render the QR as a PNG instead and embed it as an ImageObject,
+  // which scales predictably to Bounds via ScaleMode=Fill.
+  const qrPngBase64 = (await generateQRCode(qrContent, 300)).toString('base64');
 
   const assignedText = opts.showAssignedTo && asset.assignedTo
     ? escapeXml(asset.assignedTo.substring(0, 28))
@@ -155,26 +160,22 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
   </DrawCommands>
 
   <ObjectInfo>
-    <BarcodeObject>
+    <ImageObject>
       <Name>QRCode</Name>
       <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
       <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
       <LinkedObjectName></LinkedObjectName>
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <Text>${escapeXml(qrContent)}</Text>
-      <Type>QRCode</Type>
-      <Size>Large</Size>
-      <TextPosition>None</TextPosition>
-      <TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-      <CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-      <TextEmbedding>None</TextEmbedding>
-      <ECLevel>0</ECLevel>
+      <IsVariable>False</IsVariable>
+      <Image>${qrPngBase64}</Image>
+      <ScaleMode>Fill</ScaleMode>
+      <BorderWidth>0</BorderWidth>
+      <BorderColor Alpha="255" Red="0" Green="0" Blue="0" />
       <HorizontalAlignment>Center</HorizontalAlignment>
-      <QuietZonesPadding Left="0" Top="0" Right="0" Bottom="0" />
-    </BarcodeObject>
-    <Bounds X="50" Y="50" Width="700" Height="700" />
+      <VerticalAlignment>Center</VerticalAlignment>
+    </ImageObject>
+    <Bounds X="50" Y="50" Width="1134" Height="1134" />
   </ObjectInfo>
 
   ${assignedText ? `<ObjectInfo>
