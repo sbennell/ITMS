@@ -4,6 +4,23 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.4] - 2026-07-02
+
+### Fixed
+
+- **DYMO Label - QR Code Sizing and Position**
+  - DYMO's native barcode "Size: Large" auto-sizing wasn't reliably honoring the requested dimensions - two different test sizes printed at inconsistent, incorrect sizes, with visible clipping on one
+  - QR code is now rendered as a PNG image and embedded directly in the label (same method already used for the PDF/download path), which scales predictably and precisely
+  - QR now prints at the requested 20mm x 20mm
+  - Repositioned the QR further from the label's top-left corner, with the text column shifted right to match
+
+### Technical Details
+
+- `buildDymoLabelXml()` is now async - it renders the QR via the existing `generateQRCode()` (bwip-js) and embeds it as a base64 PNG in a DYMO `ImageObject` (`ScaleMode=Fill`) instead of a native `BarcodeObject`
+- Both callers in `apps/api/src/routes/labels.ts` (`/dymo-xml/:assetId` and `/dymo-xml-batch`) updated to await it
+
+---
+
 ## [1.20.3] - 2026-07-02
 
 ### Changed
