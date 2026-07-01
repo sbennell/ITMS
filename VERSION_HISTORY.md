@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.1] - 2026-07-02
+
+### Fixed
+
+- **DYMO Label - Assigned To Text Clipped at Top Edge**
+  - Fixed the "Assigned To" name being cut off at the top of printed DYMO labels
+  - Top margin was only 30 twips (~0.5mm), too tight for bold/capital letters near the physical edge of the label
+  - Moved Assigned To, Item Number, Model, and Serial Number text blocks down by 100 twips (~1.76mm) to give proper clearance, keeping their relative spacing unchanged
+
+---
+
 ## [1.20.0] - 2026-07-02
 
 ### Added
