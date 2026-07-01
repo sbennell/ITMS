@@ -173,6 +173,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
       <TextEmbedding>None</TextEmbedding>
       <ECLevel>0</ECLevel>
       <HorizontalAlignment>Center</HorizontalAlignment>
+      <QuietZonesPadding Left="0" Top="0" Right="0" Bottom="0" />
     </BarcodeObject>
     <Bounds X="50" Y="50" Width="1200" Height="1200" />
   </ObjectInfo>
