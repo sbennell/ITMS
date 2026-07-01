@@ -201,7 +201,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="50" Y="30" Width="4940" Height="180" />
+    <Bounds X="50" Y="130" Width="4940" Height="180" />
   </ObjectInfo>` : ''}
 
   <ObjectInfo>
@@ -228,7 +228,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1340" Y="220" Width="3600" Height="170" />
+    <Bounds X="1340" Y="320" Width="3600" Height="170" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -255,7 +255,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1340" Y="400" Width="3600" Height="160" />
+    <Bounds X="1340" Y="500" Width="3600" Height="160" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -282,7 +282,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1340" Y="565" Width="3600" Height="160" />
+    <Bounds X="1340" Y="665" Width="3600" Height="160" />
   </ObjectInfo>` : ''}
 
   ${hostnameText ? `<ObjectInfo>
@@ -309,7 +309,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1340" Y="730" Width="3600" Height="150" />
+    <Bounds X="1340" Y="830" Width="3600" Height="150" />
   </ObjectInfo>` : ''}
 
   ${ipText ? `<ObjectInfo>
@@ -336,7 +336,7 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1340" Y="895" Width="3600" Height="150" />
+    <Bounds X="1340" Y="995" Width="3600" Height="150" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
