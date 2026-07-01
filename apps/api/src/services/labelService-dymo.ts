@@ -154,7 +154,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <RoundRectangle X="0" Y="0" Width="5040" Height="1440" Rx="270" Ry="270" />
   </DrawCommands>
 
-  <!-- QR Code on the left: ~22mm square -->
   <ObjectInfo>
     <BarcodeObject>
       <Name>QRCode</Name>
@@ -178,7 +177,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="50" Y="50" Width="1200" Height="1200" />
   </ObjectInfo>
 
-  <!-- Assigned To - top, centered full width -->
   ${assignedText ? `<ObjectInfo>
     <TextObject>
       <Name>AssignedTo</Name>
@@ -206,7 +204,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="50" Y="30" Width="4940" Height="180" />
   </ObjectInfo>` : ''}
 
-  <!-- Item Number -->
   <ObjectInfo>
     <TextObject>
       <Name>ItemNumber</Name>
@@ -234,7 +231,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="1340" Y="220" Width="3600" Height="170" />
   </ObjectInfo>
 
-  <!-- Model -->
   ${modelText ? `<ObjectInfo>
     <TextObject>
       <Name>Model</Name>
@@ -262,7 +258,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="1340" Y="400" Width="3600" Height="160" />
   </ObjectInfo>` : ''}
 
-  <!-- Serial Number -->
   ${serialText ? `<ObjectInfo>
     <TextObject>
       <Name>SerialNumber</Name>
@@ -290,7 +285,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="1340" Y="565" Width="3600" Height="160" />
   </ObjectInfo>` : ''}
 
-  <!-- Hostname -->
   ${hostnameText ? `<ObjectInfo>
     <TextObject>
       <Name>Hostname</Name>
@@ -318,7 +312,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="1340" Y="730" Width="3600" Height="150" />
   </ObjectInfo>` : ''}
 
-  <!-- IP Address -->
   ${ipText ? `<ObjectInfo>
     <TextObject>
       <Name>IPAddress</Name>
@@ -346,7 +339,6 @@ export function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSett
     <Bounds X="1340" Y="895" Width="3600" Height="150" />
   </ObjectInfo>` : ''}
 
-  <!-- Organization Name - bottom, centered full width -->
   ${orgText ? `<ObjectInfo>
     <TextObject>
       <Name>OrgName</Name>
