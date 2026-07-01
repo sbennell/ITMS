@@ -175,7 +175,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Center</VerticalAlignment>
     </ImageObject>
-    <Bounds X="50" Y="50" Width="1134" Height="1134" />
+    <Bounds X="200" Y="100" Width="1134" Height="1134" />
   </ObjectInfo>
 
   ${assignedText ? `<ObjectInfo>
