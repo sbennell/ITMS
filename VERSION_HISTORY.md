@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.2] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Bigger Assigned To Text**
+  - Increased the "Assigned To" name font size on DYMO labels from 10pt to 14pt for better readability
+  - Text box height increased to match (180 -> 250 twips)
+  - Item Number, Model, Serial Number, Hostname, and IP Address shifted down 70 twips each to stay clear of it, with a safe 55-twip gap kept before the organization name at the bottom
+
+---
+
 ## [1.20.1] - 2026-07-02
 
 ### Fixed
