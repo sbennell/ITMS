@@ -175,7 +175,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Center</VerticalAlignment>
     </ImageObject>
-    <Bounds X="200" Y="100" Width="1134" Height="1134" />
+    <Bounds X="370" Y="157" Width="1134" Height="1134" />
   </ObjectInfo>
 
   ${assignedText ? `<ObjectInfo>
@@ -229,7 +229,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1370" Y="390" Width="3570" Height="170" />
+    <Bounds X="1520" Y="390" Width="3420" Height="170" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -256,7 +256,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1370" Y="570" Width="3570" Height="160" />
+    <Bounds X="1520" Y="570" Width="3420" Height="160" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -283,7 +283,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1370" Y="735" Width="3570" Height="160" />
+    <Bounds X="1520" Y="735" Width="3420" Height="160" />
   </ObjectInfo>` : ''}
 
   ${hostnameText ? `<ObjectInfo>
@@ -310,7 +310,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1370" Y="900" Width="3570" Height="150" />
+    <Bounds X="1520" Y="900" Width="3420" Height="150" />
   </ObjectInfo>` : ''}
 
   ${ipText ? `<ObjectInfo>
@@ -337,7 +337,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1370" Y="1065" Width="3570" Height="150" />
+    <Bounds X="1520" Y="1065" Width="3420" Height="150" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
