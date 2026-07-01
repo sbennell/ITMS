@@ -358,13 +358,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${orgText}</String>
           <Attributes>
-            <Font Family="Arial" Size="7" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="14" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="50" Y="1270" Width="4940" Height="150" />
+    <Bounds X="50" Y="1060" Width="4940" Height="250" />
   </ObjectInfo>` : ''}
 
 </DieCutLabel>`;
