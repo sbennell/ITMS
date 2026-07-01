@@ -4,6 +4,16 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.3] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Bigger QR Code**
+  - Increased the QR code size on DYMO labels from 1200x1200 to 1300x1300 twips (~8% bigger)
+  - Text column shifted right slightly (1340 -> 1370 twips) and narrowed to match (3600 -> 3570 twips) to stay clear of the bigger QR, keeping the same right-hand margin
+
+---
+
 ## [1.20.2] - 2026-07-02
 
 ### Changed
