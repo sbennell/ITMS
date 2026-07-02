@@ -358,7 +358,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${orgText}</String>
           <Attributes>
-            <Font Family="Arial" Size="14" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="14" Bold="True" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
