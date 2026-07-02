@@ -4,6 +4,16 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.8] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Dynamic Layout for Missing Hostname/IP**
+  - When Hostname/IP isn't shown (disabled in settings, or the asset has neither), Item Number, Model, and Serial Number now grow from 10pt to 13pt and their boxes expand to fill the freed row, instead of leaving blank space
+  - No change when Hostname/IP is present - layout stays at 10pt as before
+
+---
+
 ## [1.20.7] - 2026-07-02
 
 ### Changed
