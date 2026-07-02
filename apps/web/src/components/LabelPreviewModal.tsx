@@ -33,6 +33,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
   useEffect(() => {
     if (defaultSettings) {
       setLabelOptions({
+        labelType: defaultSettings.labelType,
         showAssignedTo: defaultSettings.showAssignedTo,
         showHostname: defaultSettings.showHostname,
         showIpAddress: defaultSettings.showIpAddress,
@@ -50,8 +51,8 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     },
   });
 
-  // Check if DYMO label type is selected
-  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
+  // Check if DYMO label type is selected (per-print override, defaults from Settings)
+  const isDymo = labelOptions.labelType === 'dymo-1933081';
   const dymo = useDymoPrinting(isDymo);
 
   const dymoPrintMutation = useMutation({
@@ -64,6 +65,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
 
   const handleDownload = () => {
     const params = new URLSearchParams();
+    if (labelOptions.labelType !== undefined) params.set('labelType', labelOptions.labelType);
     if (labelOptions.showAssignedTo !== undefined) params.set('showAssignedTo', String(labelOptions.showAssignedTo));
     if (labelOptions.showHostname !== undefined) params.set('showHostname', String(labelOptions.showHostname));
     if (labelOptions.showIpAddress !== undefined) params.set('showIpAddress', String(labelOptions.showIpAddress));
@@ -74,6 +76,10 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
 
   const toggleOption = (key: keyof LabelSettings) => {
     setLabelOptions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleLabelTypeChange = (value: 'brother-dk22211' | 'dymo-1933081') => {
+    setLabelOptions(prev => ({ ...prev, labelType: value }));
   };
 
   return (
@@ -110,7 +116,7 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
               {/* Middle section: QR + text */}
               <div className="flex items-center gap-3 px-2 py-1 flex-1">
                 <img
-                  src={api.getLabelPreviewUrl(asset.id)}
+                  src={`${api.getLabelPreviewUrl(asset.id)}${labelOptions.labelType ? '?labelType=' + labelOptions.labelType : ''}`}
                   alt="QR Code"
                   className="w-14 h-14 flex-shrink-0"
                 />
@@ -140,6 +146,19 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
                 {orgData?.value || 'Organization Name'}
               </p>
             </div>
+          </div>
+
+          {/* Label Size - per-print override, doesn't change the saved Settings default */}
+          <div>
+            <label className="label">Label Size</label>
+            <select
+              value={labelOptions.labelType || 'brother-dk22211'}
+              onChange={(e) => handleLabelTypeChange(e.target.value as 'brother-dk22211' | 'dymo-1933081')}
+              className="input"
+            >
+              <option value="brother-dk22211">Brother DK-22211 (29×62mm)</option>
+              <option value="dymo-1933081">Dymo 1933081 (25×89mm)</option>
+            </select>
           </div>
 
           {/* Label Options */}

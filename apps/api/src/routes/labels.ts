@@ -46,6 +46,8 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
       settingsMap[s.key] = s.value;
     });
     const settings = parseSettings(settingsMap);
+    const labelTypeOverride = req.query.labelType as 'brother-dk22211' | 'dymo-1933081' | undefined;
+    const finalSettings = { ...settings, ...(labelTypeOverride !== undefined && { labelType: labelTypeOverride }) };
 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
@@ -57,8 +59,8 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
     }
 
     // Select correct preview function based on label type
-    const createLabelPreview = settings.labelType === 'dymo-1933081' ? createDymoPreview : createBrotherPreview;
-    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP, assignedTo } as LabelAsset, settings);
+    const createLabelPreview = finalSettings.labelType === 'dymo-1933081' ? createDymoPreview : createBrotherPreview;
+    const previewBuffer = await createLabelPreview({ ...asset, ipAddress: primaryIP, assignedTo } as LabelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Content-Disposition', `inline; filename="label-${asset.itemNumber}.png"`);
@@ -74,7 +76,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
-    const { copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent } = req.body;
+    const { copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent, labelType } = req.body;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -101,6 +103,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
     // Override settings from request body if provided
     const finalSettings = {
       ...settings,
+      ...(labelType !== undefined && { labelType }),
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
@@ -146,7 +149,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 router.post('/print-batch', requireAuth, async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
-    const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent } = req.body;
+    const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent, labelType } = req.body;
 
     if (!Array.isArray(assetIds) || assetIds.length === 0) {
       return res.status(400).json({ error: 'assetIds array is required' });
@@ -168,6 +171,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
     // Override settings from request body if provided
     const finalSettings = {
       ...settings,
+      ...(labelType !== undefined && { labelType }),
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
@@ -249,6 +253,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
     const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
+    const labelType = req.query.labelType as 'brother-dk22211' | 'dymo-1933081' | undefined;
 
     // Get label settings and organization name
     const settingsRecords = await prisma.settings.findMany({
@@ -266,6 +271,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
     // Override settings from query params if provided
     const finalSettings = {
       ...settings,
+      ...(labelType !== undefined && { labelType }),
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),
@@ -414,6 +420,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
     const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
+    const labelType = req.query.labelType as 'brother-dk22211' | 'dymo-1933081' | undefined;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -440,6 +447,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
     // Override settings from query params if provided
     const finalSettings = {
       ...settings,
+      ...(labelType !== undefined && { labelType }),
       ...(showAssignedTo !== undefined && { showAssignedTo }),
       ...(showHostname !== undefined && { showHostname }),
       ...(showIpAddress !== undefined && { showIpAddress }),

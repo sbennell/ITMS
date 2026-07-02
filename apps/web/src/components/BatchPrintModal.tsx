@@ -28,6 +28,7 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
   useEffect(() => {
     if (defaultSettings) {
       setLabelOptions({
+        labelType: defaultSettings.labelType,
         showAssignedTo: defaultSettings.showAssignedTo,
         showHostname: defaultSettings.showHostname,
         showIpAddress: defaultSettings.showIpAddress,
@@ -45,7 +46,8 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
     },
   });
 
-  const isDymo = defaultSettings?.labelType === 'dymo-1933081';
+  // Check if DYMO label type is selected (per-print override, defaults from Settings)
+  const isDymo = labelOptions.labelType === 'dymo-1933081';
   const dymo = useDymoPrinting(isDymo);
 
   const dymoPrintMutation = useMutation({
@@ -81,6 +83,7 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
   const handleDownload = () => {
     const params = new URLSearchParams();
     params.set('assetIds', assetIds.join(','));
+    if (labelOptions.labelType !== undefined) params.set('labelType', labelOptions.labelType);
     if (labelOptions.showAssignedTo !== undefined) params.set('showAssignedTo', String(labelOptions.showAssignedTo));
     if (labelOptions.showHostname !== undefined) params.set('showHostname', String(labelOptions.showHostname));
     if (labelOptions.showIpAddress !== undefined) params.set('showIpAddress', String(labelOptions.showIpAddress));
@@ -89,6 +92,10 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
 
   const toggleOption = (key: keyof LabelSettings) => {
     setLabelOptions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleLabelTypeChange = (value: 'brother-dk22211' | 'dymo-1933081') => {
+    setLabelOptions(prev => ({ ...prev, labelType: value }));
   };
 
   return (
@@ -107,6 +114,19 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
 
         {/* Content */}
         <div className="p-4 space-y-4">
+          {/* Label Size - per-print override, doesn't change the saved Settings default */}
+          <div>
+            <label className="label">Label Size</label>
+            <select
+              value={labelOptions.labelType || 'brother-dk22211'}
+              onChange={(e) => handleLabelTypeChange(e.target.value as 'brother-dk22211' | 'dymo-1933081')}
+              className="input"
+            >
+              <option value="brother-dk22211">Brother DK-22211 (29×62mm)</option>
+              <option value="dymo-1933081">Dymo 1933081 (25×89mm)</option>
+            </select>
+          </div>
+
           {/* Label Options */}
           <div className="p-3 bg-gray-50 rounded-lg grid grid-cols-2 gap-x-4 gap-y-2">
             <label className="flex items-center gap-2">
