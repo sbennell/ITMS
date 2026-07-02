@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { X, Printer, Download, Loader2, Settings } from 'lucide-react';
+import { X, Printer, Download, Loader2 } from 'lucide-react';
 import { api, BatchPrintResult, LabelSettings } from '../lib/api';
 import { printDymoLabel, TwinTurboRoll } from '../lib/dymoLabelPrinter';
 import { useDymoPrinting } from '../hooks/useDymoPrinting';
@@ -12,7 +12,6 @@ interface BatchPrintModalProps {
 }
 
 export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchPrintModalProps) {
-  const [showOptions, setShowOptions] = useState(false);
   const [labelOptions, setLabelOptions] = useState<Partial<LabelSettings>>({
     showAssignedTo: true,
     showHostname: true,
@@ -108,47 +107,36 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Label Options Toggle */}
-          <button
-            onClick={() => setShowOptions(!showOptions)}
-            className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            <Settings className="w-4 h-4" />
-            Label Options
-            <span className="text-xs text-gray-400">{showOptions ? '▲' : '▼'}</span>
-          </button>
-
-          {showOptions && (
-            <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showAssignedTo ?? true}
-                  onChange={() => toggleOption('showAssignedTo')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Assigned To</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showHostname ?? true}
-                  onChange={() => toggleOption('showHostname')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Hostname</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showIpAddress ?? true}
-                  onChange={() => toggleOption('showIpAddress')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show IP Address</span>
-              </label>
-            </div>
-          )}
+          {/* Label Options */}
+          <div className="p-3 bg-gray-50 rounded-lg grid grid-cols-2 gap-x-4 gap-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showAssignedTo ?? true}
+                onChange={() => toggleOption('showAssignedTo')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show Assigned To</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showHostname ?? true}
+                onChange={() => toggleOption('showHostname')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show Hostname</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showIpAddress ?? true}
+                onChange={() => toggleOption('showIpAddress')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show IP Address</span>
+            </label>
+          </div>
 
           {/* DYMO printer selection - detected on this device */}
           {isDymo && dymo.available && (
