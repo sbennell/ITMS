@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.5] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Organization Name Size and Layout**
+  - Organization Name font increased from 7pt to 14pt, matching Assigned To
+  - Assigned To and Organization Name were both centered across the full label width, which caused Organization Name to visibly overlap the QR code once enlarged - both are now confined to the same right-hand text column as Item Number/Model/Serial Number, entirely clear of the QR
+
+### Known limitation
+
+- Organization Name's box can still vertically overlap the IP Address line for assets that have an IP address set - not yet fixed
+
+---
+
 ## [1.20.4] - 2026-07-02
 
 ### Fixed
