@@ -146,6 +146,10 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
   const ipText = opts.showIpAddress && asset.ipAddress
     ? escapeXml(asset.ipAddress.substring(0, 30))
     : '';
+  let hostIpText = hostnameText;
+  if (ipText) {
+    hostIpText = hostIpText ? `${hostIpText} \\ ${ipText}` : ipText;
+  }
   const orgText = asset.organizationName
     ? escapeXml(asset.organizationName.substring(0, 40))
     : '';
@@ -286,9 +290,9 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
     <Bounds X="1520" Y="780" Width="3420" Height="180" />
   </ObjectInfo>` : ''}
 
-  ${hostnameText ? `<ObjectInfo>
+  ${hostIpText ? `<ObjectInfo>
     <TextObject>
-      <Name>Hostname</Name>
+      <Name>HostnameIP</Name>
       <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
       <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
       <LinkedObjectName></LinkedObjectName>
@@ -302,42 +306,15 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Verticalized>False</Verticalized>
       <StyledText>
         <Element>
-          <String>${hostnameText}</String>
+          <String>${hostIpText}</String>
           <Attributes>
-            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="11" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="970" Width="3420" Height="170" />
-  </ObjectInfo>` : ''}
-
-  ${ipText ? `<ObjectInfo>
-    <TextObject>
-      <Name>IPAddress</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${ipText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="1520" Y="1150" Width="3420" Height="170" />
+    <Bounds X="1520" Y="970" Width="3420" Height="220" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
