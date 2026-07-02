@@ -4,6 +4,17 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.7] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Layout and Typography Refinements**
+  - Item Number, Model, Serial Number, Hostname, and IP Address text are now centered (previously left-aligned)
+  - Hostname and IP Address combined onto a single line ("hostname \ ip"), matching the existing PDF label format, freeing up a full row of vertical space
+  - Item Number, Model, Serial Number, and the combined Hostname/IP line now all use a matching 10pt font (previously a mix of 9/10/11pt), with evenly spaced boxes
+
+---
+
 ## [1.20.6] - 2026-07-02
 
 ### Changed
