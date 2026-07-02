@@ -202,7 +202,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="50" Y="130" Width="4940" Height="250" />
+    <Bounds X="1520" Y="130" Width="3420" Height="250" />
   </ObjectInfo>` : ''}
 
   <ObjectInfo>
@@ -364,7 +364,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="50" Y="1060" Width="4940" Height="250" />
+    <Bounds X="1520" Y="1060" Width="3420" Height="250" />
   </ObjectInfo>` : ''}
 
 </DieCutLabel>`;
