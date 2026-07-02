@@ -4,6 +4,16 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.20.6] - 2026-07-02
+
+### Changed
+
+- **DYMO Label - Organization Name Bold and Repositioned**
+  - Organization Name is now bold, matching Assigned To's weight
+  - Repositioned closer to the bottom edge of the label for better visual balance, confirmed on a test print
+
+---
+
 ## [1.20.5] - 2026-07-02
 
 ### Changed
