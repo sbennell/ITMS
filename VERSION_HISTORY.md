@@ -4,6 +4,23 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.21.0] - 2026-07-02
+
+### Added
+
+- **Print Dialogs Rework**
+  - Label Options (Show Assigned To/Hostname/IP Address) are now always visible in a two-column layout, instead of hidden behind a collapsed toggle
+  - QR Code Content choice removed from the print dialogs - now only configurable in Settings > Label Printing
+  - New "Label Size" selector lets you choose Brother DK-22211 vs DYMO 1933081 per print/download job, without changing the saved Settings default
+  - The label preview now matches the selected label size's real aspect ratio (Brother 62x29mm vs DYMO 89x25mm), instead of a fixed generic box
+
+### Technical Details
+
+- `apps/api/src/routes/labels.ts`: `/preview`, `/print`, `/print-batch`, `/download`, and `/download-batch` all accept an optional `labelType` override now, following the same override pattern already used for `showAssignedTo`/`showHostname`/`showIpAddress`/`qrCodeContent`
+- `LabelPreviewModal.tsx` and `BatchPrintModal.tsx`: `isDymo` is now derived from the local per-dialog `labelType` selection rather than only the global settings value
+
+---
+
 ## [1.20.8] - 2026-07-02
 
 ### Changed
