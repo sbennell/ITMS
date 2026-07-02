@@ -76,10 +76,6 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     setLabelOptions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleQRCodeContentChange = (value: 'full' | 'itemNumber') => {
-    setLabelOptions(prev => ({ ...prev, qrCodeContent: value }));
-  };
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -147,62 +143,34 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
           </div>
 
           {/* Label Options */}
-          <div className="p-3 bg-gray-50 rounded-lg space-y-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showAssignedTo ?? true}
-                  onChange={() => toggleOption('showAssignedTo')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Assigned To</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showHostname ?? true}
-                  onChange={() => toggleOption('showHostname')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show Hostname</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={labelOptions.showIpAddress ?? true}
-                  onChange={() => toggleOption('showIpAddress')}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Show IP Address</span>
-              </label>
-            </div>
-
-            <div className="pt-2 border-t border-gray-300 space-y-2">
-              <p className="text-xs font-medium text-gray-600">QR Code Content</p>
-              <div className="grid grid-cols-2 gap-x-4">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="qrCodeContent"
-                    checked={(labelOptions.qrCodeContent ?? 'full') === 'full'}
-                    onChange={() => handleQRCodeContentChange('full')}
-                    className="border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700">Full (all label info)</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="qrCodeContent"
-                    checked={(labelOptions.qrCodeContent ?? 'full') === 'itemNumber'}
-                    onChange={() => handleQRCodeContentChange('itemNumber')}
-                    className="border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm text-gray-700">Item Number Only</span>
-                </label>
-              </div>
-            </div>
+          <div className="p-3 bg-gray-50 rounded-lg grid grid-cols-2 gap-x-4 gap-y-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showAssignedTo ?? true}
+                onChange={() => toggleOption('showAssignedTo')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show Assigned To</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showHostname ?? true}
+                onChange={() => toggleOption('showHostname')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show Hostname</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={labelOptions.showIpAddress ?? true}
+                onChange={() => toggleOption('showIpAddress')}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm text-gray-700">Show IP Address</span>
+            </label>
           </div>
 
           {/* DYMO printer selection - detected on this device */}
