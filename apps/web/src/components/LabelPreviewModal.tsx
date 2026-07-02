@@ -10,6 +10,14 @@ interface LabelPreviewModalProps {
   onClose: () => void;
 }
 
+// Physical label dimensions in mm (width x height), used to keep the preview's
+// aspect ratio in sync with whichever label size is selected.
+const LABEL_DIMENSIONS_MM: Record<string, { width: number; height: number }> = {
+  'brother-dk22211': { width: 62, height: 29 },
+  'dymo-1933081': { width: 89, height: 25 },
+};
+const PREVIEW_PX_PER_MM = 4.3;
+
 export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalProps) {
   const [labelOptions, setLabelOptions] = useState<Partial<LabelSettings>>({
     showAssignedTo: true,
@@ -82,6 +90,10 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
     setLabelOptions(prev => ({ ...prev, labelType: value }));
   };
 
+  const labelDimensionsMm = LABEL_DIMENSIONS_MM[labelOptions.labelType || 'brother-dk22211'];
+  const previewWidth = labelDimensionsMm.width * PREVIEW_PX_PER_MM;
+  const previewHeight = labelDimensionsMm.height * PREVIEW_PX_PER_MM;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
@@ -98,11 +110,11 @@ export default function LabelPreviewModal({ asset, onClose }: LabelPreviewModalP
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Preview - Landscape layout matching actual print (v1.1.0) */}
+          {/* Preview - matches the aspect ratio of the selected label size */}
           <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
             <div
               className="bg-white border border-gray-400 rounded shadow-sm flex flex-col"
-              style={{ width: '300px', minHeight: '130px' }}
+              style={{ width: `${previewWidth}px`, minHeight: `${previewHeight}px` }}
             >
               {/* Assigned To - centered at top */}
               {labelOptions.showAssignedTo && (asset.student || asset.assignedTo) && (
