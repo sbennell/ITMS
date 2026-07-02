@@ -223,13 +223,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${itemText}</String>
           <Attributes>
-            <Font Family="Arial" Size="9" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="390" Width="3420" Height="170" />
+    <Bounds X="1520" Y="390" Width="3420" Height="190" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -250,13 +250,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${modelText}</String>
           <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="570" Width="3420" Height="160" />
+    <Bounds X="1520" Y="590" Width="3420" Height="180" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -277,13 +277,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${serialText}</String>
           <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="735" Width="3420" Height="160" />
+    <Bounds X="1520" Y="780" Width="3420" Height="180" />
   </ObjectInfo>` : ''}
 
   ${hostnameText ? `<ObjectInfo>
@@ -304,13 +304,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${hostnameText}</String>
           <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="900" Width="3420" Height="150" />
+    <Bounds X="1520" Y="970" Width="3420" Height="170" />
   </ObjectInfo>` : ''}
 
   ${ipText ? `<ObjectInfo>
@@ -331,13 +331,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${ipText}</String>
           <Attributes>
-            <Font Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="1065" Width="3420" Height="150" />
+    <Bounds X="1520" Y="1150" Width="3420" Height="170" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
