@@ -233,7 +233,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="390" Width="3420" Height="190" />
+    <Bounds X="1520" Y="390" Width="3420" Height="200" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -254,13 +254,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${modelText}</String>
           <Attributes>
-            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="590" Width="3420" Height="180" />
+    <Bounds X="1520" Y="600" Width="3420" Height="200" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -281,13 +281,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${serialText}</String>
           <Attributes>
-            <Font Family="Arial" Size="9" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="780" Width="3420" Height="180" />
+    <Bounds X="1520" Y="810" Width="3420" Height="200" />
   </ObjectInfo>` : ''}
 
   ${hostIpText ? `<ObjectInfo>
@@ -308,13 +308,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${hostIpText}</String>
           <Attributes>
-            <Font Family="Arial" Size="11" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="970" Width="3420" Height="220" />
+    <Bounds X="1520" Y="1020" Width="3420" Height="200" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
