@@ -150,6 +150,19 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
   if (ipText) {
     hostIpText = hostIpText ? `${hostIpText} \\ ${ipText}` : ipText;
   }
+
+  // When Hostname/IP isn't shown, redistribute its row to Item Number/Model/Serial
+  // Number instead of leaving the space blank.
+  const hasHostIp = !!hostIpText;
+  const itemModelSerialSize = hasHostIp ? 10 : 13;
+  const itemModelSerialHeight = hasHostIp ? 200 : 260;
+  const itemY = 390;
+  const modelY = hasHostIp ? 600 : 665;
+  const serialY = hasHostIp ? 810 : 940;
+  const hostIpY = 1020;
+  const hostIpHeight = 200;
+  const hostIpSize = 10;
+
   const orgText = asset.organizationName
     ? escapeXml(asset.organizationName.substring(0, 40))
     : '';
@@ -227,13 +240,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${itemText}</String>
           <Attributes>
-            <Font Family="Arial" Size="10" Bold="True" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="${itemModelSerialSize}" Bold="True" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="390" Width="3420" Height="200" />
+    <Bounds X="1520" Y="${itemY}" Width="3420" Height="${itemModelSerialHeight}" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -254,13 +267,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${modelText}</String>
           <Attributes>
-            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="${itemModelSerialSize}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="600" Width="3420" Height="200" />
+    <Bounds X="1520" Y="${modelY}" Width="3420" Height="${itemModelSerialHeight}" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -281,13 +294,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${serialText}</String>
           <Attributes>
-            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="${itemModelSerialSize}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="810" Width="3420" Height="200" />
+    <Bounds X="1520" Y="${serialY}" Width="3420" Height="${itemModelSerialHeight}" />
   </ObjectInfo>` : ''}
 
   ${hostIpText ? `<ObjectInfo>
@@ -308,13 +321,13 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
         <Element>
           <String>${hostIpText}</String>
           <Attributes>
-            <Font Family="Arial" Size="10" Bold="False" Italic="False" Underline="False" Strikeout="False" />
+            <Font Family="Arial" Size="${hostIpSize}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
             <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
           </Attributes>
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="1520" Y="1020" Width="3420" Height="200" />
+    <Bounds X="1520" Y="${hostIpY}" Width="3420" Height="${hostIpHeight}" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
