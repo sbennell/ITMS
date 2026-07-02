@@ -214,7 +214,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
       <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
+      <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Middle</VerticalAlignment>
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
@@ -241,7 +241,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
       <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
+      <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Middle</VerticalAlignment>
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
@@ -268,7 +268,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
       <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
+      <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Middle</VerticalAlignment>
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
@@ -295,7 +295,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
       <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
+      <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Middle</VerticalAlignment>
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
@@ -322,7 +322,7 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
       <Rotation>Rotation0</Rotation>
       <IsMirrored>False</IsMirrored>
       <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Left</HorizontalAlignment>
+      <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Middle</VerticalAlignment>
       <TextFitMode>ShrinkToFit</TextFitMode>
       <UseFullFontHeight>True</UseFullFontHeight>
