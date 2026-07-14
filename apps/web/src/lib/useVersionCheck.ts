@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-export const APP_VERSION = '1.22.1';
+// Injected at build time from the root package.json (see vite.config.ts)
+export const APP_VERSION = __APP_VERSION__;
 
 export interface ChangelogEntry {
   version: string;
