@@ -1,11 +1,52 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Key, Edit2, Shield, UserX } from 'lucide-react';
-import { api, User } from '../../lib/api';
+import { api, User, PermissionFlag } from '../../lib/api';
 import { useAuth } from '../../App';
 
+const PERMISSION_FIELDS: Array<{ key: PermissionFlag; label: string }> = [
+  { key: 'canAccessAssets', label: 'Assets (incl. label printing)' },
+  { key: 'canAccessStudents', label: 'Students' },
+  { key: 'canAccessStocktake', label: 'Stocktake' },
+  { key: 'canAccessReports', label: 'Reports & Network/IPAM' },
+  { key: 'canViewPasswords', label: 'View device/student passwords' }
+];
+
+type PermissionState = Record<PermissionFlag, boolean>;
+
+function PermissionCheckboxes({ role, permissions, onChange }: {
+  role: string;
+  permissions: PermissionState;
+  onChange: (flag: PermissionFlag, value: boolean) => void;
+}) {
+  if (role === 'ADMIN') {
+    return (
+      <p className="text-xs text-gray-500 italic">
+        Administrators have full access to all areas.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="label">Permissions</label>
+      {PERMISSION_FIELDS.map((f) => (
+        <label key={f.key} className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={permissions[f.key]}
+            onChange={(e) => onChange(f.key, e.target.checked)}
+            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          {f.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function UserForm({ onSubmit, onCancel, isLoading }: {
-  onSubmit: (data: { username: string; password: string; fullName: string; role: string }) => void;
+  onSubmit: (data: { username: string; password: string; fullName: string; role: string } & PermissionState) => void;
   onCancel: () => void;
   isLoading: boolean;
 }) {
@@ -13,7 +54,12 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
     username: '',
     password: '',
     fullName: '',
-    role: 'USER'
+    role: 'USER',
+    canAccessAssets: false,
+    canAccessStudents: false,
+    canAccessStocktake: false,
+    canAccessReports: false,
+    canViewPasswords: false
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,6 +114,11 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
               <option value="ADMIN">Admin</option>
             </select>
           </div>
+          <PermissionCheckboxes
+            role={formData.role}
+            permissions={formData}
+            onChange={(flag, value) => setFormData({ ...formData, [flag]: value })}
+          />
           <div className="flex justify-end gap-2 pt-4">
             <button type="button" onClick={onCancel} className="btn btn-secondary">
               Cancel
@@ -84,13 +135,18 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
 
 function UserEditForm({ user, onSubmit, onCancel, isLoading }: {
   user: User;
-  onSubmit: (data: { fullName: string; role: string }) => void;
+  onSubmit: (data: { fullName: string; role: string } & PermissionState) => void;
   onCancel: () => void;
   isLoading: boolean;
 }) {
   const [formData, setFormData] = useState({
     fullName: user.fullName,
-    role: user.role as string
+    role: user.role as string,
+    canAccessAssets: user.canAccessAssets,
+    canAccessStudents: user.canAccessStudents,
+    canAccessStocktake: user.canAccessStocktake,
+    canAccessReports: user.canAccessReports,
+    canViewPasswords: user.canViewPasswords
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -124,6 +180,11 @@ function UserEditForm({ user, onSubmit, onCancel, isLoading }: {
               <option value="ADMIN">Admin</option>
             </select>
           </div>
+          <PermissionCheckboxes
+            role={formData.role}
+            permissions={formData}
+            onChange={(flag, value) => setFormData({ ...formData, [flag]: value })}
+          />
           <div className="flex justify-end gap-2 pt-4">
             <button type="button" onClick={onCancel} className="btn btn-secondary">
               Cancel
@@ -161,8 +222,10 @@ function UserManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { fullName?: string; role?: string; isActive?: boolean } }) =>
-      api.updateUser(id, data),
+    mutationFn: ({ id, data }: {
+      id: string;
+      data: { fullName?: string; role?: string; isActive?: boolean } & Partial<Record<PermissionFlag, boolean>>;
+    }) => api.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setEditingUser(null);

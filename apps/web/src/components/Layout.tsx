@@ -17,17 +17,17 @@ import {
 } from 'lucide-react';
 import { useState, useCallback } from 'react';
 import AboutModal from './AboutModal';
-import { api } from '../lib/api';
+import { api, PermissionFlag } from '../lib/api';
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
 import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 
-const navigation = [
-  { name: 'Assets', href: '/assets', icon: Package },
-  { name: 'IP Addresses', href: '/network', icon: Network },
-  { name: 'Reports', href: '/reports', icon: BarChart2 },
-  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck },
-  { name: 'Students', href: '/students', icon: GraduationCap }
+const NAV_ITEMS: Array<{ name: string; href: string; icon: typeof Package; permission: PermissionFlag }> = [
+  { name: 'Assets', href: '/assets', icon: Package, permission: 'canAccessAssets' },
+  { name: 'IP Addresses', href: '/network', icon: Network, permission: 'canAccessReports' },
+  { name: 'Reports', href: '/reports', icon: BarChart2, permission: 'canAccessReports' },
+  { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck, permission: 'canAccessStocktake' },
+  { name: 'Students', href: '/students', icon: GraduationCap, permission: 'canAccessStudents' }
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -35,7 +35,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, hasPermission } = useAuth();
+  const navigation = NAV_ITEMS.filter((item) => hasPermission(item.permission));
   const { data: versionCheck } = useVersionCheck();
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');

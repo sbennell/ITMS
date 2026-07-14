@@ -6,16 +6,25 @@ import LookupsTab from './settings/LookupsTab';
 import DataTab from './settings/DataTab';
 import AccountTab from './settings/AccountTab';
 import StudentsTab from './settings/StudentsTab';
+import { useAuth } from '../App';
 
 type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'account' | 'students';
 
-const TABS: Array<{ id: TabId; label: string }> = [
+const ALL_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general', label: 'General' },
   { id: 'users', label: 'Users' },
   { id: 'students', label: 'Students' },
   { id: 'networking', label: 'Networking' },
   { id: 'lookups', label: 'Lookups' },
   { id: 'data', label: 'Data' },
+  { id: 'account', label: 'Account' }
+];
+
+// Non-admins only ever get their own Account tab - every other tab either configures
+// something global (General, Networking, Lookups) or is inherently admin-only
+// (Users, Data/import, the Students import config), and the underlying API routes are
+// admin-gated too, so this is UI-layer convenience on top of real backend enforcement.
+const NON_ADMIN_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'account', label: 'Account' }
 ];
 
@@ -30,7 +39,9 @@ const TabComponents: Record<TabId, React.ComponentType> = {
 };
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<TabId>('general');
+  const { isAdmin } = useAuth();
+  const TABS = isAdmin ? ALL_TABS : NON_ADMIN_TABS;
+  const [activeTab, setActiveTab] = useState<TabId>(isAdmin ? 'general' : 'account');
   const ActiveComponent = TabComponents[activeTab];
 
   return (

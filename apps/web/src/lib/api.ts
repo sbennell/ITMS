@@ -123,11 +123,23 @@ export interface Lookup {
   _count?: { assets: number };
 }
 
+export type PermissionFlag =
+  | 'canAccessAssets'
+  | 'canAccessStudents'
+  | 'canAccessStocktake'
+  | 'canAccessReports'
+  | 'canViewPasswords';
+
 export interface User {
   id: string;
   username: string;
   fullName: string;
   role: 'ADMIN' | 'USER';
+  canAccessAssets: boolean;
+  canAccessStudents: boolean;
+  canAccessStocktake: boolean;
+  canAccessReports: boolean;
+  canViewPasswords: boolean;
   isActive?: boolean;
   lastLogin?: string;
   createdAt?: string;
@@ -421,12 +433,21 @@ export const api = {
 
   // Users (admin only)
   getUsers: () => fetchJson<User[]>('/auth/users'),
-  createUser: (data: { username: string; password: string; fullName: string; role?: string }) =>
+  createUser: (data: {
+    username: string;
+    password: string;
+    fullName: string;
+    role?: string;
+  } & Partial<Record<PermissionFlag, boolean>>) =>
     fetchJson<User>('/auth/users', {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-  updateUser: (id: string, data: { fullName?: string; role?: string; isActive?: boolean }) =>
+  updateUser: (id: string, data: {
+    fullName?: string;
+    role?: string;
+    isActive?: boolean;
+  } & Partial<Record<PermissionFlag, boolean>>) =>
     fetchJson<User>(`/auth/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)

@@ -6,6 +6,7 @@ import { ArrowLeft, Save, Trash2, Plus } from 'lucide-react';
 import { api, Asset, StudentSummary } from '../lib/api';
 import { STATUS_LABELS, CONDITION_LABELS } from '../lib/utils';
 import StudentSearchCombobox from '../components/StudentSearchCombobox';
+import { useAuth } from '../App';
 
 type AssetFormData = {
   itemNumber: string;
@@ -40,6 +41,7 @@ export default function AssetForm() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const { hasPermission } = useAuth();
   const isEditing = !!id;
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<AssetFormData>({
@@ -210,6 +212,13 @@ export default function AssetForm() {
     Object.entries(data).forEach(([key, value]) => {
       cleanData[key] = value === '' ? null : value;
     });
+
+    // Without canViewPasswords, the field was never populated with the real value
+    // (the API redacts it to null) - omit it entirely so an unrelated save doesn't
+    // wipe the actual stored password.
+    if (!hasPermission('canViewPasswords')) {
+      delete cleanData.devicePassword;
+    }
 
     if (isEditing) {
       updateMutation.mutate(cleanData);
@@ -458,17 +467,23 @@ export default function AssetForm() {
             </div>
             <div>
               <label className="label">Device Password</label>
-              <input
-                {...register('devicePassword')}
-                type="password"
-                className="input"
-                placeholder={isEditing && asset?.devicePassword ? 'Modify or leave blank to keep existing' : 'Enter password'}
-                autoComplete={isEditing ? 'off' : 'new-password'}
-              />
-              {isEditing && asset?.devicePassword && (
-                <p className="mt-1 text-xs text-gray-500">
-                  ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
-                </p>
+              {hasPermission('canViewPasswords') ? (
+                <>
+                  <input
+                    {...register('devicePassword')}
+                    type="password"
+                    className="input"
+                    placeholder={isEditing && asset?.devicePassword ? 'Modify or leave blank to keep existing' : 'Enter password'}
+                    autoComplete={isEditing ? 'off' : 'new-password'}
+                  />
+                  {isEditing && asset?.devicePassword && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="input bg-gray-50 text-gray-400 italic flex items-center">Hidden</p>
               )}
             </div>
           </div>

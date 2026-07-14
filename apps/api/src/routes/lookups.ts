@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth } from './auth.js';
+import { requireAuth, requireAdmin } from './auth.js';
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get('/categories', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/categories', async (req: Request, res: Response) => {
+router.post('/categories', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { name, description } = req.body;
 
@@ -45,7 +45,7 @@ router.post('/categories', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/categories/:id', async (req: Request, res: Response) => {
+router.put('/categories/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
   const { name, description } = req.body;
@@ -65,7 +65,7 @@ router.put('/categories/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/categories/:id', async (req: Request, res: Response) => {
+router.delete('/categories/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
 
@@ -97,7 +97,7 @@ router.get('/manufacturers', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/manufacturers', async (req: Request, res: Response) => {
+router.post('/manufacturers', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { name, website, supportUrl, contactInfo } = req.body;
 
@@ -119,7 +119,7 @@ router.post('/manufacturers', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/manufacturers/:id', async (req: Request, res: Response) => {
+router.put('/manufacturers/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
   const { name, website, supportUrl, contactInfo } = req.body;
@@ -139,7 +139,7 @@ router.put('/manufacturers/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/manufacturers/:id', async (req: Request, res: Response) => {
+router.delete('/manufacturers/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
 
@@ -171,7 +171,7 @@ router.get('/suppliers', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/suppliers', async (req: Request, res: Response) => {
+router.post('/suppliers', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { name, website, contactInfo, accountNum } = req.body;
 
@@ -193,7 +193,7 @@ router.post('/suppliers', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/suppliers/:id', async (req: Request, res: Response) => {
+router.put('/suppliers/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
   const { name, website, contactInfo, accountNum } = req.body;
@@ -213,7 +213,7 @@ router.put('/suppliers/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/suppliers/:id', async (req: Request, res: Response) => {
+router.delete('/suppliers/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
 
@@ -245,7 +245,7 @@ router.get('/locations', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/locations', async (req: Request, res: Response) => {
+router.post('/locations', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { name, building, floor, room, address } = req.body;
 
@@ -267,7 +267,7 @@ router.post('/locations', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/locations/:id', async (req: Request, res: Response) => {
+router.put('/locations/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
   const { name, building, floor, room, address } = req.body;
@@ -287,7 +287,7 @@ router.put('/locations/:id', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/locations/:id', async (req: Request, res: Response) => {
+router.delete('/locations/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
 
@@ -318,7 +318,7 @@ router.get('/filters', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/filters', async (req: Request, res: Response) => {
+router.post('/filters', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { name, filterConfig, sortConfig, isDefault, description } = req.body;
 
@@ -346,7 +346,7 @@ router.post('/filters', async (req: Request, res: Response) => {
   }
 });
 
-router.delete('/filters/:id', async (req: Request, res: Response) => {
+router.delete('/filters/:id', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
 
@@ -376,7 +376,7 @@ router.get('/settings/:key', async (req: Request, res: Response) => {
   }
 });
 
-router.put('/settings/:key', async (req: Request, res: Response) => {
+router.put('/settings/:key', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const key = req.params.key as string;
   const { value } = req.body;

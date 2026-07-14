@@ -2,6 +2,7 @@ import { createContext, useContext, Component, ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Layout from './components/Layout';
+import PermissionRoute from './components/PermissionRoute';
 import Login from './pages/Login';
 import AssetList from './pages/AssetList';
 import AssetDetail from './pages/AssetDetail';
@@ -13,17 +14,36 @@ import Settings from './pages/Settings';
 import Stocktake from './pages/Stocktake';
 import Network from './pages/Network';
 import Reports from './pages/Reports';
-import { api, User } from './lib/api';
+import { api, User, PermissionFlag } from './lib/api';
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  hasPermission: (flag: PermissionFlag) => boolean;
 }
 
-export const AuthContext = createContext<AuthContextType>({ user: null, isAdmin: false });
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isAdmin: false,
+  hasPermission: () => false
+});
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+// Ordered list of top-level areas and the permission each needs; used both for the "/"
+// redirect and as the fallback landing spot when a restricted user hits a blocked route.
+const AREA_ROUTES: Array<{ path: string; flag: PermissionFlag }> = [
+  { path: '/assets', flag: 'canAccessAssets' },
+  { path: '/students', flag: 'canAccessStudents' },
+  { path: '/stocktake', flag: 'canAccessStocktake' },
+  { path: '/network', flag: 'canAccessReports' },
+  { path: '/reports', flag: 'canAccessReports' }
+];
+
+export function firstAccessibleArea(hasPermission: AuthContextType['hasPermission']): string | null {
+  return AREA_ROUTES.find((r) => hasPermission(r.flag))?.path ?? null;
 }
 
 class ErrorBoundary extends Component<{ children: ReactNode }> {
@@ -59,9 +79,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  const authValue = {
-    user: data.user,
-    isAdmin: data.user.role === 'ADMIN'
+  const isAdmin = data.user.role === 'ADMIN';
+  const user = data.user;
+  const authValue: AuthContextType = {
+    user,
+    isAdmin,
+    hasPermission: (flag) => isAdmin || !!user[flag]
   };
 
   return (
@@ -69,6 +92,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+function AreaRedirect() {
+  const { hasPermission } = useAuth();
+  return <Navigate to={firstAccessibleArea(hasPermission) ?? '/settings'} replace />;
 }
 
 export default function App() {
@@ -84,17 +112,17 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Routes>
-                  <Route path="/" element={<Navigate to="/assets" replace />} />
-                  <Route path="/assets" element={<AssetList />} />
-                  <Route path="/assets/new" element={<AssetForm />} />
-                  <Route path="/assets/bulk-add" element={<BulkAddAssets />} />
-                  <Route path="/assets/:id" element={<AssetDetail />} />
-                  <Route path="/assets/:id/edit" element={<AssetForm />} />
-                  <Route path="/students" element={<StudentList />} />
-                  <Route path="/students/:id" element={<StudentDetail />} />
-                  <Route path="/stocktake" element={<Stocktake />} />
-                  <Route path="/network" element={<Network />} />
-                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/" element={<AreaRedirect />} />
+                  <Route path="/assets" element={<PermissionRoute permission="canAccessAssets"><AssetList /></PermissionRoute>} />
+                  <Route path="/assets/new" element={<PermissionRoute permission="canAccessAssets"><AssetForm /></PermissionRoute>} />
+                  <Route path="/assets/bulk-add" element={<PermissionRoute permission="canAccessAssets"><BulkAddAssets /></PermissionRoute>} />
+                  <Route path="/assets/:id" element={<PermissionRoute permission="canAccessAssets"><AssetDetail /></PermissionRoute>} />
+                  <Route path="/assets/:id/edit" element={<PermissionRoute permission="canAccessAssets"><AssetForm /></PermissionRoute>} />
+                  <Route path="/students" element={<PermissionRoute permission="canAccessStudents"><StudentList /></PermissionRoute>} />
+                  <Route path="/students/:id" element={<PermissionRoute permission="canAccessStudents"><StudentDetail /></PermissionRoute>} />
+                  <Route path="/stocktake" element={<PermissionRoute permission="canAccessStocktake"><Stocktake /></PermissionRoute>} />
+                  <Route path="/network" element={<PermissionRoute permission="canAccessReports"><Network /></PermissionRoute>} />
+                  <Route path="/reports" element={<PermissionRoute permission="canAccessReports"><Reports /></PermissionRoute>} />
                   <Route path="/settings" element={<Settings />} />
                 </Routes>
               </Layout>

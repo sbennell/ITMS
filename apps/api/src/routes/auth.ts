@@ -16,6 +16,22 @@ const loginRateLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please try again later.' }
 });
 
+// Per-user feature toggles (only enforced for role=USER; ADMIN always bypasses)
+export type PermissionFlag =
+  | 'canAccessAssets'
+  | 'canAccessStudents'
+  | 'canAccessStocktake'
+  | 'canAccessReports'
+  | 'canViewPasswords';
+
+export const PERMISSION_FLAGS: PermissionFlag[] = [
+  'canAccessAssets',
+  'canAccessStudents',
+  'canAccessStocktake',
+  'canAccessReports',
+  'canViewPasswords'
+];
+
 // Extend session type
 declare module 'express-session' {
   interface SessionData {
@@ -24,6 +40,11 @@ declare module 'express-session' {
     username: string;
     role: 'ADMIN' | 'USER';
     fullName: string;
+    canAccessAssets: boolean;
+    canAccessStudents: boolean;
+    canAccessStocktake: boolean;
+    canAccessReports: boolean;
+    canViewPasswords: boolean;
   }
 }
 
@@ -45,6 +66,30 @@ export const requireAdmin = (req: Request, res: Response, next: Function) => {
   }
 };
 
+// Check a specific per-user permission flag; ADMIN always bypasses
+export const requirePermission = (flag: PermissionFlag) =>
+  (req: Request, res: Response, next: Function) => {
+    if (!req.session.authenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (req.session.role === 'ADMIN' || req.session[flag]) {
+      return next();
+    }
+    return res.status(403).json({ error: 'You do not have permission to access this feature' });
+  };
+
+// Same, but passes if the user has ANY of the listed flags (a route serving two feature areas)
+export const requireAnyPermission = (...flags: PermissionFlag[]) =>
+  (req: Request, res: Response, next: Function) => {
+    if (!req.session.authenticated) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (req.session.role === 'ADMIN' || flags.some((f) => req.session[f])) {
+      return next();
+    }
+    return res.status(403).json({ error: 'You do not have permission to access this feature' });
+  };
+
 // Check auth status
 router.get('/status', (req: Request, res: Response) => {
   if (req.session.authenticated) {
@@ -54,7 +99,12 @@ router.get('/status', (req: Request, res: Response) => {
         id: req.session.userId,
         username: req.session.username,
         fullName: req.session.fullName,
-        role: req.session.role
+        role: req.session.role,
+        canAccessAssets: req.session.canAccessAssets,
+        canAccessStudents: req.session.canAccessStudents,
+        canAccessStocktake: req.session.canAccessStocktake,
+        canAccessReports: req.session.canAccessReports,
+        canViewPasswords: req.session.canViewPasswords
       }
     });
   } else {
@@ -97,6 +147,11 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       req.session.username = user.username;
       req.session.role = user.role as 'ADMIN' | 'USER';
       req.session.fullName = user.fullName;
+      req.session.canAccessAssets = user.canAccessAssets;
+      req.session.canAccessStudents = user.canAccessStudents;
+      req.session.canAccessStocktake = user.canAccessStocktake;
+      req.session.canAccessReports = user.canAccessReports;
+      req.session.canViewPasswords = user.canViewPasswords;
 
       return res.json({
         success: true,
@@ -105,7 +160,12 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
           id: user.id,
           username: user.username,
           fullName: user.fullName,
-          role: user.role
+          role: user.role,
+          canAccessAssets: user.canAccessAssets,
+          canAccessStudents: user.canAccessStudents,
+          canAccessStocktake: user.canAccessStocktake,
+          canAccessReports: user.canAccessReports,
+          canViewPasswords: user.canViewPasswords
         }
       });
     }
@@ -141,6 +201,11 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     req.session.username = user.username;
     req.session.role = user.role as 'ADMIN' | 'USER';
     req.session.fullName = user.fullName;
+    req.session.canAccessAssets = user.canAccessAssets;
+    req.session.canAccessStudents = user.canAccessStudents;
+    req.session.canAccessStocktake = user.canAccessStocktake;
+    req.session.canAccessReports = user.canAccessReports;
+    req.session.canViewPasswords = user.canViewPasswords;
 
     return res.json({
       success: true,
@@ -148,7 +213,12 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
         id: user.id,
         username: user.username,
         fullName: user.fullName,
-        role: user.role
+        role: user.role,
+        canAccessAssets: user.canAccessAssets,
+        canAccessStudents: user.canAccessStudents,
+        canAccessStocktake: user.canAccessStocktake,
+        canAccessReports: user.canAccessReports,
+        canViewPasswords: user.canViewPasswords
       }
     });
   } catch (error) {
@@ -248,6 +318,11 @@ router.get('/users', requireAuth, requireAdmin, async (req: Request, res: Respon
         username: true,
         fullName: true,
         role: true,
+        canAccessAssets: true,
+        canAccessStudents: true,
+        canAccessStocktake: true,
+        canAccessReports: true,
+        canViewPasswords: true,
         isActive: true,
         lastLogin: true,
         createdAt: true
@@ -264,7 +339,7 @@ router.get('/users', requireAuth, requireAdmin, async (req: Request, res: Respon
 // Create user
 router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
-  const { username, password, fullName, role } = req.body;
+  const { username, password, fullName, role, ...permissions } = req.body;
 
   if (!username || !password || !fullName) {
     return res.status(400).json({ error: 'Username, password, and full name are required' });
@@ -278,6 +353,13 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
     return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
   }
 
+  const permissionData: Partial<Record<PermissionFlag, boolean>> = {};
+  for (const flag of PERMISSION_FLAGS) {
+    if (permissions[flag] !== undefined) {
+      permissionData[flag] = !!permissions[flag];
+    }
+  }
+
   try {
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -285,13 +367,19 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
         username: username.toLowerCase(),
         passwordHash: hash,
         fullName,
-        role: role || 'USER'
+        role: role || 'USER',
+        ...permissionData
       },
       select: {
         id: true,
         username: true,
         fullName: true,
         role: true,
+        canAccessAssets: true,
+        canAccessStudents: true,
+        canAccessStocktake: true,
+        canAccessReports: true,
+        canViewPasswords: true,
         isActive: true,
         createdAt: true
       }
@@ -310,10 +398,17 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
 router.put('/users/:id', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
-  const { fullName, role, isActive } = req.body;
+  const { fullName, role, isActive, ...permissions } = req.body;
 
   if (role !== undefined && !USER_ROLES.includes(role)) {
     return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
+  }
+
+  const permissionData: Partial<Record<PermissionFlag, boolean>> = {};
+  for (const flag of PERMISSION_FLAGS) {
+    if (permissions[flag] !== undefined) {
+      permissionData[flag] = !!permissions[flag];
+    }
   }
 
   try {
@@ -322,13 +417,19 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req: Request, res: Re
       data: {
         ...(fullName !== undefined && { fullName }),
         ...(role !== undefined && { role }),
-        ...(isActive !== undefined && { isActive })
+        ...(isActive !== undefined && { isActive }),
+        ...permissionData
       },
       select: {
         id: true,
         username: true,
         fullName: true,
         role: true,
+        canAccessAssets: true,
+        canAccessStudents: true,
+        canAccessStocktake: true,
+        canAccessReports: true,
+        canViewPasswords: true,
         isActive: true,
         lastLogin: true,
         createdAt: true

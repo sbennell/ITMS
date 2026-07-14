@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { requireAuth } from './auth.js';
+import { requireAuth, requirePermission } from './auth.js';
 
 const router = Router();
 
 // Apply auth to all routes
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('canAccessReports'));
 
 // Helper: Build base where clause for non-decommissioned assets
 function buildBaseWhere(categoryId?: string, locationId?: string): Prisma.AssetWhereInput {

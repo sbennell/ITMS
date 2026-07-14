@@ -2,9 +2,11 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Download } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../App';
 
 export default function StudentDetail() {
   const { id } = useParams<{ id: string }>();
+  const { hasPermission } = useAuth();
 
   const { data: student, isLoading, error } = useQuery({
     queryKey: ['student', id],
@@ -99,7 +101,7 @@ export default function StudentDetail() {
             <DetailRow label="EduPass Username" value={student.edupassUsername || '-'} />
           )}
           <DetailRow label="Email" value={student.email || '-'} />
-          <DetailRow label="Password" value={student.password || '-'} />
+          <DetailRow label="Password" value={hasPermission('canViewPasswords') ? (student.password || '-') : 'Hidden'} />
         </div>
       </div>
 

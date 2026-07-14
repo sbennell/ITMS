@@ -6,11 +6,13 @@ import { api } from '../lib/api';
 import { formatDate, formatCurrency, STATUS_LABELS, STATUS_COLORS, CONDITION_LABELS, cn } from '../lib/utils';
 import LabelPreviewModal from '../components/LabelPreviewModal';
 import PasswordPromptModal from '../components/PasswordPromptModal';
+import { useAuth } from '../App';
 
 export default function AssetDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
@@ -170,7 +172,9 @@ export default function AssetDetail() {
             <div className="flex justify-between">
               <dt className="text-sm font-medium text-gray-500">Password</dt>
               <dd className="text-sm text-gray-900 flex items-center gap-2">
-                {asset.devicePassword ? (
+                {!hasPermission('canViewPasswords') ? (
+                  <span className="text-gray-400 italic">Hidden</span>
+                ) : asset.devicePassword ? (
                   <>
                     <span>{showPassword ? asset.devicePassword : '********'}</span>
                     <button

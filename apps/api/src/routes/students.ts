@@ -1,14 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { readFileSync } from 'fs';
-import { requireAuth } from './auth.js';
+import { requireAuth, requirePermission } from './auth.js';
 import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
+import { canViewPasswords, redactStudentPassword } from '../lib/redact.js';
 
 const router = Router();
 
 // Apply auth to all routes
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('canAccessStudents'));
 
 // List students with pagination, filtering, and sorting
 router.get('/', async (req: Request, res: Response) => {
@@ -275,7 +276,7 @@ router.get('/import/headers', async (req: Request, res: Response) => {
 });
 
 // Download student login cards as PDF
-router.get('/login-cards', async (req: Request, res: Response) => {
+router.get('/login-cards', requirePermission('canViewPasswords'), async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
@@ -365,7 +366,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    res.json(student);
+    res.json(redactStudentPassword(student, canViewPasswords(req)));
   } catch (error) {
     console.error('Error fetching student:', error);
     res.status(500).json({ error: 'Failed to fetch student' });
@@ -410,7 +411,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
-    res.status(201).json(student);
+    res.status(201).json(redactStudentPassword(student, canViewPasswords(req)));
   } catch (error: any) {
     console.error('Error creating student:', error);
     if (error.code === 'P2002') {
@@ -467,7 +468,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       data: updateData
     });
 
-    res.json(student);
+    res.json(redactStudentPassword(student, canViewPasswords(req)));
   } catch (error: any) {
     console.error('Error updating student:', error);
     if (error.code === 'P2025') {

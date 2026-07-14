@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth } from './auth.js';
+import { requireAuth, requireAdmin, requirePermission, requireAnyPermission } from './auth.js';
 import {
   createLabelPDF as createBrotherPDF,
   createLabelPreview as createBrotherPreview,
@@ -22,7 +22,7 @@ import {
 const router = Router();
 
 // Get label preview as PNG image
-router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response) => {
+router.get('/preview/:assetId', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
@@ -73,7 +73,7 @@ router.get('/preview/:assetId', requireAuth, async (req: Request, res: Response)
 });
 
 // Print single asset label
-router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) => {
+router.post('/print/:assetId', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
@@ -147,7 +147,7 @@ router.post('/print/:assetId', requireAuth, async (req: Request, res: Response) 
 });
 
 // Print batch of labels
-router.post('/print-batch', requireAuth, async (req: Request, res: Response) => {
+router.post('/print-batch', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent, labelType } = req.body;
@@ -238,7 +238,7 @@ router.post('/print-batch', requireAuth, async (req: Request, res: Response) => 
 });
 
 // Download batch of labels as combined PDF
-router.get('/download-batch', requireAuth, async (req: Request, res: Response) => {
+router.get('/download-batch', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetIdsParam = req.query.assetIds as string;
@@ -326,7 +326,7 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
 });
 
 // Download an A4 sheet of scannable Stocktake condition barcodes (CONDITION:GOOD, etc.)
-router.get('/condition-sheet', requireAuth, async (_req: Request, res: Response) => {
+router.get('/condition-sheet', requireAuth, requireAnyPermission('canAccessAssets', 'canAccessStocktake'), async (_req: Request, res: Response) => {
   try {
     const pdfBytes = await createConditionSheetPDF();
     res.setHeader('Content-Type', 'application/pdf');
@@ -339,7 +339,7 @@ router.get('/condition-sheet', requireAuth, async (_req: Request, res: Response)
 });
 
 // Get available printers
-router.get('/printers', requireAuth, async (_req: Request, res: Response) => {
+router.get('/printers', requireAuth, requirePermission('canAccessAssets'), async (_req: Request, res: Response) => {
   try {
     const printers = await getAvailablePrinters();
     res.json(printers);
@@ -350,7 +350,7 @@ router.get('/printers', requireAuth, async (_req: Request, res: Response) => {
 });
 
 // Get label settings
-router.get('/settings', requireAuth, async (req: Request, res: Response) => {
+router.get('/settings', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
 
@@ -374,7 +374,7 @@ router.get('/settings', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Get available label types
-router.get('/label-types', requireAuth, async (_req: Request, res: Response) => {
+router.get('/label-types', requireAuth, requirePermission('canAccessAssets'), async (_req: Request, res: Response) => {
   try {
     res.json([
       { id: 'brother-dk22211', name: 'Brother DK-22211 (29×62mm)' },
@@ -387,7 +387,7 @@ router.get('/label-types', requireAuth, async (_req: Request, res: Response) => 
 });
 
 // Update label settings
-router.put('/settings', requireAuth, async (req: Request, res: Response) => {
+router.put('/settings', requireAuth, requireAdmin, async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const updates = req.body as Partial<LabelSettings>;
@@ -424,7 +424,7 @@ router.put('/settings', requireAuth, async (req: Request, res: Response) => {
 });
 
 // Download label as PDF (for manual printing)
-router.get('/download/:assetId', requireAuth, async (req: Request, res: Response) => {
+router.get('/download/:assetId', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
@@ -494,7 +494,7 @@ router.get('/download/:assetId', requireAuth, async (req: Request, res: Response
 });
 
 // Get DYMO label XML for an asset (printed client-side via the browser-local DYMO service)
-router.get('/dymo-xml/:assetId', requireAuth, async (req: Request, res: Response) => {
+router.get('/dymo-xml/:assetId', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
@@ -551,7 +551,7 @@ router.get('/dymo-xml/:assetId', requireAuth, async (req: Request, res: Response
 });
 
 // Get DYMO label XML for a batch of assets (printed client-side via the browser-local DYMO service)
-router.get('/dymo-xml-batch', requireAuth, async (req: Request, res: Response) => {
+router.get('/dymo-xml-batch', requireAuth, requirePermission('canAccessAssets'), async (req: Request, res: Response) => {
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetIdsParam = req.query.assetIds as string;

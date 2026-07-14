@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, requireAdmin } from './auth.js';
+import { requireAuth, requireAdmin, requirePermission } from './auth.js';
 
 const router = Router();
 
@@ -62,7 +62,7 @@ function expandCidr(cidr: string): string[] {
 
 // ============ SUBNETS - CRUD ============
 
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('canAccessReports'));
 
 // GET all subnets
 router.get('/subnets', async (req: Request, res: Response) => {

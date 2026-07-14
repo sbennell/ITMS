@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth } from './auth.js';
+import { requireAuth, requirePermission } from './auth.js';
 
 const router = Router();
 
 // Apply auth to all routes
-router.use(requireAuth);
+router.use(requireAuth, requirePermission('canAccessStocktake'));
 
 // Get all stocktakes
 router.get('/', async (req: Request, res: Response) => {

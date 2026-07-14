@@ -278,6 +278,14 @@ model User {
   passwordHash String    @map("password_hash")
   fullName     String    @map("full_name")
   role         String    @default("USER")
+
+  // Per-user feature toggles (only enforced for role=USER; ADMIN always bypasses)
+  canAccessAssets    Boolean @default(true) @map("can_access_assets")
+  canAccessStudents  Boolean @default(true) @map("can_access_students")
+  canAccessStocktake Boolean @default(true) @map("can_access_stocktake")
+  canAccessReports   Boolean @default(true) @map("can_access_reports")
+  canViewPasswords   Boolean @default(true) @map("can_view_passwords")
+
   isActive     Boolean   @default(true) @map("is_active")
   lastLogin    DateTime? @map("last_login")
   createdAt    DateTime  @default(now()) @map("created_at")

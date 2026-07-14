@@ -10,6 +10,7 @@ import {
 import { Search, ChevronLeft, ChevronRight, Filter, X, Download } from 'lucide-react';
 import { api, Student } from '../lib/api';
 import StudentLoginCardsModal from '../components/StudentLoginCardsModal';
+import { useAuth } from '../App';
 
 const columnHelper = createColumnHelper<Student>();
 
@@ -52,6 +53,7 @@ const columns = [
 ];
 
 export default function StudentList() {
+  const { hasPermission } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
@@ -147,13 +149,15 @@ export default function StudentList() {
             <span className="block text-xs text-gray-400 mt-1">Students are added via CSV import only (Settings {'>'} Students)</span>
           </p>
         </div>
-        <button
-          onClick={() => setShowLoginCardsModal(true)}
-          className="btn btn-secondary flex items-center gap-2"
-        >
-          <Download size={18} />
-          Login Cards
-        </button>
+        {hasPermission('canViewPasswords') && (
+          <button
+            onClick={() => setShowLoginCardsModal(true)}
+            className="btn btn-secondary flex items-center gap-2"
+          >
+            <Download size={18} />
+            Login Cards
+          </button>
+        )}
       </div>
 
       {/* Search Bar */}
