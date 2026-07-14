@@ -280,11 +280,12 @@ model User {
   role         String    @default("USER")
 
   // Per-user feature toggles (only enforced for role=USER; ADMIN always bypasses)
-  canAccessAssets    Boolean @default(true) @map("can_access_assets")
-  canAccessStudents  Boolean @default(true) @map("can_access_students")
-  canAccessStocktake Boolean @default(true) @map("can_access_stocktake")
-  canAccessReports   Boolean @default(true) @map("can_access_reports")
-  canViewPasswords   Boolean @default(true) @map("can_view_passwords")
+  canAccessAssets        Boolean @default(true) @map("can_access_assets")
+  canAccessStudents      Boolean @default(true) @map("can_access_students")
+  canAccessStocktake     Boolean @default(true) @map("can_access_stocktake")
+  canAccessReports       Boolean @default(true) @map("can_access_reports")
+  canViewDevicePasswords  Boolean @default(true) @map("can_view_device_passwords")
+  canViewStudentPasswords Boolean @default(true) @map("can_view_student_passwords")
 
   isActive     Boolean   @default(true) @map("is_active")
   lastLogin    DateTime? @map("last_login")

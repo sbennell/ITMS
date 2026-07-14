@@ -1,7 +1,11 @@
 import { Request } from 'express';
 
-export function canViewPasswords(req: Request): boolean {
-  return req.session.role === 'ADMIN' || req.session.canViewPasswords === true;
+export function canViewDevicePasswords(req: Request): boolean {
+  return req.session.role === 'ADMIN' || req.session.canViewDevicePasswords === true;
+}
+
+export function canViewStudentPasswords(req: Request): boolean {
+  return req.session.role === 'ADMIN' || req.session.canViewStudentPasswords === true;
 }
 
 export function redactAssetPassword<T extends { devicePassword?: string | null }>(

@@ -4,6 +4,21 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.24.1] - 2026-07-14
+
+### Changed
+
+- **Split "View Passwords" into Separate Device and Student Toggles**: The single `canViewPasswords` permission from 1.24.0 is now two independent toggles - "View device passwords" and "View student passwords" - so a user can be granted visibility into one without the other (e.g. an asset technician who shouldn't see student login credentials, or a student-office clerk who shouldn't see device passwords)
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: `User.canViewPasswords` replaced with `canViewDevicePasswords` and `canViewStudentPasswords`, both `Boolean @default(true)`
+- `apps/api/src/lib/redact.ts`: split into `canViewDevicePasswords(req)`/`canViewStudentPasswords(req)`; `apps/api/src/routes/assets.ts` uses the device variant, `apps/api/src/routes/students.ts` (including the `GET /login-cards` gate) uses the student variant
+- `apps/api/src/routes/auth.ts`: `PermissionFlag`/`PERMISSION_FLAGS`/`SessionData` updated to the two flags
+- `apps/web/src/lib/api.ts`, `UsersTab.tsx`, `AssetDetail.tsx`, `AssetForm.tsx`, `StudentDetail.tsx`, `StudentList.tsx`: updated to check the appropriate one of the two flags instead of a single combined flag
+
+---
+
 ## [1.24.0] - 2026-07-14
 
 ### Added

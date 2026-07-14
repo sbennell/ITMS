@@ -172,7 +172,7 @@ export default function AssetDetail() {
             <div className="flex justify-between">
               <dt className="text-sm font-medium text-gray-500">Password</dt>
               <dd className="text-sm text-gray-900 flex items-center gap-2">
-                {!hasPermission('canViewPasswords') ? (
+                {!hasPermission('canViewDevicePasswords') ? (
                   <span className="text-gray-400 italic">Hidden</span>
                 ) : asset.devicePassword ? (
                   <>

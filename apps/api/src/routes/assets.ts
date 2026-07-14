@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuth, requirePermission } from './auth.js';
-import { canViewPasswords, redactAssetPassword } from '../lib/redact.js';
+import { canViewDevicePasswords, redactAssetPassword } from '../lib/redact.js';
 
 const router = Router();
 
@@ -122,7 +122,7 @@ router.get('/', async (req: Request, res: Response) => {
       assets = assets.slice(skip, skip + limitNum);
     }
 
-    const allowPasswords = canViewPasswords(req);
+    const allowPasswords = canViewDevicePasswords(req);
     res.json({
       data: assets.map((a) => redactAssetPassword(a, allowPasswords)),
       pagination: {
@@ -424,7 +424,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    res.json(redactAssetPassword(asset, canViewPasswords(req)));
+    res.json(redactAssetPassword(asset, canViewDevicePasswords(req)));
   } catch (error) {
     console.error('Error fetching asset:', error);
     res.status(500).json({ error: 'Failed to fetch asset' });
@@ -542,7 +542,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
-    res.status(201).json(redactAssetPassword(asset, canViewPasswords(req)));
+    res.status(201).json(redactAssetPassword(asset, canViewDevicePasswords(req)));
   } catch (error: any) {
     console.error('Error creating asset:', error);
     if (error.code === 'P2002') {
@@ -809,7 +809,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json(updatedAsset ? redactAssetPassword(updatedAsset, canViewPasswords(req)) : updatedAsset);
+    res.json(updatedAsset ? redactAssetPassword(updatedAsset, canViewDevicePasswords(req)) : updatedAsset);
   } catch (error: any) {
     console.error('Error updating asset:', error);
     if (error.code === 'P2002') {

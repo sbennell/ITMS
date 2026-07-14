@@ -149,7 +149,7 @@ export default function StudentList() {
             <span className="block text-xs text-gray-400 mt-1">Students are added via CSV import only (Settings {'>'} Students)</span>
           </p>
         </div>
-        {hasPermission('canViewPasswords') && (
+        {hasPermission('canViewStudentPasswords') && (
           <button
             onClick={() => setShowLoginCardsModal(true)}
             className="btn btn-secondary flex items-center gap-2"

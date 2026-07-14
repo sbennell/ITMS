@@ -101,7 +101,7 @@ export default function StudentDetail() {
             <DetailRow label="EduPass Username" value={student.edupassUsername || '-'} />
           )}
           <DetailRow label="Email" value={student.email || '-'} />
-          <DetailRow label="Password" value={hasPermission('canViewPasswords') ? (student.password || '-') : 'Hidden'} />
+          <DetailRow label="Password" value={hasPermission('canViewStudentPasswords') ? (student.password || '-') : 'Hidden'} />
         </div>
       </div>
 

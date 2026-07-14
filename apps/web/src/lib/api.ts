@@ -128,7 +128,8 @@ export type PermissionFlag =
   | 'canAccessStudents'
   | 'canAccessStocktake'
   | 'canAccessReports'
-  | 'canViewPasswords';
+  | 'canViewDevicePasswords'
+  | 'canViewStudentPasswords';
 
 export interface User {
   id: string;
@@ -139,7 +140,8 @@ export interface User {
   canAccessStudents: boolean;
   canAccessStocktake: boolean;
   canAccessReports: boolean;
-  canViewPasswords: boolean;
+  canViewDevicePasswords: boolean;
+  canViewStudentPasswords: boolean;
   isActive?: boolean;
   lastLogin?: string;
   createdAt?: string;

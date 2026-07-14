@@ -22,14 +22,16 @@ export type PermissionFlag =
   | 'canAccessStudents'
   | 'canAccessStocktake'
   | 'canAccessReports'
-  | 'canViewPasswords';
+  | 'canViewDevicePasswords'
+  | 'canViewStudentPasswords';
 
 export const PERMISSION_FLAGS: PermissionFlag[] = [
   'canAccessAssets',
   'canAccessStudents',
   'canAccessStocktake',
   'canAccessReports',
-  'canViewPasswords'
+  'canViewDevicePasswords',
+  'canViewStudentPasswords'
 ];
 
 // Extend session type
@@ -44,7 +46,8 @@ declare module 'express-session' {
     canAccessStudents: boolean;
     canAccessStocktake: boolean;
     canAccessReports: boolean;
-    canViewPasswords: boolean;
+    canViewDevicePasswords: boolean;
+    canViewStudentPasswords: boolean;
   }
 }
 
@@ -104,7 +107,8 @@ router.get('/status', (req: Request, res: Response) => {
         canAccessStudents: req.session.canAccessStudents,
         canAccessStocktake: req.session.canAccessStocktake,
         canAccessReports: req.session.canAccessReports,
-        canViewPasswords: req.session.canViewPasswords
+        canViewDevicePasswords: req.session.canViewDevicePasswords,
+        canViewStudentPasswords: req.session.canViewStudentPasswords
       }
     });
   } else {
@@ -151,7 +155,8 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       req.session.canAccessStudents = user.canAccessStudents;
       req.session.canAccessStocktake = user.canAccessStocktake;
       req.session.canAccessReports = user.canAccessReports;
-      req.session.canViewPasswords = user.canViewPasswords;
+      req.session.canViewDevicePasswords = user.canViewDevicePasswords;
+      req.session.canViewStudentPasswords = user.canViewStudentPasswords;
 
       return res.json({
         success: true,
@@ -165,7 +170,8 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
           canAccessStudents: user.canAccessStudents,
           canAccessStocktake: user.canAccessStocktake,
           canAccessReports: user.canAccessReports,
-          canViewPasswords: user.canViewPasswords
+          canViewDevicePasswords: user.canViewDevicePasswords,
+          canViewStudentPasswords: user.canViewStudentPasswords
         }
       });
     }
@@ -205,7 +211,8 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     req.session.canAccessStudents = user.canAccessStudents;
     req.session.canAccessStocktake = user.canAccessStocktake;
     req.session.canAccessReports = user.canAccessReports;
-    req.session.canViewPasswords = user.canViewPasswords;
+    req.session.canViewDevicePasswords = user.canViewDevicePasswords;
+    req.session.canViewStudentPasswords = user.canViewStudentPasswords;
 
     return res.json({
       success: true,
@@ -218,7 +225,8 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
         canAccessStudents: user.canAccessStudents,
         canAccessStocktake: user.canAccessStocktake,
         canAccessReports: user.canAccessReports,
-        canViewPasswords: user.canViewPasswords
+        canViewDevicePasswords: user.canViewDevicePasswords,
+        canViewStudentPasswords: user.canViewStudentPasswords
       }
     });
   } catch (error) {
@@ -322,7 +330,8 @@ router.get('/users', requireAuth, requireAdmin, async (req: Request, res: Respon
         canAccessStudents: true,
         canAccessStocktake: true,
         canAccessReports: true,
-        canViewPasswords: true,
+        canViewDevicePasswords: true,
+        canViewStudentPasswords: true,
         isActive: true,
         lastLogin: true,
         createdAt: true
@@ -379,7 +388,8 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
         canAccessStudents: true,
         canAccessStocktake: true,
         canAccessReports: true,
-        canViewPasswords: true,
+        canViewDevicePasswords: true,
+        canViewStudentPasswords: true,
         isActive: true,
         createdAt: true
       }
@@ -429,7 +439,8 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req: Request, res: Re
         canAccessStudents: true,
         canAccessStocktake: true,
         canAccessReports: true,
-        canViewPasswords: true,
+        canViewDevicePasswords: true,
+        canViewStudentPasswords: true,
         isActive: true,
         lastLogin: true,
         createdAt: true

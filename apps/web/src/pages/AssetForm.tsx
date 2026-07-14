@@ -213,10 +213,10 @@ export default function AssetForm() {
       cleanData[key] = value === '' ? null : value;
     });
 
-    // Without canViewPasswords, the field was never populated with the real value
+    // Without canViewDevicePasswords, the field was never populated with the real value
     // (the API redacts it to null) - omit it entirely so an unrelated save doesn't
     // wipe the actual stored password.
-    if (!hasPermission('canViewPasswords')) {
+    if (!hasPermission('canViewDevicePasswords')) {
       delete cleanData.devicePassword;
     }
 
@@ -467,7 +467,7 @@ export default function AssetForm() {
             </div>
             <div>
               <label className="label">Device Password</label>
-              {hasPermission('canViewPasswords') ? (
+              {hasPermission('canViewDevicePasswords') ? (
                 <>
                   <input
                     {...register('devicePassword')}

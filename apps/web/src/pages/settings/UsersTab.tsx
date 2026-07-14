@@ -9,7 +9,8 @@ const PERMISSION_FIELDS: Array<{ key: PermissionFlag; label: string }> = [
   { key: 'canAccessStudents', label: 'Students' },
   { key: 'canAccessStocktake', label: 'Stocktake' },
   { key: 'canAccessReports', label: 'Reports & Network/IPAM' },
-  { key: 'canViewPasswords', label: 'View device/student passwords' }
+  { key: 'canViewDevicePasswords', label: 'View device passwords' },
+  { key: 'canViewStudentPasswords', label: 'View student passwords' }
 ];
 
 type PermissionState = Record<PermissionFlag, boolean>;
@@ -59,7 +60,8 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
     canAccessStudents: false,
     canAccessStocktake: false,
     canAccessReports: false,
-    canViewPasswords: false
+    canViewDevicePasswords: false,
+    canViewStudentPasswords: false
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -146,7 +148,8 @@ function UserEditForm({ user, onSubmit, onCancel, isLoading }: {
     canAccessStudents: user.canAccessStudents,
     canAccessStocktake: user.canAccessStocktake,
     canAccessReports: user.canAccessReports,
-    canViewPasswords: user.canViewPasswords
+    canViewDevicePasswords: user.canViewDevicePasswords,
+    canViewStudentPasswords: user.canViewStudentPasswords
   });
 
   const handleSubmit = (e: React.FormEvent) => {
