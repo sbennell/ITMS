@@ -4,6 +4,22 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.22.0] - 2026-07-14
+
+### Added
+
+- **Printable Stocktake Condition Barcodes**
+  - New "Print condition barcodes (A4)" link in the Stocktake Quick Verify panel opens a printable A4 sheet with one scannable QR code per condition (New, Excellent, Good, Fair, Poor, Non-Functional), each in its own cut-lined cell
+  - Scanning one of these codes into Quick Verify locks that condition (same behavior as manually typing `CONDITION:GOOD`, etc.), so a printed sheet can be used to batch-set conditions without typing
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: new `createConditionSheetPDF()` builds a 2x3 grid A4 PDF using the existing `generateQRCode()` helper, one `CONDITION:<VALUE>` QR per cell
+- `apps/api/src/routes/labels.ts`: new `GET /api/labels/condition-sheet` endpoint (session-authenticated, same pattern as `/download-batch`)
+- `apps/web/src/pages/Stocktake.tsx`: link opens the endpoint in a new tab via a plain `<a href>` (no download button/modal needed since it takes no parameters)
+
+---
+
 ## [1.21.0] - 2026-07-02
 
 ### Added

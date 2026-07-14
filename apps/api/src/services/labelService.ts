@@ -302,6 +302,100 @@ export async function createLabelPreview(
   return qrBuffer;
 }
 
+// Stocktake condition values, matching the frontend's CONDITION_LABELS (apps/web/src/lib/utils.ts)
+const CONDITION_LABELS: [value: string, label: string][] = [
+  ['NEW', 'New'],
+  ['EXCELLENT', 'Excellent'],
+  ['GOOD', 'Good'],
+  ['FAIR', 'Fair'],
+  ['POOR', 'Poor'],
+  ['NON_FUNCTIONAL', 'Non-Functional'],
+];
+
+/**
+ * Create an A4 sheet of scannable condition QR codes (CONDITION:GOOD, etc.)
+ * for use with the Stocktake Quick Verify "Continuous" condition mode.
+ */
+export async function createConditionSheetPDF(): Promise<Uint8Array> {
+  const PAGE_WIDTH = 595.28; // A4 portrait, points
+  const PAGE_HEIGHT = 841.89;
+  const MARGIN = 36;
+  const COLS = 2;
+  const ROWS = 3;
+
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  const regularFont = await doc.embedFont(StandardFonts.Helvetica);
+
+  // Title
+  const title = 'Stocktake Condition Barcodes';
+  const titleSize = 16;
+  const titleWidth = boldFont.widthOfTextAtSize(title, titleSize);
+  page.drawText(title, {
+    x: (PAGE_WIDTH - titleWidth) / 2,
+    y: PAGE_HEIGHT - MARGIN,
+    size: titleSize,
+    font: boldFont,
+    color: rgb(0, 0, 0),
+  });
+  const subtitle = 'Scan a code to lock that condition, then scan assets to apply it in Quick Verify';
+  const subtitleSize = 9;
+  const subtitleWidth = regularFont.widthOfTextAtSize(subtitle, subtitleSize);
+  page.drawText(subtitle, {
+    x: (PAGE_WIDTH - subtitleWidth) / 2,
+    y: PAGE_HEIGHT - MARGIN - 16,
+    size: subtitleSize,
+    font: regularFont,
+    color: rgb(0.35, 0.35, 0.35),
+  });
+
+  const gridTop = PAGE_HEIGHT - MARGIN - 40;
+  const gridBottom = MARGIN;
+  const cellWidth = (PAGE_WIDTH - MARGIN * 2) / COLS;
+  const cellHeight = (gridTop - gridBottom) / ROWS;
+  const qrSize = Math.min(cellWidth, cellHeight) - 70;
+
+  for (let i = 0; i < CONDITION_LABELS.length; i++) {
+    const [value, label] = CONDITION_LABELS[i];
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+
+    const cellX = MARGIN + col * cellWidth;
+    const cellTopY = gridTop - row * cellHeight;
+    const cellBottomY = cellTopY - cellHeight;
+
+    // Dashed cut border around the cell
+    page.drawRectangle({
+      x: cellX + 6,
+      y: cellBottomY + 6,
+      width: cellWidth - 12,
+      height: cellHeight - 12,
+      borderColor: rgb(0.7, 0.7, 0.7),
+      borderWidth: 1,
+      borderDashArray: [4, 4],
+    });
+
+    const qrBuffer = await generateQRCode(`CONDITION:${value}`, 300);
+    const qrImage = await doc.embedPng(qrBuffer);
+    const qrX = cellX + (cellWidth - qrSize) / 2;
+    const qrY = cellBottomY + (cellHeight - qrSize) / 2 - 6;
+    page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+
+    const labelSize = 15;
+    const labelWidth = boldFont.widthOfTextAtSize(label, labelSize);
+    page.drawText(label, {
+      x: cellX + (cellWidth - labelWidth) / 2,
+      y: qrY + qrSize + 14,
+      size: labelSize,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+  }
+
+  return doc.save();
+}
+
 /**
  * Print a label to the specified printer using pdf-to-printer
  * Works in service context (SYSTEM user) where PowerShell verb methods fail

@@ -4,6 +4,7 @@ import { requireAuth } from './auth.js';
 import {
   createLabelPDF as createBrotherPDF,
   createLabelPreview as createBrotherPreview,
+  createConditionSheetPDF,
   printLabel as printBrother,
   getAvailablePrinters,
   parseSettings,
@@ -321,6 +322,19 @@ router.get('/download-batch', requireAuth, async (req: Request, res: Response) =
   } catch (error) {
     console.error('Batch download error:', error);
     res.status(500).json({ error: 'Failed to generate batch PDF' });
+  }
+});
+
+// Download an A4 sheet of scannable Stocktake condition barcodes (CONDITION:GOOD, etc.)
+router.get('/condition-sheet', requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const pdfBytes = await createConditionSheetPDF();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="stocktake-condition-barcodes.pdf"');
+    res.send(Buffer.from(pdfBytes));
+  } catch (error) {
+    console.error('Condition sheet error:', error);
+    res.status(500).json({ error: 'Failed to generate condition barcode sheet' });
   }
 });
 

@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.21.0**
+**Version 1.22.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -26,6 +26,7 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **QR Code Scanning**: Quickly verify assets by scanning QR codes
 - **Progress Tracking**: Monitor verification progress in real-time
 - **Condition Updates**: Update asset condition during stocktake
+- **Printable Condition Barcodes**: Print an A4 sheet of scannable condition QR codes to lock a condition (Single Asset or Continuous mode) while scanning assets
 
 ### Reports & Analytics
 - **Warranty Expiry Report**: Track warranty expiration status with timeline charts and expiration alerts

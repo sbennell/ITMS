@@ -516,10 +516,20 @@ function StocktakeDetail({
       {stocktake.status === 'IN_PROGRESS' && (
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Scan className="w-4 h-4" />
-              Quick Verify
-            </h3>
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Scan className="w-4 h-4" />
+                Quick Verify
+              </h3>
+              <a
+                href="/api/labels/condition-sheet"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary-600 hover:text-primary-700 underline"
+              >
+                Print condition barcodes (A4)
+              </a>
+            </div>
             {/* Mode Toggle */}
             <div className="flex rounded-md border border-gray-300 overflow-hidden text-xs">
               <button
