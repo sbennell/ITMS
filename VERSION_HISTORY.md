@@ -4,6 +4,33 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.24.0] - 2026-07-14
+
+### Added
+
+- **Per-User Feature Permissions**
+  - USER accounts can now be scoped to just the areas they need instead of getting full access by default. Five independent toggles per user, set in Settings > Users: Assets (incl. label printing), Students, Stocktake, Reports & Network/IPAM, and a separate "View device/student passwords" toggle
+  - ADMIN accounts are unaffected and always have full access - the toggles only ever restrict USER accounts
+  - Restricted users only see the nav items, routes, and Settings tabs they have permission for; navigating directly to a blocked URL redirects to the first area they do have access to
+  - New users created via Settings > Users default to every toggle unchecked (admin must explicitly grant each area); existing accounts are unaffected by the upgrade (all toggles default to enabled) so nothing changes for current users
+
+### Security
+
+- **Real Server-Side Password Redaction**: `Asset.devicePassword` and `Student.password` were previously sent to the browser in full and only masked in the UI (visible via dev tools/network inspection regardless of the "click to reveal" flow). They're now stripped from the API response entirely for any user without the new "View passwords" permission
+- **Settings Lock-Down**: Settings > Lookups, General, Networking, Data, and Users are now admin-only (both the tab in the UI and the underlying API routes) - previously any logged-in user could edit categories/locations/organization settings with no backend check, which would have let a restricted account bypass the new area permissions entirely
+- **Student Login Cards Gated**: `GET /students/login-cards` (whose whole purpose is printing a student's password on a card) now requires the "View passwords" permission instead of just being logged in
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: `User` gains `canAccessAssets`, `canAccessStudents`, `canAccessStocktake`, `canAccessReports` (covers Reports and Network/IPAM), and `canViewPasswords`, all `Boolean @default(true)`
+- `apps/api/src/routes/auth.ts`: new `requirePermission(flag)`/`requireAnyPermission(...flags)` middleware (ADMIN always bypasses); session and `/status`/`/login`/`/users` payloads extended with the 5 flags
+- `apps/api/src/lib/redact.ts` (new): `redactAssetPassword`/`redactStudentPassword` helpers, applied at every response boundary that returns a full asset or student row
+- `apps/api/src/routes/labels.ts`: per-asset label routes gated by `canAccessAssets`; the asset-agnostic condition-sheet route accepts `canAccessAssets` OR `canAccessStocktake`; `PUT /settings` (global label defaults) is admin-only, matching the General tab lock-down
+- `apps/web/src/App.tsx`: `AuthContext` gains `hasPermission()`; new `PermissionRoute` component (`apps/web/src/components/PermissionRoute.tsx`) guards each area route and redirects to the user's first accessible area
+- `apps/web/src/pages/AssetForm.tsx`: fixes a data-loss edge case introduced by redaction - a user without "View passwords" editing an asset that has one set would previously see a blank field (since the API now returns `null`) and any save would wipe the real stored password; the field is now omitted from the update payload entirely when the user lacks permission, leaving the existing value untouched
+
+---
+
 ## [1.23.0] - 2026-07-14
 
 ### Security

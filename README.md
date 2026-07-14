@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.23.0**
+**Version 1.24.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -70,6 +70,7 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 ### User Management
 - **Authentication**: Secure login with session management
 - **Role-Based Access**: Admin and User roles
+- **Per-User Feature Permissions**: Scope a User account to just the areas it needs - Assets (incl. label printing), Students, Stocktake, Reports & Network/IPAM - plus a separate toggle for whether they can view stored device/student passwords
 - **User Administration**: Create, edit, and disable user accounts
 - **Password Management**: Secure password hashing with bcrypt
 
