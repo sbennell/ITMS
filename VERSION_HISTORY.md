@@ -4,6 +4,22 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.22.2] - 2026-07-14
+
+### Fixed
+
+- **Displayed App Version Was Out of Sync**
+  - The version shown in the app footer/About dialog was a separately hand-maintained constant that didn't get updated during the 1.22.0/1.22.1 releases
+  - It's now derived from the root `package.json` at build time, so it can no longer drift out of sync with the version bumped in `package.json`/`README.md`/`VERSION_HISTORY.md`
+
+### Technical Details
+
+- `apps/web/vite.config.ts`: reads `../../package.json` at config-load time and injects its `version` via Vite's `define` as a global `__APP_VERSION__` constant
+- `apps/web/src/vite-env.d.ts`: new file declaring the `__APP_VERSION__` global for TypeScript
+- `apps/web/src/lib/useVersionCheck.ts`: `APP_VERSION` now reads `__APP_VERSION__` instead of a hardcoded string literal
+
+---
+
 ## [1.22.1] - 2026-07-14
 
 ### Added
