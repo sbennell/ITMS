@@ -403,9 +403,16 @@ function StocktakeDetail({
     const input = quickVerifyInput.trim();
     if (!input) return;
 
-    // Check if this is a condition QR code (CONDITION:GOOD, CONDITION:EXCELLENT, etc.)
+    // Check if this is a condition QR code (CONDITION:GOOD, CONDITION:EXCELLENT, CONDITION:NONE, etc.)
     if (input.toUpperCase().startsWith('CONDITION:')) {
       const conditionValue = input.substring('CONDITION:'.length).trim().toUpperCase();
+      if (conditionValue === 'NONE') {
+        setActiveCondition(null);
+        setQuickVerifyInput('');
+        setQuickVerifyStatus({ type: 'success', message: 'Condition lock cleared' });
+        quickVerifyRef.current?.focus();
+        return;
+      }
       if (Object.keys(CONDITION_LABELS).includes(conditionValue)) {
         setActiveCondition(conditionValue);
         setConditionMode('continuous');

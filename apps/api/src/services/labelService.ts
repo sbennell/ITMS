@@ -302,8 +302,10 @@ export async function createLabelPreview(
   return qrBuffer;
 }
 
-// Stocktake condition values, matching the frontend's CONDITION_LABELS (apps/web/src/lib/utils.ts)
+// Stocktake condition values, matching the frontend's CONDITION_LABELS (apps/web/src/lib/utils.ts),
+// plus a leading "NONE" entry that clears any locked condition (mirrors the "No Change" button)
 const CONDITION_LABELS: [value: string, label: string][] = [
+  ['NONE', 'No Change'],
   ['NEW', 'New'],
   ['EXCELLENT', 'Excellent'],
   ['GOOD', 'Good'],
@@ -321,7 +323,7 @@ export async function createConditionSheetPDF(): Promise<Uint8Array> {
   const PAGE_HEIGHT = 841.89;
   const MARGIN = 36;
   const COLS = 2;
-  const ROWS = 3;
+  const ROWS = 4;
 
   const doc = await PDFDocument.create();
   const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -339,7 +341,7 @@ export async function createConditionSheetPDF(): Promise<Uint8Array> {
     font: boldFont,
     color: rgb(0, 0, 0),
   });
-  const subtitle = 'Scan a code to lock that condition, then scan assets to apply it in Quick Verify';
+  const subtitle = 'Scan a code to lock that condition, then scan assets to apply it in Quick Verify. Scan "No Change" to clear the lock.';
   const subtitleSize = 9;
   const subtitleWidth = regularFont.widthOfTextAtSize(subtitle, subtitleSize);
   page.drawText(subtitle, {

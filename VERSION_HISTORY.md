@@ -4,6 +4,21 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.22.1] - 2026-07-14
+
+### Added
+
+- **"No Change" Barcode on the Condition Sheet**
+  - The printable A4 condition barcode sheet now includes a "No Change" QR code alongside the six condition codes
+  - Scanning it clears any locked condition in Quick Verify (equivalent to clicking the "No Change" button), so the lock can be cleared by scanning instead of touching the screen
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `CONDITION_LABELS` gains a leading `['NONE', 'No Change']` entry; grid grows from 2x3 to 2x4 to fit the 7th cell (`createConditionSheetPDF()` is otherwise unchanged - it already looped generically over the list)
+- `apps/web/src/pages/Stocktake.tsx`: `handleQuickVerify()` special-cases a scanned `CONDITION:NONE` to clear `activeCondition` rather than trying to match it against `CONDITION_LABELS`
+
+---
+
 ## [1.22.0] - 2026-07-14
 
 ### Added
