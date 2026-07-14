@@ -4,6 +4,31 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.23.0] - 2026-07-14
+
+### Security
+
+- **CORS Misconfiguration Fixed** - In production, the API reflected any request's `Origin` header (`origin: true`) while also allowing credentials, letting any external website issue authenticated cross-origin requests using a logged-in user's session cookie. The frontend is served same-origin by this same server, so cross-origin API access was never actually needed in production - CORS is now disabled outright there (`origin: false`), with the permissive `localhost` regex kept only for the Vite dev server.
+- **Session Cookie Hardening** - The `secure` flag was hardcoded to `false` even in production (despite a comment saying otherwise), and no `sameSite` attribute was set. Cookies now default to `sameSite: 'lax'`, and `secure` is now driven by a new `COOKIE_SECURE` env var (still defaulting to `false` to match the plain-HTTP LAN deployments this app ships to via `install.ps1`; set to `true` if you terminate HTTPS in front of it).
+- **`SESSION_SECRET` Fallback Removed** - The server previously fell back to a hardcoded, publicly-known secret if `SESSION_SECRET` was unset, which would let an attacker forge session cookies. It now refuses to start in production without one (`install.ps1` already generates and sets this automatically for every install, so this shouldn't affect existing deployments).
+- **Login Rate Limiting** - `POST /api/auth/login` is now limited to 10 attempts per 15 minutes per client, closing a brute-force gap.
+- **Stronger Password Policy, Enforced Server-Side** - Minimum password length raised from 4 to 8 characters, and it's now enforced by the API itself (previously only the frontend checked, so the minimum was trivially bypassable via direct API calls).
+- **Security Headers** - Added `helmet` for standard hardening headers (`X-Content-Type-Options`, `X-Frame-Options`, etc.) on every response. Content-Security-Policy is intentionally left off for now, pending a follow-up pass to verify it against everything the SPA loads.
+- **Upload Size Limit** - The asset-import file upload (`POST /api/import/assets`) had no size cap, risking memory exhaustion from a very large file; capped at 25MB.
+- **User Role Validation** - `role` is a free-text column; user create/update now rejects anything other than `ADMIN`/`USER` instead of silently accepting arbitrary strings.
+- **Dependency Vulnerabilities** - Resolved 10 of 12 `npm audit` findings (all 6 high-severity: `react-router`, `tmp`, `picomatch`, `path-to-regexp`, `minimatch`; plus 4 moderate: `express`, `body-parser`, `qs`, `brace-expansion`). One moderate advisory remains in `uuid` via `exceljs`'s pinned dependency - it only affects a code path (a caller-supplied `buf` argument) that `exceljs` doesn't use, and fixing it upstream would require a breaking downgrade, so it's left as a tracked, low-risk residual.
+
+### Technical Details
+
+- `apps/api/src/index.ts`: `cors()` now takes `origin: isProduction ? false : /^http:\/\/localhost:\d+$/`; added a startup guard throwing if `SESSION_SECRET` is unset in production; `cookie.secure` now reads `process.env.COOKIE_SECURE === 'true'`; added `cookie.sameSite: 'lax'`; added `app.use(helmet({ contentSecurityPolicy: false }))`
+- `apps/api/src/routes/auth.ts`: added `express-rate-limit` on `/login`; added `MIN_PASSWORD_LENGTH` (8) checks to first-admin creation, `/change-password`, `POST /users`, and `/users/:id/reset-password`; added `USER_ROLES` allowlist check to `POST /users` and `PUT /users/:id`
+- `apps/api/src/routes/import.ts`: `multer` now has `limits: { fileSize: 25 * 1024 * 1024 }`
+- `apps/api/.env.example`: documented the new `COOKIE_SECURE` variable and that `SESSION_SECRET` is now required in production
+- `apps/web/src/pages/settings/AccountTab.tsx`, `UsersTab.tsx`: password minimum raised from 4 to 8 to match the server
+- Added `helmet` and `express-rate-limit` as new `apps/api` dependencies
+
+---
+
 ## [1.22.2] - 2026-07-14
 
 ### Fixed

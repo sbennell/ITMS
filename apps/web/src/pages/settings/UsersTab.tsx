@@ -54,7 +54,7 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="input"
               required
-              minLength={4}
+              minLength={8}
             />
           </div>
           <div>
@@ -191,10 +191,10 @@ function UserManagement() {
 
   const handleResetPassword = (user: User) => {
     const newPassword = prompt(`Enter new password for ${user.username}:`);
-    if (newPassword && newPassword.length >= 4) {
+    if (newPassword && newPassword.length >= 8) {
       resetPasswordMutation.mutate({ id: user.id, password: newPassword });
     } else if (newPassword) {
-      setError('Password must be at least 4 characters');
+      setError('Password must be at least 8 characters');
     }
   };
 

@@ -1,8 +1,20 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
 const router = Router();
+
+const MIN_PASSWORD_LENGTH = 8;
+const USER_ROLES = ['ADMIN', 'USER'] as const;
+
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
 
 // Extend session type
 declare module 'express-session' {
@@ -51,7 +63,7 @@ router.get('/status', (req: Request, res: Response) => {
 });
 
 // Login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const { username, password } = req.body;
 
@@ -65,6 +77,9 @@ router.post('/login', async (req: Request, res: Response) => {
 
     if (userCount === 0) {
       // No users - create first admin user
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+      }
       const hash = await bcrypt.hash(password, 10);
       const user = await prisma.user.create({
         data: {
@@ -162,6 +177,10 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
     return res.status(400).json({ error: 'Current and new password are required' });
   }
 
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId }
@@ -251,6 +270,14 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
     return res.status(400).json({ error: 'Username, password, and full name are required' });
   }
 
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+  }
+
+  if (role !== undefined && !USER_ROLES.includes(role)) {
+    return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
+  }
+
   try {
     const hash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -285,6 +312,10 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req: Request, res: Re
   const id = req.params.id as string;
   const { fullName, role, isActive } = req.body;
 
+  if (role !== undefined && !USER_ROLES.includes(role)) {
+    return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
+  }
+
   try {
     const user = await prisma.user.update({
       where: { id },
@@ -318,6 +349,10 @@ router.post('/users/:id/reset-password', requireAuth, requireAdmin, async (req: 
 
   if (!newPassword) {
     return res.status(400).json({ error: 'New password is required' });
+  }
+
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
   }
 
   try {

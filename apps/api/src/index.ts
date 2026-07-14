@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import session from 'express-session';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
@@ -21,9 +22,24 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Middleware
+if (isProduction && !process.env.SESSION_SECRET) {
+  // install.ps1 always generates and writes a random SESSION_SECRET for production
+  // deployments; a missing value here means the environment is misconfigured, and
+  // falling back to a shared default would let sessions be forged. Fail loudly instead.
+  throw new Error('SESSION_SECRET environment variable is required in production');
+}
+
+// Content-Security-Policy is left to a follow-up pass (needs verification against every
+// page/asset the SPA loads); the rest of helmet's defaults (X-Content-Type-Options,
+// X-Frame-Options, etc.) are safe to enable as-is.
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// The SPA is served from this same Express app in production (see below), so the API
+// never needs to accept cross-origin requests there - only same-origin requests from the
+// browser matter, and those don't require CORS headers at all. Only the Vite dev server
+// (a different origin/port) needs the dev-only localhost allowance.
 app.use(cors({
-  origin: isProduction ? true : /^http:\/\/localhost:\d+$/,
+  origin: isProduction ? false : /^http:\/\/localhost:\d+$/,
   credentials: true
 }));
 app.use(express.json());
@@ -32,8 +48,12 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
+    // Most installs of this internal LAN tool run over plain HTTP (see install.ps1),
+    // so cookies can't be marked Secure by default without breaking login for them.
+    // Deployments that do terminate HTTPS in front of the app can opt in.
+    secure: process.env.COOKIE_SECURE === 'true',
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
