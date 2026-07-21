@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.24.2] - 2026-07-21
+
+### Changed
+
+- **Login Card Filename for Single Student**: Downloading a login card for one student now names the file `login-card-firstname-lastname-homegroup.pdf` instead of just the surname, making it easier to identify when downloading multiple students' cards individually
+
+### Technical Details
+
+- `apps/api/src/routes/students.ts`: `GET /login-cards` filename logic for the `studentId` case now slugifies and joins `firstName`, `surname`, and `homeGroup` (skipping any that are empty)
+
+---
+
 ## [1.24.1] - 2026-07-14
 
 ### Changed

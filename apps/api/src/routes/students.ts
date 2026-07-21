@@ -314,10 +314,19 @@ router.get('/login-cards', requirePermission('canViewStudentPasswords'), async (
     const pdfBytes = await generateStudentLoginCards(students);
 
     // Determine filename based on filter
+    const slugify = (value: string) => value.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+
     let filename = 'login-cards-all.pdf';
     if (studentId) {
       const student = students[0];
-      filename = student ? `login-card-${student.surname.replace(/\s+/g, '-')}.pdf` : 'login-card.pdf';
+      if (student) {
+        const parts = [student.firstName, student.surname, student.homeGroup]
+          .filter((part): part is string => !!part && part.trim().length > 0)
+          .map(slugify);
+        filename = `login-card-${parts.join('-')}.pdf`;
+      } else {
+        filename = 'login-card.pdf';
+      }
     } else if (homeGroup) {
       filename = `login-cards-${(homeGroup as string).replace(/\s+/g, '-')}.pdf`;
     } else if (schoolYear) {
