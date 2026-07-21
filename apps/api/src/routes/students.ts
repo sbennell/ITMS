@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { readFileSync } from 'fs';
+import ExcelJS from 'exceljs';
 import { requireAuth, requirePermission } from './auth.js';
 import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
@@ -11,6 +12,66 @@ const router = Router();
 // Apply auth to all routes
 router.use(requireAuth, requirePermission('canAccessStudents'));
 
+// Build the shared students where-clause from list/export query params
+function buildStudentWhere(query: Request['query']): Prisma.StudentWhereInput {
+  const { search, status, schoolYear, homeGroup } = query;
+  const where: Prisma.StudentWhereInput = {};
+
+  if (search) {
+    const searchStr = search as string;
+    const searchParts = searchStr.trim().split(/\s+/);
+
+    // Build search conditions for full name and individual parts
+    const searchConditions: Prisma.StudentWhereInput[] = [
+      { firstName: { contains: searchStr } },
+      { surname: { contains: searchStr } },
+      { email: { contains: searchStr } },
+      { username: { contains: searchStr } }
+    ];
+
+    // If search contains space, also try full name combinations with startsWith
+    if (searchParts.length >= 2) {
+      // Try "firstName surname" combination (surname starts with second part)
+      searchConditions.push({
+        AND: [
+          { firstName: { contains: searchParts[0] } },
+          { surname: { startsWith: searchParts[1] } }
+        ]
+      });
+      // Try reverse "surname firstName" combination (firstName starts with second part)
+      searchConditions.push({
+        AND: [
+          { firstName: { startsWith: searchParts[1] } },
+          { surname: { contains: searchParts[0] } }
+        ]
+      });
+    }
+
+    where.OR = searchConditions;
+  }
+
+  // Build status filter with AND to exclude "Left"
+  if (status && status !== '_all') {
+    where.AND = [
+      { status: status as string },
+      { status: { not: 'Left' } }
+    ];
+  } else {
+    // Always exclude students with "Left" status
+    where.status = { not: 'Left' };
+  }
+
+  if (schoolYear && schoolYear !== '_all') {
+    where.schoolYear = schoolYear as string;
+  }
+
+  if (homeGroup && homeGroup !== '_all') {
+    where.homeGroup = homeGroup as string;
+  }
+
+  return where;
+}
+
 // List students with pagination, filtering, and sorting
 router.get('/', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
@@ -19,10 +80,6 @@ router.get('/', async (req: Request, res: Response) => {
     const {
       page = '1',
       limit = '50',
-      search,
-      status,
-      schoolYear,
-      homeGroup,
       sortBy = 'firstName',
       sortOrder = 'asc'
     } = req.query;
@@ -31,60 +88,7 @@ router.get('/', async (req: Request, res: Response) => {
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    // Build where clause
-    const where: Prisma.StudentWhereInput = {};
-
-    if (search) {
-      const searchStr = search as string;
-      const searchParts = searchStr.trim().split(/\s+/);
-
-      // Build search conditions for full name and individual parts
-      const searchConditions: Prisma.StudentWhereInput[] = [
-        { firstName: { contains: searchStr } },
-        { surname: { contains: searchStr } },
-        { email: { contains: searchStr } },
-        { username: { contains: searchStr } }
-      ];
-
-      // If search contains space, also try full name combinations with startsWith
-      if (searchParts.length >= 2) {
-        // Try "firstName surname" combination (surname starts with second part)
-        searchConditions.push({
-          AND: [
-            { firstName: { contains: searchParts[0] } },
-            { surname: { startsWith: searchParts[1] } }
-          ]
-        });
-        // Try reverse "surname firstName" combination (firstName starts with second part)
-        searchConditions.push({
-          AND: [
-            { firstName: { startsWith: searchParts[1] } },
-            { surname: { contains: searchParts[0] } }
-          ]
-        });
-      }
-
-      where.OR = searchConditions;
-    }
-
-    // Build status filter with AND to exclude "Left"
-    if (status && status !== '_all') {
-      where.AND = [
-        { status: status as string },
-        { status: { not: 'Left' } }
-      ];
-    } else {
-      // Always exclude students with "Left" status
-      where.status = { not: 'Left' };
-    }
-
-    if (schoolYear && schoolYear !== '_all') {
-      where.schoolYear = schoolYear as string;
-    }
-
-    if (homeGroup && homeGroup !== '_all') {
-      where.homeGroup = homeGroup as string;
-    }
+    const where = buildStudentWhere(req.query);
 
     // Build orderBy
     const orderBy: Prisma.StudentOrderByWithRelationInput = {
@@ -340,6 +344,110 @@ router.get('/login-cards', requirePermission('canViewStudentPasswords'), async (
   } catch (error) {
     console.error('Error generating login cards:', error);
     res.status(500).json({ error: 'Failed to generate login cards' });
+  }
+});
+
+// Export students (with their assigned assets) to Excel, honoring the same filters as the list view
+router.get('/export', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const where = buildStudentWhere(req.query);
+    const { sortBy = 'firstName', sortOrder = 'asc' } = req.query;
+    const orderBy: Prisma.StudentOrderByWithRelationInput = {
+      [sortBy as string]: sortOrder as 'asc' | 'desc'
+    };
+
+    const students = await prisma.student.findMany({
+      where,
+      orderBy,
+      select: {
+        firstName: true,
+        surname: true,
+        homeGroup: true,
+        schoolYear: true,
+        status: true,
+        email: true,
+        assets: {
+          select: {
+            itemNumber: true,
+            serialNumber: true,
+            model: true,
+            category: { select: { name: true } },
+            manufacturer: { select: { name: true } }
+          },
+          orderBy: { itemNumber: 'asc' }
+        }
+      }
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'IT Management System (ITMS)';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Students');
+    worksheet.columns = [
+      { header: 'First Name', key: 'firstName', width: 16 },
+      { header: 'Surname', key: 'surname', width: 16 },
+      { header: 'Home Group', key: 'homeGroup', width: 14 },
+      { header: 'Year Level', key: 'schoolYear', width: 12 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Email', key: 'email', width: 28 },
+      { header: 'Item Number', key: 'itemNumber', width: 16 },
+      { header: 'Category', key: 'category', width: 16 },
+      { header: 'Manufacturer', key: 'manufacturer', width: 16 },
+      { header: 'Model', key: 'model', width: 20 },
+      { header: 'Serial Number', key: 'serialNumber', width: 20 }
+    ];
+
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerRow.height = 20;
+
+    for (const student of students) {
+      const studentColumns = {
+        firstName: student.firstName,
+        surname: student.surname,
+        homeGroup: student.homeGroup,
+        schoolYear: student.schoolYear,
+        status: student.status,
+        email: student.email
+      };
+
+      if (student.assets.length === 0) {
+        worksheet.addRow(studentColumns);
+        continue;
+      }
+
+      for (const asset of student.assets) {
+        worksheet.addRow({
+          ...studentColumns,
+          itemNumber: asset.itemNumber,
+          category: asset.category?.name,
+          manufacturer: asset.manufacturer?.name,
+          model: asset.model,
+          serialNumber: asset.serialNumber
+        });
+      }
+    }
+
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = `students-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error exporting students:', error);
+    res.status(500).json({ error: 'Failed to export students' });
   }
 });
 

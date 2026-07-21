@@ -149,15 +149,24 @@ export default function StudentList() {
             <span className="block text-xs text-gray-400 mt-1">Students are added via CSV import only (Settings {'>'} Students)</span>
           </p>
         </div>
-        {hasPermission('canViewStudentPasswords') && (
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowLoginCardsModal(true)}
+            onClick={() => window.open(api.getStudentsExportUrl({ search, status, schoolYear, homeGroup }), '_blank')}
             className="btn btn-secondary flex items-center gap-2"
           >
             <Download size={18} />
-            Login Cards
+            Export
           </button>
-        )}
+          {hasPermission('canViewStudentPasswords') && (
+            <button
+              onClick={() => setShowLoginCardsModal(true)}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <Download size={18} />
+              Login Cards
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search Bar */}

@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.25.0] - 2026-07-21
+
+### Added
+
+- **Export Students with Assigned Assets**: New "Export" button on the Students page downloads an Excel file of the currently filtered student list. One row per assigned asset (item number, category, manufacturer, model, serial number) alongside the student's name, home group, year level, status, and email; students with no assets get a single row with blank asset columns
+
+### Technical Details
+
+- `apps/api/src/routes/students.ts`: new `GET /students/export` route reuses the list view's filter logic (extracted into `buildStudentWhere`), includes each student's `assets` relation (with category/manufacturer), and streams an ExcelJS workbook (`students-export-YYYY-MM-DD.xlsx`, one row per student-asset pair) following the same pattern as `GET /import/export` for assets
+- `apps/web/src/lib/api.ts`: `getStudentsExportUrl()` builds the export URL from the active search/status/schoolYear/homeGroup filters
+- `apps/web/src/pages/StudentList.tsx`: new "Export" button next to "Login Cards" opens the export URL with current filters applied
+
+---
+
 ## [1.24.2] - 2026-07-21
 
 ### Changed
