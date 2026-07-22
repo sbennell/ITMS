@@ -4,6 +4,31 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.27.3] - 2026-07-22
+
+### Changed
+
+- Renamed the hardware worksheet in the "Export for MACS" workbook from "MACS Asset Register" to "Hardware", so it pairs clearly alongside the "Software" worksheet
+
+### Technical Details
+
+- `apps/api/src/routes/import.ts`: `/export-macs` now names the first worksheet `Hardware` instead of `MACS Asset Register`
+
+---
+
+## [1.27.2] - 2026-07-22
+
+### Added
+
+- The "Export for MACS" download now includes a second worksheet, "Software", with the same minimum MACS-required fields as the hardware sheet, sourced from the Software register (plus a Name column, since a software category alone doesn't identify a specific item)
+
+### Technical Details
+
+- `apps/api/src/routes/import.ts`: new `SOFTWARE_MACS_COLUMNS` array (mirrors `MACS_COLUMNS` with `initialInstallDate`/`licenseExpiration` in place of `acquiredDate`/`endOfLifeDate`, plus `name`); `/export-macs` now also queries `prisma.software.findMany()` and adds a second worksheet to the same workbook
+- `apps/web/src/pages/settings/DataTab.tsx`: updated the "Export for MACS" button's tooltip to mention both worksheets
+
+---
+
 ## [1.27.1] - 2026-07-22
 
 ### Changed

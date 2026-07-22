@@ -139,6 +139,31 @@ const MACS_COLUMNS = [
   { header: 'Supporting Notes', key: 'comments', width: 30 }
 ];
 
+// Column configuration for the MACS Software Asset Register sheet - same minimum
+// required field set as MACS_COLUMNS, sourced from the Software model instead of
+// Asset, plus a Name column (software's "Title" per the standard) since Type of
+// Asset alone (a software category) isn't enough to identify a specific item.
+const SOFTWARE_MACS_COLUMNS = [
+  { header: 'Unique ID', key: 'itemNumber', width: 15 },
+  { header: 'Name', key: 'name', width: 25 },
+  { header: 'Type of Asset', key: 'category', width: 20 },
+  { header: 'Business Purpose / Function', key: 'businessPurpose', width: 30 },
+  { header: 'Business Owner', key: 'businessOwner', width: 20 },
+  { header: 'Technical Owner', key: 'technicalOwner', width: 20 },
+  { header: 'Date of Acquisition / Implementation', key: 'initialInstallDate', width: 20 },
+  { header: 'Status', key: 'status', width: 14 },
+  { header: 'Date of Decommissioning / Disposal', key: 'decommissionDate', width: 20 },
+  { header: 'Supplier', key: 'supplier', width: 20 },
+  { header: 'Version', key: 'version', width: 14 },
+  { header: 'End-of-Life Support Date', key: 'licenseExpiration', width: 18 },
+  { header: 'Criticality Category', key: 'criticalityTier', width: 16 },
+  { header: 'Data Classification', key: 'dataClassification', width: 16 },
+  { header: 'Hosting', key: 'hostingType', width: 20 },
+  { header: 'Support', key: 'supportType', width: 16 },
+  { header: 'Internet Facing / Accessible', key: 'internetFacing', width: 16 },
+  { header: 'Supporting Notes', key: 'comments', width: 30 }
+];
+
 // GET /api/import/template - Download Excel template with dropdowns
 router.get('/template', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
@@ -823,7 +848,7 @@ router.get('/export-macs', async (req: Request, res: Response) => {
     workbook.creator = 'IT Management System (ITMS)';
     workbook.created = new Date();
 
-    const worksheet = workbook.addWorksheet('MACS Asset Register');
+    const worksheet = workbook.addWorksheet('Hardware');
     worksheet.columns = MACS_COLUMNS;
 
     // Style header row
@@ -866,6 +891,56 @@ router.get('/export-macs', async (req: Request, res: Response) => {
 
     // Freeze header row
     worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // Software sheet - same minimum MACS fields, sourced from the Software register
+    const software = await prisma.software.findMany({
+      include: {
+        category: true,
+        supplier: true
+      },
+      orderBy: { itemNumber: 'asc' }
+    });
+
+    const softwareSheet = workbook.addWorksheet('Software');
+    softwareSheet.columns = SOFTWARE_MACS_COLUMNS;
+
+    const softwareHeaderRow = softwareSheet.getRow(1);
+    softwareHeaderRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    softwareHeaderRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    softwareHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    softwareHeaderRow.height = 20;
+
+    for (const item of software) {
+      softwareSheet.addRow({
+        itemNumber: item.itemNumber,
+        name: item.name,
+        category: item.category?.name,
+        businessPurpose: item.businessPurpose,
+        businessOwner: item.businessOwner,
+        technicalOwner: item.technicalOwner,
+        initialInstallDate: item.initialInstallDate,
+        status: item.status,
+        decommissionDate: item.decommissionDate,
+        supplier: item.supplier?.name,
+        version: item.version,
+        licenseExpiration: item.licenseExpiration,
+        criticalityTier: item.criticalityTier ? (CRITICALITY_LABELS[item.criticalityTier] ?? item.criticalityTier) : null,
+        dataClassification: item.dataClassification ? (DATA_CLASSIFICATION_LABELS[item.dataClassification] ?? item.dataClassification) : null,
+        hostingType: item.hostingType ? (HOSTING_LABELS[item.hostingType] ?? item.hostingType) : null,
+        supportType: item.supportType ? (SUPPORT_LABELS[item.supportType] ?? item.supportType) : null,
+        internetFacing: item.internetFacing === null ? null : (item.internetFacing ? 'Yes' : 'No'),
+        comments: item.comments
+      });
+    }
+
+    softwareSheet.getColumn('initialInstallDate').numFmt = 'yyyy-mm-dd';
+    softwareSheet.getColumn('decommissionDate').numFmt = 'yyyy-mm-dd';
+    softwareSheet.getColumn('licenseExpiration').numFmt = 'yyyy-mm-dd';
+    softwareSheet.views = [{ state: 'frozen', ySplit: 1 }];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const filename = `macs-asset-register-${new Date().toISOString().split('T')[0]}.xlsx`;
