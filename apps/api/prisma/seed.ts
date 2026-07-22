@@ -45,6 +45,28 @@ async function main() {
   );
   console.log(`Created ${categories.length} categories`);
 
+  // Create Software Categories
+  const softwareCategoryNames = [
+    'Operating System',
+    'Productivity Suite',
+    'Security',
+    'Educational',
+    'Administration / SIS',
+    'Creative',
+    'Communication'
+  ];
+
+  const softwareCategories = await Promise.all(
+    softwareCategoryNames.map(name =>
+      prisma.softwareCategory.upsert({
+        where: { name },
+        update: {},
+        create: { name }
+      })
+    )
+  );
+  console.log(`Created ${softwareCategories.length} software categories`);
+
   // Create Manufacturers
   const manufacturers = await Promise.all([
     prisma.manufacturer.upsert({

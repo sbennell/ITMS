@@ -303,6 +303,154 @@ router.delete('/locations/:id', requireAdmin, async (req: Request, res: Response
   }
 });
 
+// ============ SOFTWARE PUBLISHERS ============
+
+router.get('/software-publishers', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  try {
+    const publishers = await prisma.softwarePublisher.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { software: true } } }
+    });
+    res.json(publishers);
+  } catch (error) {
+    console.error('Error fetching software publishers:', error);
+    res.status(500).json({ error: 'Failed to fetch software publishers' });
+  }
+});
+
+router.post('/software-publishers', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const { name, website, supportUrl, contactInfo } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  try {
+    const publisher = await prisma.softwarePublisher.create({
+      data: { name, website, supportUrl, contactInfo }
+    });
+    res.status(201).json(publisher);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Software publisher already exists' });
+    }
+    console.error('Error creating software publisher:', error);
+    res.status(500).json({ error: 'Failed to create software publisher' });
+  }
+});
+
+router.put('/software-publishers/:id', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const { name, website, supportUrl, contactInfo } = req.body;
+
+  try {
+    const publisher = await prisma.softwarePublisher.update({
+      where: { id },
+      data: { name, website, supportUrl, contactInfo }
+    });
+    res.json(publisher);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Software publisher name already exists' });
+    }
+    console.error('Error updating software publisher:', error);
+    res.status(500).json({ error: 'Failed to update software publisher' });
+  }
+});
+
+router.delete('/software-publishers/:id', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+
+  try {
+    await prisma.softwarePublisher.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Cannot delete publisher with software' });
+    }
+    console.error('Error deleting software publisher:', error);
+    res.status(500).json({ error: 'Failed to delete software publisher' });
+  }
+});
+
+// ============ SOFTWARE CATEGORIES ============
+
+router.get('/software-categories', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  try {
+    const categories = await prisma.softwareCategory.findMany({
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { software: true } } }
+    });
+    res.json(categories);
+  } catch (error) {
+    console.error('Error fetching software categories:', error);
+    res.status(500).json({ error: 'Failed to fetch software categories' });
+  }
+});
+
+router.post('/software-categories', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const { name, description } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  try {
+    const category = await prisma.softwareCategory.create({
+      data: { name, description }
+    });
+    res.status(201).json(category);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Software category already exists' });
+    }
+    console.error('Error creating software category:', error);
+    res.status(500).json({ error: 'Failed to create software category' });
+  }
+});
+
+router.put('/software-categories/:id', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const { name, description } = req.body;
+
+  try {
+    const category = await prisma.softwareCategory.update({
+      where: { id },
+      data: { name, description }
+    });
+    res.json(category);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Software category name already exists' });
+    }
+    console.error('Error updating software category:', error);
+    res.status(500).json({ error: 'Failed to update software category' });
+  }
+});
+
+router.delete('/software-categories/:id', requireAdmin, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+
+  try {
+    await prisma.softwareCategory.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Cannot delete category with software' });
+    }
+    console.error('Error deleting software category:', error);
+    res.status(500).json({ error: 'Failed to delete software category' });
+  }
+});
+
 // ============ SAVED FILTERS ============
 
 router.get('/filters', async (req: Request, res: Response) => {

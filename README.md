@@ -1,8 +1,8 @@
 # IT Management System (ITMS)
 
-**Version 1.26.4**
+**Version 1.27.0**
 
-A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
+A web-based IT Management System for tracking hardware and equipment inventory, plus a separate software/license register. Built with React, Express, and SQLite.
 
 ## Features
 
@@ -14,6 +14,14 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **Condition Tracking**: Track asset condition (Excellent, Good, Fair, Poor)
 - **Compliance / Governance Fields**: Track business purpose, business/technical owner, version, criticality tier, data classification, hosting location, support type, and internet-facing status per asset (supports MACS Asset Management Standard compliance)
 - **Audit History**: View complete change history for each asset
+
+### Software Management
+- **Separate Software Register**: A dedicated "Software" section in the sidebar, distinct from hardware Assets, with its own list/detail/add/edit pages and per-user permission toggle
+- **Licensing & Deployment Tracking**: Publisher, category, version, URL, app store, deployment mechanism, license expiration, license count, and supplier
+- **Same Compliance / Governance Fields**: Business purpose, business/technical owner, criticality, data classification, hosting, support type, and internet-facing status - the same taxonomy used for hardware assets
+- **File Attachments**: Upload and download license documents, quotes, or other files per software item (PDF, Word, Excel, PNG, JPEG)
+- **Audit History**: View complete change history for each software item
+- **Software Export**: Admin-only Excel export of the full software register
 
 ### Label Printing
 - **QR Code Labels**: Generate labels with QR codes for easy asset identification
@@ -67,12 +75,13 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **Categories**: Organize assets by type (Laptop, Desktop, Monitor, etc.)
 - **Manufacturers**: Track device manufacturers
 - **Locations**: Define physical locations for assets
-- **Suppliers**: Manage vendor/supplier information
+- **Suppliers**: Manage vendor/supplier information (shared between hardware and software)
+- **Software Publishers & Categories**: Separate lookup tables for organizing the software register
 
 ### User Management
 - **Authentication**: Secure login with session management
 - **Role-Based Access**: Admin and User roles
-- **Per-User Feature Permissions**: Scope a User account to just the areas it needs - Assets (incl. label printing), Students, Stocktake, Reports & Network/IPAM - plus independent toggles for viewing stored device passwords and student passwords
+- **Per-User Feature Permissions**: Scope a User account to just the areas it needs - Assets (incl. label printing), Software, Students, Stocktake, Reports & Network/IPAM - plus independent toggles for viewing stored device passwords and student passwords
 - **User Administration**: Create, edit, and disable user accounts
 - **Password Management**: Secure password hashing with bcrypt
 

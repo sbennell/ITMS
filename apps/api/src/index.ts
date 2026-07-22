@@ -7,6 +7,7 @@ import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.js';
 import assetRoutes from './routes/assets.js';
+import softwareRoutes from './routes/software.js';
 import lookupRoutes from './routes/lookups.js';
 import stocktakeRoutes from './routes/stocktake.js';
 import importRoutes from './routes/import.js';
@@ -64,6 +65,7 @@ app.locals.prisma = prisma;
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/software', softwareRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/stocktakes', stocktakeRoutes);

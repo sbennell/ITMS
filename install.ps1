@@ -168,6 +168,7 @@ Write-Step "Creating directory structure..."
 
 $directories = @(
     "$InstallPath\data",
+    "$InstallPath\data\uploads",
     "$InstallPath\logs",
     "$InstallPath\backups"
 )
@@ -293,11 +294,13 @@ Write-Step "Creating environment configuration..."
 
 $sessionSecret = [guid]::NewGuid().ToString() + "-" + [guid]::NewGuid().ToString()
 $dbPath = "$InstallPath\data\ITMS.db" -replace "\\", "/"
+$uploadDir = "$InstallPath\data\uploads" -replace "\\", "/"
 
 $envContent = @"
 DATABASE_URL="file:$dbPath"
 PORT=$Port
 SESSION_SECRET="$sessionSecret"
+UPLOAD_DIR="$uploadDir"
 "@
 
 $envPath = "$InstallPath\app\apps\api\.env"
@@ -376,7 +379,7 @@ if (-not $SkipService) {
     & $nssmPath install ITMS $nodePath
     & $nssmPath set ITMS AppDirectory "$InstallPath\app\apps\api"
     & $nssmPath set ITMS AppParameters "dist\index.js"
-    & $nssmPath set ITMS AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret"
+    & $nssmPath set ITMS AppEnvironmentExtra "NODE_ENV=production" "DATABASE_URL=file:$dbPath" "PORT=$Port" "SESSION_SECRET=$sessionSecret" "UPLOAD_DIR=$uploadDir"
     & $nssmPath set ITMS AppStdout "$InstallPath\logs\stdout.log"
     & $nssmPath set ITMS AppStderr "$InstallPath\logs\stderr.log"
     & $nssmPath set ITMS AppRotateFiles 1
@@ -425,6 +428,7 @@ $backupScript = @'
 $date = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $backupDir = "INSTALLPATH\backups"
 $dbPath = "INSTALLPATH\data\itms.db"
+$uploadsPath = "INSTALLPATH\data\uploads"
 
 if (Test-Path $dbPath) {
     Copy-Item $dbPath "$backupDir\ITMS_$date.db"
@@ -432,6 +436,14 @@ if (Test-Path $dbPath) {
 
     # Keep only last 30 backups
     Get-ChildItem "$backupDir\*.db" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
+}
+
+if ((Test-Path $uploadsPath) -and (Get-ChildItem $uploadsPath -Recurse -File | Select-Object -First 1)) {
+    Compress-Archive -Path $uploadsPath -DestinationPath "$backupDir\uploads_$date.zip" -Force
+    Write-Host "Backup created: uploads_$date.zip"
+
+    # Keep only last 30 backups
+    Get-ChildItem "$backupDir\uploads_*.zip" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
 }
 '@
 

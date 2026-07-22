@@ -8,6 +8,9 @@ import AssetList from './pages/AssetList';
 import AssetDetail from './pages/AssetDetail';
 import AssetForm from './pages/AssetForm';
 import BulkAddAssets from './pages/BulkAddAssets';
+import SoftwareList from './pages/SoftwareList';
+import SoftwareDetail from './pages/SoftwareDetail';
+import SoftwareForm from './pages/SoftwareForm';
 import StudentList from './pages/StudentList';
 import StudentDetail from './pages/StudentDetail';
 import Settings from './pages/Settings';
@@ -36,6 +39,7 @@ export function useAuth() {
 // redirect and as the fallback landing spot when a restricted user hits a blocked route.
 const AREA_ROUTES: Array<{ path: string; flag: PermissionFlag }> = [
   { path: '/assets', flag: 'canAccessAssets' },
+  { path: '/software', flag: 'canAccessSoftware' },
   { path: '/students', flag: 'canAccessStudents' },
   { path: '/stocktake', flag: 'canAccessStocktake' },
   { path: '/network', flag: 'canAccessReports' },
@@ -118,6 +122,10 @@ export default function App() {
                   <Route path="/assets/bulk-add" element={<PermissionRoute permission="canAccessAssets"><BulkAddAssets /></PermissionRoute>} />
                   <Route path="/assets/:id" element={<PermissionRoute permission="canAccessAssets"><AssetDetail /></PermissionRoute>} />
                   <Route path="/assets/:id/edit" element={<PermissionRoute permission="canAccessAssets"><AssetForm /></PermissionRoute>} />
+                  <Route path="/software" element={<PermissionRoute permission="canAccessSoftware"><SoftwareList /></PermissionRoute>} />
+                  <Route path="/software/new" element={<PermissionRoute permission="canAccessSoftware"><SoftwareForm /></PermissionRoute>} />
+                  <Route path="/software/:id" element={<PermissionRoute permission="canAccessSoftware"><SoftwareDetail /></PermissionRoute>} />
+                  <Route path="/software/:id/edit" element={<PermissionRoute permission="canAccessSoftware"><SoftwareForm /></PermissionRoute>} />
                   <Route path="/students" element={<PermissionRoute permission="canAccessStudents"><StudentList /></PermissionRoute>} />
                   <Route path="/students/:id" element={<PermissionRoute permission="canAccessStudents"><StudentDetail /></PermissionRoute>} />
                   <Route path="/stocktake" element={<PermissionRoute permission="canAccessStocktake"><Stocktake /></PermissionRoute>} />

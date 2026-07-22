@@ -85,6 +85,115 @@ model Asset {
   @@map("assets")
 }
 
+// ============ SOFTWARE ============
+
+model Software {
+  id                  String    @id @default(cuid())
+
+  // Identification
+  itemNumber          String    @unique @map("item_number")
+  name                String
+  publisher           SoftwarePublisher? @relation(fields: [publisherId], references: [id])
+  publisherId         String?   @map("publisher_id")
+  category            SoftwareCategory?  @relation(fields: [categoryId], references: [id])
+  categoryId          String?   @map("category_id")
+  description         String?
+  version             String?
+  url                 String?
+  appStore            String?   @map("app_store")
+  deploymentMechanism String?   @map("deployment_mechanism")
+
+  // Status
+  status              String    @default("Planned")
+
+  // Ownership & Purpose
+  businessPurpose     String?   @map("business_purpose")
+  businessOwner       String?   @map("business_owner")
+  technicalOwner      String?   @map("technical_owner")
+
+  // Licensing & Deployment
+  initialInstallDate  DateTime? @map("initial_install_date")
+  licenseExpiration   DateTime? @map("license_expiration")
+  licenseCount        Int?      @map("license_count")
+  supplier            Supplier? @relation(fields: [supplierId], references: [id])
+  supplierId          String?   @map("supplier_id")
+
+  lastReviewDate      DateTime? @map("last_review_date")
+  decommissionDate    DateTime? @map("decommission_date")
+
+  // Documentation
+  comments            String?
+
+  // Compliance / Governance (reused taxonomies, same shape as Asset)
+  criticalityTier     String?   @map("criticality_tier")
+  dataClassification  String?   @map("data_classification")
+  hostingType         String?   @map("hosting_type")
+  supportType         String?   @map("support_type")
+  internetFacing      Boolean?  @map("internet_facing")
+
+  // Metadata
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  attachments         SoftwareAttachment[]
+  auditLogs           SoftwareAuditLog[]
+
+  @@map("software")
+}
+
+model SoftwarePublisher {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  website     String?
+  supportUrl  String?  @map("support_url")
+  contactInfo String?  @map("contact_info")
+  software    Software[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("software_publishers")
+}
+
+model SoftwareCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  software    Software[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("software_categories")
+}
+
+model SoftwareAttachment {
+  id           String   @id @default(cuid())
+  software     Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  softwareId   String   @map("software_id")
+  filename     String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  storagePath  String   @map("storage_path")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("software_attachments")
+}
+
+model SoftwareAuditLog {
+  id         String   @id @default(cuid())
+  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  softwareId String   @map("software_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?  @map("user_id")
+  action     String
+  changes    String?
+  ipAddress  String?  @map("ip_address")
+  timestamp  DateTime @default(now())
+
+  @@map("software_audit_logs")
+}
+
 // ============ STUDENTS ============
 
 model Student {
@@ -147,6 +256,7 @@ model Supplier {
   contactInfo String?  @map("contact_info")
   accountNum  String?  @map("account_number")
   assets      Asset[]
+  software    Software[]
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -295,6 +405,7 @@ model User {
   canAccessStudents      Boolean @default(true) @map("can_access_students")
   canAccessStocktake     Boolean @default(true) @map("can_access_stocktake")
   canAccessReports       Boolean @default(true) @map("can_access_reports")
+  canAccessSoftware      Boolean @default(false) @map("can_access_software")
   canViewDevicePasswords  Boolean @default(true) @map("can_view_device_passwords")
   canViewStudentPasswords Boolean @default(true) @map("can_view_student_passwords")
 
@@ -304,7 +415,8 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  auditLogs    AuditLog[]
+  auditLogs         AuditLog[]
+  softwareAuditLogs  SoftwareAuditLog[]
 
   @@map("users")
 }

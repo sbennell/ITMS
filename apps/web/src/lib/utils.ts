@@ -126,3 +126,19 @@ export const SUPPORT_LABELS: Record<string, string> = {
   SAAS: 'SaaS',
   VENDOR: 'Vendor Supported'
 };
+
+// Software register status - separate from the hardware STATUS_LABELS above, which
+// doesn't fit software (e.g. "In Use - Loaned to student")
+export const SOFTWARE_STATUS_LABELS: Record<string, string> = {
+  'Planned': 'Planned',
+  'Active': 'Active',
+  'Trial': 'Trial',
+  'Decommissioned': 'Decommissioned'
+};
+
+export const SOFTWARE_STATUS_COLORS: Record<string, string> = {
+  'Planned': 'bg-blue-100 text-blue-800',
+  'Active': 'bg-green-100 text-green-800',
+  'Trial': 'bg-yellow-100 text-yellow-800',
+  'Decommissioned': 'bg-gray-100 text-gray-800'
+};

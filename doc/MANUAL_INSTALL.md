@@ -52,6 +52,7 @@ Open PowerShell as Administrator and run:
 # Create application directories
 New-Item -ItemType Directory -Path "C:\ITMS\app" -Force
 New-Item -ItemType Directory -Path "C:\ITMS\data" -Force
+New-Item -ItemType Directory -Path "C:\ITMS\data\uploads" -Force
 New-Item -ItemType Directory -Path "C:\ITMS\logs" -Force
 ```
 
@@ -85,6 +86,7 @@ Create the environment file at `C:\ITMS\app\apps\api\.env`:
 DATABASE_URL="file:C:/ITMS/data/ITMS.db"
 PORT=3001
 SESSION_SECRET="$(New-Guid)-$(New-Guid)"
+UPLOAD_DIR="C:/ITMS/data/uploads"
 "@ | Out-File -FilePath "C:\ITMS\app\apps\api\.env" -Encoding UTF8
 ```
 
@@ -94,6 +96,7 @@ Or manually create `C:\ITMS\app\apps\api\.env` with:
 DATABASE_URL="file:C:/ITMS/data/ITMS.db"
 PORT=3001
 SESSION_SECRET="your-strong-random-secret-here"
+UPLOAD_DIR="C:/ITMS/data/uploads"
 ```
 
 **Important**: Replace the SESSION_SECRET with a long, random string. You can generate one with:
@@ -257,16 +260,18 @@ Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 
 ### Database Backup
 
-The SQLite database is a single file. Create a scheduled task to back it up:
+The SQLite database is a single file. Software attachments (license PDFs, quotes, etc.) are stored as separate files under `C:\ITMS\data\uploads` and are not part of the database, so back up both. Create a scheduled task to back them up:
 
 ```powershell
 # Create backup script
 @"
 `$date = Get-Date -Format "yyyy-MM-dd_HHmmss"
 Copy-Item "C:\ITMS\data\ITMS.db" "C:\ITMS\backups\ITMS_`$date.db"
+Compress-Archive -Path "C:\ITMS\data\uploads" -DestinationPath "C:\ITMS\backups\uploads_`$date.zip" -Force
 
 # Keep only last 30 backups
 Get-ChildItem "C:\ITMS\backups\*.db" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
+Get-ChildItem "C:\ITMS\backups\uploads_*.zip" | Sort-Object CreationTime -Descending | Select-Object -Skip 30 | Remove-Item
 "@ | Out-File -FilePath "C:\ITMS\backup.ps1" -Encoding UTF8
 
 # Create backup directory
@@ -436,11 +441,12 @@ C:\ITMS\
 │   ├── update.ps1                # Update script
 │   └── package.json
 ├── data\
-│   └── ITMS.db           # SQLite database
+│   ├── ITMS.db                   # SQLite database
+│   └── uploads\                  # Software attachment files
 ├── logs\
 │   ├── stdout.log                # Application output
 │   ├── stderr.log                # Application errors
 │   └── update.log                # Web update log
-├── backups\                      # Database backups
+├── backups\                      # Database and uploads backups
 └── backup.ps1                    # Backup script
 ```

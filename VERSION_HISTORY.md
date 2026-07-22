@@ -4,6 +4,31 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.27.0] - 2026-07-22
+
+### Added
+
+- **Software Register**: New "Software" section in the sidebar, fully separate from hardware Assets - its own list/detail/add/edit pages, its own permission toggle (`Software`, off by default for existing USER accounts), and its own Publisher/Category lookup tables
+- Tracks licensing/deployment details (publisher, category, version, URL, app store, deployment mechanism, license expiration, license count, supplier) alongside the same Compliance/Governance fields as hardware assets (business purpose, business/technical owner, criticality, data classification, hosting, support type, internet facing)
+- **File Attachments**: Real working file upload/download for Software items (PDF, Word, Excel, PNG, JPEG; 10MB limit) - stored under a configurable `UPLOAD_DIR` (defaults to `./uploads`), with automatic cleanup on delete
+- **Change History**: Full audit log for Software (create/update/attachment add/remove), mirroring the existing Asset audit log
+- **Software Export**: New admin-only Excel export (Settings > Data Import/Export)
+- Seeded a starter set of Software Categories (Operating System, Productivity Suite, Security, Educational, Administration/SIS, Creative, Communication)
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: new `Software`, `SoftwarePublisher`, `SoftwareCategory`, `SoftwareAttachment`, `SoftwareAuditLog` models; `Supplier` is reused (not duplicated) as the software vendor lookup; new `canAccessSoftware` boolean on `User` (defaults `false`, unlike the other feature flags)
+- `apps/api/src/routes/software.ts`: new route file mirroring `assets.ts`'s CRUD/pagination/audit-log/export patterns; attachment routes use `multer.diskStorage()` with a file-type allowlist and size limit (no existing disk-storage pattern to mirror - this is new)
+- `apps/api/src/routes/lookups.ts`: added `SoftwarePublisher`/`SoftwareCategory` CRUD sections, same shape as the existing four lookups
+- `apps/api/src/routes/auth.ts`: `canAccessSoftware` threaded through the `PermissionFlag` union, `PERMISSION_FLAGS` array, session typing, login/session population, response bodies, and `/users` `select` clauses
+- `apps/web/src/pages/SoftwareList.tsx`, `SoftwareDetail.tsx`, `SoftwareForm.tsx`: new pages mirroring the Asset equivalents structurally, reusing `FieldLabel` for form help tooltips and the existing Criticality/Data Classification/Hosting/Support label maps from `utils.ts`; new `SOFTWARE_STATUS_LABELS`/`_COLORS` (Planned/Active/Trial/Decommissioned) since hardware's status set doesn't fit software
+- `apps/web/src/components/Layout.tsx` / `App.tsx`: new "Software" nav item and `/software` routes, permission-gated via `PermissionRoute`
+- `apps/web/src/pages/settings/UsersTab.tsx`, `LookupsTab.tsx`, `DataTab.tsx`: extended with the new permission toggle, lookup managers, and export button
+- New `UPLOAD_DIR` environment variable (`.env.example`, `doc/MANUAL_INSTALL.md`, `install.ps1`); the automated installer and backup script now also create/zip-back-up `data\uploads` alongside the database
+- No changes to any existing hardware Asset routes, models, or pages - fully additive except for the shared `User`/permission plumbing
+
+---
+
 ## [1.26.4] - 2026-07-22
 
 ### Added

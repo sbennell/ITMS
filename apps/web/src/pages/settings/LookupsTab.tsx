@@ -8,13 +8,17 @@ function LookupManager({
   queryKey,
   fetchFn,
   createFn,
-  deleteFn
+  deleteFn,
+  countKey = 'assets',
+  countLabel = 'asset'
 }: {
   title: string;
   queryKey: string;
   fetchFn: () => Promise<Lookup[]>;
   createFn: (data: { name: string }) => Promise<Lookup>;
   deleteFn: (id: string) => Promise<{ success: boolean }>;
+  countKey?: 'assets' | 'software';
+  countLabel?: string;
 }) {
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
@@ -56,7 +60,7 @@ function LookupManager({
 
   const handleDelete = (id: string, name: string, count?: number) => {
     if (count && count > 0) {
-      setError(`Cannot delete "${name}" - it has ${count} asset${count !== 1 ? 's' : ''}`);
+      setError(`Cannot delete "${name}" - it has ${count} ${countLabel}${count !== 1 ? 's' : ''}`);
       return;
     }
     if (window.confirm(`Delete "${name}"?`)) {
@@ -108,14 +112,14 @@ function LookupManager({
             <li key={item.id} className="flex items-center justify-between py-2">
               <div>
                 <span className="text-sm font-medium">{item.name}</span>
-                {item._count?.assets !== undefined && (
+                {item._count?.[countKey] !== undefined && (
                   <span className="ml-2 text-xs text-gray-500">
-                    ({item._count.assets} asset{item._count.assets !== 1 ? 's' : ''})
+                    ({item._count[countKey]} {countLabel}{item._count[countKey] !== 1 ? 's' : ''})
                   </span>
                 )}
               </div>
               <button
-                onClick={() => handleDelete(item.id, item.name, item._count?.assets)}
+                onClick={() => handleDelete(item.id, item.name, item._count?.[countKey])}
                 disabled={deleteMutation.isPending}
                 className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                 title="Delete"
@@ -160,6 +164,24 @@ export default function LookupsTab() {
         fetchFn={api.getLocations}
         createFn={api.createLocation}
         deleteFn={api.deleteLocation}
+      />
+      <LookupManager
+        title="Software Publishers"
+        queryKey="softwarePublishers"
+        fetchFn={api.getSoftwarePublishers}
+        createFn={api.createSoftwarePublisher}
+        deleteFn={api.deleteSoftwarePublisher}
+        countKey="software"
+        countLabel="software item"
+      />
+      <LookupManager
+        title="Software Categories"
+        queryKey="softwareCategories"
+        fetchFn={api.getSoftwareCategories}
+        createFn={api.createSoftwareCategory}
+        deleteFn={api.deleteSoftwareCategory}
+        countKey="software"
+        countLabel="software item"
       />
     </div>
   );

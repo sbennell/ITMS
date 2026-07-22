@@ -9,6 +9,7 @@ const PERMISSION_FIELDS: Array<{ key: PermissionFlag; label: string }> = [
   { key: 'canAccessStudents', label: 'Students' },
   { key: 'canAccessStocktake', label: 'Stocktake' },
   { key: 'canAccessReports', label: 'Reports & Network/IPAM' },
+  { key: 'canAccessSoftware', label: 'Software' },
   { key: 'canViewDevicePasswords', label: 'View device passwords' },
   { key: 'canViewStudentPasswords', label: 'View student passwords' }
 ];
@@ -60,6 +61,7 @@ function UserForm({ onSubmit, onCancel, isLoading }: {
     canAccessStudents: false,
     canAccessStocktake: false,
     canAccessReports: false,
+    canAccessSoftware: false,
     canViewDevicePasswords: false,
     canViewStudentPasswords: false
   });
@@ -148,6 +150,7 @@ function UserEditForm({ user, onSubmit, onCancel, isLoading }: {
     canAccessStudents: user.canAccessStudents,
     canAccessStocktake: user.canAccessStocktake,
     canAccessReports: user.canAccessReports,
+    canAccessSoftware: user.canAccessSoftware,
     canViewDevicePasswords: user.canViewDevicePasswords,
     canViewStudentPasswords: user.canViewStudentPasswords
   });

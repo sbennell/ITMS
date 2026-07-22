@@ -89,6 +89,18 @@ function DataImport() {
         </button>
       </div>
 
+      {/* Software Export */}
+      <div className="mb-6 pt-4 border-t">
+        <h3 className="text-sm font-medium text-gray-700 mb-3">Software</h3>
+        <button
+          onClick={() => api.exportSoftware()}
+          className="btn btn-secondary"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export Software Register
+        </button>
+      </div>
+
       {/* File Upload */}
       <div className="mb-4">
         <label className="label">Select Excel or CSV File</label>

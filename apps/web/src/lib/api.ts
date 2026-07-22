@@ -116,6 +116,49 @@ export interface Asset {
   updatedAt: string;
 }
 
+export interface SoftwareAttachment {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface Software {
+  id: string;
+  itemNumber: string;
+  name: string;
+  publisherId: string | null;
+  publisher: { id: string; name: string } | null;
+  categoryId: string | null;
+  category: { id: string; name: string } | null;
+  description: string | null;
+  version: string | null;
+  url: string | null;
+  appStore: string | null;
+  deploymentMechanism: string | null;
+  status: string;
+  businessPurpose: string | null;
+  businessOwner: string | null;
+  technicalOwner: string | null;
+  initialInstallDate: string | null;
+  licenseExpiration: string | null;
+  licenseCount: number | null;
+  supplierId: string | null;
+  supplier: { id: string; name: string } | null;
+  lastReviewDate: string | null;
+  decommissionDate: string | null;
+  comments: string | null;
+  criticalityTier: string | null;
+  dataClassification: string | null;
+  hostingType: string | null;
+  supportType: string | null;
+  internetFacing: boolean | null;
+  attachments?: SoftwareAttachment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -129,7 +172,7 @@ export interface PaginatedResponse<T> {
 export interface Lookup {
   id: string;
   name: string;
-  _count?: { assets: number };
+  _count?: { assets?: number; software?: number };
 }
 
 export type PermissionFlag =
@@ -137,6 +180,7 @@ export type PermissionFlag =
   | 'canAccessStudents'
   | 'canAccessStocktake'
   | 'canAccessReports'
+  | 'canAccessSoftware'
   | 'canViewDevicePasswords'
   | 'canViewStudentPasswords';
 
@@ -149,6 +193,7 @@ export interface User {
   canAccessStudents: boolean;
   canAccessStocktake: boolean;
   canAccessReports: boolean;
+  canAccessSoftware: boolean;
   canViewDevicePasswords: boolean;
   canViewStudentPasswords: boolean;
   isActive?: boolean;
@@ -519,6 +564,69 @@ export const api = {
       body: JSON.stringify(data)
     }),
 
+  // Software
+  getSoftwareList: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    publisher?: string;
+    supplier?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          searchParams.set(key, String(value));
+        }
+      });
+    }
+    return fetchJson<PaginatedResponse<Software>>(`/software?${searchParams}`);
+  },
+  getSoftware: (id: string) => fetchJson<Software>(`/software/${id}`),
+  getNextSoftwareItemNumber: () => fetchJson<{ nextItemNumber: string }>('/software/next-item-number'),
+  createSoftware: (data: Partial<Software>) => fetchJson<Software>('/software', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  updateSoftware: (id: string, data: Partial<Software>) => fetchJson<Software>(`/software/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  }),
+  deleteSoftware: (id: string) => fetchJson<{ success: boolean }>(`/software/${id}`, {
+    method: 'DELETE'
+  }),
+  getSoftwareHistory: (id: string) => fetchJson<any[]>(`/software/${id}/history`),
+  exportSoftware: () => {
+    window.location.href = '/api/software/export';
+  },
+
+  getSoftwareAttachments: (softwareId: string) =>
+    fetchJson<SoftwareAttachment[]>(`/software/${softwareId}/attachments`),
+  uploadSoftwareAttachment: async (softwareId: string, file: File): Promise<SoftwareAttachment> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE}/software/${softwareId}/attachments`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+    return response.json();
+  },
+  getSoftwareAttachmentDownloadUrl: (softwareId: string, attachmentId: string) =>
+    `${API_BASE}/software/${softwareId}/attachments/${attachmentId}`,
+  deleteSoftwareAttachment: (softwareId: string, attachmentId: string) =>
+    fetchJson<{ success: boolean }>(`/software/${softwareId}/attachments/${attachmentId}`, {
+      method: 'DELETE'
+    }),
+
   // Students
   getStudents: (params?: {
     page?: number;
@@ -600,6 +708,18 @@ export const api = {
     fetchJson<Lookup>('/lookups/locations', { method: 'POST', body: JSON.stringify(data) }),
   deleteLocation: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/locations/${id}`, { method: 'DELETE' }),
+
+  getSoftwarePublishers: () => fetchJson<Lookup[]>('/lookups/software-publishers'),
+  createSoftwarePublisher: (data: { name: string; website?: string; supportUrl?: string; contactInfo?: string }) =>
+    fetchJson<Lookup>('/lookups/software-publishers', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSoftwarePublisher: (id: string) =>
+    fetchJson<{ success: boolean }>(`/lookups/software-publishers/${id}`, { method: 'DELETE' }),
+
+  getSoftwareCategories: () => fetchJson<Lookup[]>('/lookups/software-categories'),
+  createSoftwareCategory: (data: { name: string; description?: string }) =>
+    fetchJson<Lookup>('/lookups/software-categories', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSoftwareCategory: (id: string) =>
+    fetchJson<{ success: boolean }>(`/lookups/software-categories/${id}`, { method: 'DELETE' }),
 
   getSavedFilters: () => fetchJson<any[]>('/lookups/filters'),
 
