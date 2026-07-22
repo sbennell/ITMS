@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.26.2] - 2026-07-22
+
+### Added
+
+- **Field Help Tooltips**: Every field label on the Asset Form and Asset Detail page now shows a small (?) icon that explains what the field means on hover - covers all fields, from basics like Serial Number and Category through to the newer Compliance/Governance fields (Criticality, Data Classification, Hosting, Support Type, etc.)
+
+### Technical Details
+
+- `apps/web/src/components/FieldLabel.tsx`: new reusable component - renders a label with an optional `help` tooltip (native `title` attribute on a `HelpCircle` icon from lucide-react, wrapped in a `<span>` since Lucide's icon props don't include `title` directly)
+- `apps/web/src/pages/AssetForm.tsx`: every `<label>` replaced with `<FieldLabel text=".." help=".." />`
+- `apps/web/src/pages/AssetDetail.tsx`: `DetailRow` gained an optional `help` prop rendering the same icon/tooltip pattern next to each `dt`; the four hand-rolled detail rows (Assigned To, IP Addresses, Password, Criticality) got the icon added inline
+
+---
+
 ## [1.26.1] - 2026-07-22
 
 ### Added

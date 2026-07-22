@@ -13,6 +13,7 @@ import {
   SUPPORT_LABELS
 } from '../lib/utils';
 import StudentSearchCombobox from '../components/StudentSearchCombobox';
+import FieldLabel from '../components/FieldLabel';
 import { useAuth } from '../App';
 
 type AssetFormData = {
@@ -282,7 +283,7 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Item Number *</label>
+              <FieldLabel text="Item Number" required help="Unique identifier for this asset, used on printed labels, QR codes, and in the asset register export." />
               <input
                 {...register('itemNumber', { required: 'Item number is required' })}
                 className="input"
@@ -293,11 +294,11 @@ export default function AssetForm() {
               )}
             </div>
             <div>
-              <label className="label">Serial Number</label>
+              <FieldLabel text="Serial Number" help="The manufacturer-assigned serial number, usually printed on a sticker on the device." />
               <input {...register('serialNumber')} className="input" />
             </div>
             <div>
-              <label className="label">Manufacturer</label>
+              <FieldLabel text="Manufacturer" help="The company that made this asset." />
               <select {...register('manufacturerId')} className="input">
                 <option value="">Select manufacturer...</option>
                 {manufacturers?.map((m) => (
@@ -306,11 +307,11 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Model</label>
+              <FieldLabel text="Model" help="The manufacturer's model name or number." />
               <input {...register('model')} className="input" />
             </div>
             <div>
-              <label className="label">Category</label>
+              <FieldLabel text="Category" help="The type of asset (e.g. Laptop, Desktop, Server). Also used as the asset's Type in the MACS asset register export." />
               <select {...register('categoryId')} className="input">
                 <option value="">Select category...</option>
                 {categories?.map((c) => (
@@ -319,7 +320,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Status</label>
+              <FieldLabel text="Status" help="The asset's current lifecycle status (e.g. Planned, In Use, Decommissioned)." />
               <select {...register('status')} className="input">
                 {Object.entries(STATUS_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -327,7 +328,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Condition</label>
+              <FieldLabel text="Condition" help="The asset's physical condition." />
               <select {...register('condition')} className="input">
                 {Object.entries(CONDITION_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
@@ -335,7 +336,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="label">Description</label>
+              <FieldLabel text="Description" help="Free-text description of the asset." />
               <textarea {...register('description')} className="input" rows={3} />
             </div>
           </div>
@@ -346,7 +347,7 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Assignment & Location</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="label mb-2">Assigned To</label>
+              <FieldLabel text="Assigned To" help="The student or staff member currently using this asset." />
               <div className="flex gap-2 mb-3">
                 <button
                   type="button"
@@ -402,7 +403,7 @@ export default function AssetForm() {
               )}
             </div>
             <div>
-              <label className="label">Location</label>
+              <FieldLabel text="Location" help="Where the asset is physically located." />
               <select {...register('locationId')} className="input">
                 <option value="">Select location...</option>
                 {locations?.map((l) => (
@@ -418,11 +419,11 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Device Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Hostname</label>
+              <FieldLabel text="Hostname" help="The device's network hostname." />
               <input {...register('hostname')} className="input" />
             </div>
             <div className="md:col-span-2">
-              <label className="label">IP Addresses</label>
+              <FieldLabel text="IP Addresses" help="IP addresses currently linked to this device." />
               {/* Add New IP */}
               {isEditing && (
                 <div className="mt-4 pt-4 border-t space-y-3">
@@ -482,19 +483,19 @@ export default function AssetForm() {
               )}
             </div>
             <div>
-              <label className="label">LAN MAC Address</label>
+              <FieldLabel text="LAN MAC Address" help="The MAC address of the device's wired network adapter." />
               <input {...register('lanMacAddress')} className="input" placeholder="00:00:00:00:00:00" />
             </div>
             <div>
-              <label className="label">WLAN MAC Address</label>
+              <FieldLabel text="WLAN MAC Address" help="The MAC address of the device's wireless network adapter." />
               <input {...register('wlanMacAddress')} className="input" placeholder="00:00:00:00:00:00" />
             </div>
             <div>
-              <label className="label">Device Username</label>
+              <FieldLabel text="Device Username" help="The login username for this device." />
               <input {...register('deviceUsername')} className="input" />
             </div>
             <div>
-              <label className="label">Device Password</label>
+              <FieldLabel text="Device Password" help="The login password for this device. Only visible to users with password-view permission." />
               {hasPermission('canViewDevicePasswords') ? (
                 <>
                   <input
@@ -522,15 +523,15 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Purchase Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Acquired Date</label>
+              <FieldLabel text="Acquired Date" help="The date this asset was purchased or received." />
               <input {...register('acquiredDate')} type="date" className="input" />
             </div>
             <div>
-              <label className="label">Purchase Price</label>
+              <FieldLabel text="Purchase Price" help="What the school paid for this asset." />
               <input {...register('purchasePrice')} type="number" step="0.01" className="input" />
             </div>
             <div>
-              <label className="label">Supplier</label>
+              <FieldLabel text="Supplier" help="The vendor this asset was purchased from." />
               <select {...register('supplierId')} className="input">
                 <option value="">Select supplier...</option>
                 {suppliers?.map((s) => (
@@ -539,7 +540,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Order Number</label>
+              <FieldLabel text="Order Number" help="The purchase order or invoice reference number." />
               <input {...register('orderNumber')} className="input" />
             </div>
           </div>
@@ -550,19 +551,19 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Lifecycle</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="label">Warranty Expiration</label>
+              <FieldLabel text="Warranty Expiration" help="The date the manufacturer's warranty ends." />
               <input {...register('warrantyExpiration')} type="date" className="input" />
             </div>
             <div>
-              <label className="label">End of Life Date</label>
+              <FieldLabel text="End of Life Date" help="The date the manufacturer stops supporting or patching this asset." />
               <input {...register('endOfLifeDate')} type="date" className="input" />
             </div>
             <div>
-              <label className="label">Last Review Date</label>
+              <FieldLabel text="Last Review Date" help="The date this asset's record was last reviewed for accuracy. Update at least yearly to meet the MACS annual review requirement." />
               <input {...register('lastReviewDate')} type="date" className="input" />
             </div>
             <div>
-              <label className="label">Decommission Date</label>
+              <FieldLabel text="Decommission Date" help="The date the asset was, or is planned to be, retired from service." />
               <input {...register('decommissionDate')} type="date" className="input" />
             </div>
           </div>
@@ -573,23 +574,23 @@ export default function AssetForm() {
           <h2 className="text-lg font-semibold mb-4">Compliance / Governance</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="label">Business Purpose / Function</label>
+              <FieldLabel text="Business Purpose / Function" help="The business process or service this asset supports." />
               <textarea {...register('businessPurpose')} className="input" rows={2} />
             </div>
             <div>
-              <label className="label">Business Owner</label>
+              <FieldLabel text="Business Owner" help="The person or role accountable for this asset's business use (e.g. Principal, Business Manager)." />
               <input {...register('businessOwner')} className="input" placeholder="e.g., Principal, Business Manager" />
             </div>
             <div>
-              <label className="label">Technical Owner</label>
+              <FieldLabel text="Technical Owner" help="The person or role responsible for this asset's technical upkeep (e.g. IT Coordinator)." />
               <input {...register('technicalOwner')} className="input" placeholder="e.g., IT Coordinator" />
             </div>
             <div>
-              <label className="label">Version</label>
+              <FieldLabel text="Version" help="The software or firmware version currently installed, if applicable." />
               <input {...register('version')} className="input" />
             </div>
             <div>
-              <label className="label">Criticality</label>
+              <FieldLabel text="Criticality" help="How severe the impact would be if this asset were compromised or unavailable. Crown Jewel means critical to core school operations or child safety." />
               <select {...register('criticalityTier')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(CRITICALITY_LABELS).map(([value, label]) => (
@@ -598,7 +599,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Data Classification</label>
+              <FieldLabel text="Data Classification" help="The sensitivity of the most sensitive data this asset stores or processes." />
               <select {...register('dataClassification')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(DATA_CLASSIFICATION_LABELS).map(([value, label]) => (
@@ -607,7 +608,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Hosting</label>
+              <FieldLabel text="Hosting" help="Where this asset (or the data/service it provides) is hosted." />
               <select {...register('hostingType')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(HOSTING_LABELS).map(([value, label]) => (
@@ -616,7 +617,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Support Type</label>
+              <FieldLabel text="Support Type" help="Who provides technical support for this asset." />
               <select {...register('supportType')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(SUPPORT_LABELS).map(([value, label]) => (
@@ -625,7 +626,7 @@ export default function AssetForm() {
               </select>
             </div>
             <div>
-              <label className="label">Internet Facing</label>
+              <FieldLabel text="Internet Facing" help="Whether this asset is directly accessible from the internet." />
               <select {...register('internetFacing')} className="input">
                 <option value="">Unknown</option>
                 <option value="true">Yes</option>
