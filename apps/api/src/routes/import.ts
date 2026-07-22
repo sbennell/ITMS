@@ -59,7 +59,8 @@ const HOSTING_LABELS: Record<string, string> = {
   ON_PREM: 'On-Premises',
   SCHOOL_CLOUD: 'School Managed Cloud',
   MACS_CLOUD: 'MACS Managed Cloud',
-  THIRD_PARTY_CLOUD: 'Third-Party Managed Cloud'
+  THIRD_PARTY_CLOUD: 'Third-Party Managed Cloud',
+  DET_HOSTED: 'DET Managed Hosted'
 };
 
 const SUPPORT_LABELS: Record<string, string> = {

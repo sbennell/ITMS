@@ -4,6 +4,32 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.26.4] - 2026-07-22
+
+### Added
+
+- Added "DET Managed Hosted" as a Hosting option for assets, alongside On-Premises, School Managed Cloud, MACS Managed Cloud, and Third-Party Managed Cloud
+
+### Technical Details
+
+- `apps/web/src/lib/utils.ts`: added `DET_HOSTED: 'DET Managed Hosted'` to `HOSTING_LABELS`
+- `apps/api/src/routes/import.ts`: mirrored the same entry in its server-side `HOSTING_LABELS` copy, used by the asset register export
+
+---
+
+## [1.26.3] - 2026-07-22
+
+### Changed
+
+- Field help tooltips (added in 1.26.2) are now shown on the Asset Form (Add/Edit) only. Removed from the read-only Asset Detail page based on feedback
+
+### Technical Details
+
+- `apps/web/src/pages/AssetDetail.tsx`: reverted to plain `dt` labels with no `help`/`HelpCircle` rendering; `DetailRow` dropped the `help` prop
+- `apps/web/src/pages/AssetForm.tsx` and `apps/web/src/components/FieldLabel.tsx` unchanged
+
+---
+
 ## [1.26.2] - 2026-07-22
 
 ### Added
