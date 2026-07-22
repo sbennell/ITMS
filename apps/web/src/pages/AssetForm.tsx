@@ -4,7 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { ArrowLeft, Save, Trash2, Plus } from 'lucide-react';
 import { api, Asset, StudentSummary } from '../lib/api';
-import { STATUS_LABELS, CONDITION_LABELS } from '../lib/utils';
+import {
+  STATUS_LABELS,
+  CONDITION_LABELS,
+  CRITICALITY_LABELS,
+  DATA_CLASSIFICATION_LABELS,
+  HOSTING_LABELS,
+  SUPPORT_LABELS
+} from '../lib/utils';
 import StudentSearchCombobox from '../components/StudentSearchCombobox';
 import { useAuth } from '../App';
 
@@ -34,6 +41,15 @@ type AssetFormData = {
   lastReviewDate: string;
   decommissionDate: string;
   comments: string;
+  businessPurpose: string;
+  businessOwner: string;
+  technicalOwner: string;
+  version: string;
+  criticalityTier: string;
+  dataClassification: string;
+  hostingType: string;
+  supportType: string;
+  internetFacing: string;
 };
 
 export default function AssetForm() {
@@ -134,7 +150,16 @@ export default function AssetForm() {
         endOfLifeDate: asset.endOfLifeDate ? asset.endOfLifeDate.split('T')[0] : '',
         lastReviewDate: asset.lastReviewDate ? asset.lastReviewDate.split('T')[0] : '',
         decommissionDate: asset.decommissionDate ? asset.decommissionDate.split('T')[0] : '',
-        comments: asset.comments || ''
+        comments: asset.comments || '',
+        businessPurpose: asset.businessPurpose || '',
+        businessOwner: asset.businessOwner || '',
+        technicalOwner: asset.technicalOwner || '',
+        version: asset.version || '',
+        criticalityTier: asset.criticalityTier || '',
+        dataClassification: asset.dataClassification || '',
+        hostingType: asset.hostingType || '',
+        supportType: asset.supportType || '',
+        internetFacing: asset.internetFacing === null || asset.internetFacing === undefined ? '' : String(asset.internetFacing)
       });
 
       // Initialize assignment mode based on whether studentId is set
@@ -212,6 +237,9 @@ export default function AssetForm() {
     Object.entries(data).forEach(([key, value]) => {
       cleanData[key] = value === '' ? null : value;
     });
+
+    // Tri-state (Unknown/Yes/No) field: convert the string back to a nullable boolean
+    cleanData.internetFacing = data.internetFacing === '' ? null : data.internetFacing === 'true';
 
     // Without canViewDevicePasswords, the field was never populated with the real value
     // (the API redacts it to null) - omit it entirely so an unrelated save doesn't
@@ -540,9 +568,76 @@ export default function AssetForm() {
           </div>
         </div>
 
+        {/* Compliance / Governance */}
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold mb-4">Compliance / Governance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="label">Business Purpose / Function</label>
+              <textarea {...register('businessPurpose')} className="input" rows={2} />
+            </div>
+            <div>
+              <label className="label">Business Owner</label>
+              <input {...register('businessOwner')} className="input" placeholder="e.g., Principal, Business Manager" />
+            </div>
+            <div>
+              <label className="label">Technical Owner</label>
+              <input {...register('technicalOwner')} className="input" placeholder="e.g., IT Coordinator" />
+            </div>
+            <div>
+              <label className="label">Version</label>
+              <input {...register('version')} className="input" />
+            </div>
+            <div>
+              <label className="label">Criticality</label>
+              <select {...register('criticalityTier')} className="input">
+                <option value="">Not set</option>
+                {Object.entries(CRITICALITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Data Classification</label>
+              <select {...register('dataClassification')} className="input">
+                <option value="">Not set</option>
+                {Object.entries(DATA_CLASSIFICATION_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Hosting</label>
+              <select {...register('hostingType')} className="input">
+                <option value="">Not set</option>
+                {Object.entries(HOSTING_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Support Type</label>
+              <select {...register('supportType')} className="input">
+                <option value="">Not set</option>
+                {Object.entries(SUPPORT_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Internet Facing</label>
+              <select {...register('internetFacing')} className="input">
+                <option value="">Unknown</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Comments */}
         <div className="card p-6">
-          <h2 className="text-lg font-semibold mb-4">Comments</h2>
+          <h2 className="text-lg font-semibold mb-4">Comments / Supporting Notes</h2>
           <textarea {...register('comments')} className="input" rows={4} />
         </div>
 

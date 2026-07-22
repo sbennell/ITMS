@@ -103,6 +103,15 @@ export interface Asset {
   lastReviewDate: string | null;
   decommissionDate: string | null;
   comments: string | null;
+  businessPurpose: string | null;
+  businessOwner: string | null;
+  technicalOwner: string | null;
+  version: string | null;
+  criticalityTier: string | null;
+  dataClassification: string | null;
+  hostingType: string | null;
+  supportType: string | null;
+  internetFacing: boolean | null;
   createdAt: string;
   updatedAt: string;
 }

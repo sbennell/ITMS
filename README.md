@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.25.1**
+**Version 1.26.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -10,8 +10,9 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 - **Asset Tracking**: Track IT assets including computers, monitors, printers, and other equipment
 - **Detailed Records**: Store item numbers, serial numbers, models, manufacturers, and more
 - **Custom Fields**: Track hostname, IP address, assigned users, and locations
-- **Status Tracking**: Monitor asset status (In Use, In Storage, Retired, etc.)
+- **Status Tracking**: Monitor asset status (Planned, In Use, In Storage, Retired, etc.)
 - **Condition Tracking**: Track asset condition (Excellent, Good, Fair, Poor)
+- **Compliance / Governance Fields**: Track business purpose, business/technical owner, version, criticality tier, data classification, hosting location, support type, and internet-facing status per asset (supports MACS Asset Management Standard compliance)
 - **Audit History**: View complete change history for each asset
 
 ### Label Printing

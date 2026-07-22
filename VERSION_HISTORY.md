@@ -4,6 +4,26 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.26.0] - 2026-07-22
+
+### Added
+
+- **MACS Asset Register Compliance Fields**: Assets now carry a "Compliance / Governance" section - Business Purpose, Business Owner, Technical Owner, Version, Criticality (Low/Medium/High/Crown Jewel), Data Classification (Public/Internal/Sensitive/Restricted), Hosting (On-Premises/School Managed Cloud/MACS Managed Cloud/Third-Party Managed Cloud), Support Type (In-house IT/SaaS/Vendor Supported), and Internet Facing (Yes/No/Unknown). All fields are optional so existing assets keep saving/editing unchanged
+- Added a new `Planned` status option for assets that are budgeted/approved but not yet acquired
+- The asset list now shows a Criticality column, and the full asset export (Settings > Data Import/Export, admin only) includes all the new compliance columns with human-readable labels
+- The Reports > Stocktake Review tab now notes that it also satisfies the MACS annual asset register review requirement (via the existing Last Review Date tracking)
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: added nullable `businessPurpose`, `businessOwner`, `technicalOwner`, `version`, `criticalityTier`, `dataClassification`, `hostingType`, `supportType`, `internetFacing` columns to `Asset`. No lookup tables - these are fixed, standard-mandated enumerations rendered via label maps, consistent with how `status`/`condition` are already handled
+- `apps/web/src/lib/utils.ts`: new `CRITICALITY_LABELS`/`_COLORS`, `DATA_CLASSIFICATION_LABELS`/`_COLORS`, `HOSTING_LABELS`, `SUPPORT_LABELS` maps; added `Planned` to `STATUS_LABELS`/`STATUS_COLORS`
+- `apps/api/src/routes/assets.ts`: `POST /` and `PUT /:id` read/write the new fields; bulk-update already supported them for free via its generic field pass-through
+- `apps/api/src/routes/import.ts`: `/export` route adds the 9 new columns (server-side label maps mirror the frontend's, exporting human-readable values); `VALID_STATUS` accepts `Planned`. Export/import routes remain admin-only, unchanged
+- `apps/web/src/pages/AssetForm.tsx`, `AssetDetail.tsx`, `AssetList.tsx`: new "Compliance / Governance" form/detail section and a Criticality list column
+- Scope: hardware assets only - software/SaaS/cloud asset tracking is not yet modeled in ITMS; "to-be-decommissioned" is inferred from a future Decommission Date rather than a dedicated status value
+
+---
+
 ## [1.25.1] - 2026-07-22
 
 ### Added

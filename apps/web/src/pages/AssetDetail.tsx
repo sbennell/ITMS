@@ -3,7 +3,19 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit, Trash2, Printer, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
-import { formatDate, formatCurrency, STATUS_LABELS, STATUS_COLORS, CONDITION_LABELS, cn } from '../lib/utils';
+import {
+  formatDate,
+  formatCurrency,
+  STATUS_LABELS,
+  STATUS_COLORS,
+  CONDITION_LABELS,
+  CRITICALITY_LABELS,
+  CRITICALITY_COLORS,
+  DATA_CLASSIFICATION_LABELS,
+  HOSTING_LABELS,
+  SUPPORT_LABELS,
+  cn
+} from '../lib/utils';
 import LabelPreviewModal from '../components/LabelPreviewModal';
 import PasswordPromptModal from '../components/PasswordPromptModal';
 import { useAuth } from '../App';
@@ -221,9 +233,34 @@ export default function AssetDetail() {
           </dl>
         </div>
 
+        {/* Compliance / Governance */}
+        <div className="card p-6">
+          <h2 className="text-lg font-semibold mb-4">Compliance / Governance</h2>
+          <dl className="space-y-3">
+            <DetailRow label="Business Purpose / Function" value={asset.businessPurpose} />
+            <DetailRow label="Business Owner" value={asset.businessOwner} />
+            <DetailRow label="Technical Owner" value={asset.technicalOwner} />
+            <DetailRow label="Version" value={asset.version} />
+            <div className="flex justify-between">
+              <dt className="text-sm font-medium text-gray-500">Criticality</dt>
+              <dd className="text-sm text-gray-900">
+                {asset.criticalityTier ? (
+                  <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full', CRITICALITY_COLORS[asset.criticalityTier])}>
+                    {CRITICALITY_LABELS[asset.criticalityTier] || asset.criticalityTier}
+                  </span>
+                ) : '-'}
+              </dd>
+            </div>
+            <DetailRow label="Data Classification" value={asset.dataClassification ? (DATA_CLASSIFICATION_LABELS[asset.dataClassification] || asset.dataClassification) : null} />
+            <DetailRow label="Hosting" value={asset.hostingType ? (HOSTING_LABELS[asset.hostingType] || asset.hostingType) : null} />
+            <DetailRow label="Support Type" value={asset.supportType ? (SUPPORT_LABELS[asset.supportType] || asset.supportType) : null} />
+            <DetailRow label="Internet Facing" value={asset.internetFacing === null || asset.internetFacing === undefined ? 'Unknown' : (asset.internetFacing ? 'Yes' : 'No')} />
+          </dl>
+        </div>
+
         {/* Comments */}
         <div className="card p-6">
-          <h2 className="text-lg font-semibold mb-4">Comments</h2>
+          <h2 className="text-lg font-semibold mb-4">Comments / Supporting Notes</h2>
           <p className="text-sm text-gray-700 whitespace-pre-wrap">
             {asset.comments || 'No comments'}
           </p>

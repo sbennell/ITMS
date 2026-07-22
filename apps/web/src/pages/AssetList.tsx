@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-table';
 import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer, Copy, Pencil } from 'lucide-react';
 import { api, Asset } from '../lib/api';
-import { cn, STATUS_LABELS, STATUS_COLORS } from '../lib/utils';
+import { cn, STATUS_LABELS, STATUS_COLORS, CRITICALITY_LABELS, CRITICALITY_COLORS } from '../lib/utils';
 import BatchPrintModal from '../components/BatchPrintModal';
 import BulkEditModal from '../components/BulkEditModal';
 
@@ -50,6 +50,18 @@ const columns = [
       return (
         <span className={cn('px-2 py-1 text-xs font-medium rounded-full', STATUS_COLORS[status])}>
           {STATUS_LABELS[status] || status}
+        </span>
+      );
+    }
+  }),
+  columnHelper.accessor('criticalityTier', {
+    header: 'Criticality',
+    cell: (info) => {
+      const tier = info.getValue();
+      if (!tier) return '-';
+      return (
+        <span className={cn('px-2 py-1 text-xs font-medium rounded-full', CRITICALITY_COLORS[tier])}>
+          {CRITICALITY_LABELS[tier] || tier}
         </span>
       );
     }

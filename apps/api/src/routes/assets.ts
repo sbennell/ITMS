@@ -461,7 +461,16 @@ router.post('/', async (req: Request, res: Response) => {
       locationId,
       warrantyExpiration,
       endOfLifeDate,
-      comments
+      comments,
+      businessPurpose,
+      businessOwner,
+      technicalOwner,
+      version,
+      criticalityTier,
+      dataClassification,
+      hostingType,
+      supportType,
+      internetFacing
     } = req.body;
 
     if (!itemNumber) {
@@ -507,6 +516,15 @@ router.post('/', async (req: Request, res: Response) => {
         warrantyExpiration: warrantyExpiration ? new Date(warrantyExpiration) : null,
         endOfLifeDate: endOfLifeDate ? new Date(endOfLifeDate) : null,
         comments,
+        businessPurpose,
+        businessOwner,
+        technicalOwner,
+        version,
+        criticalityTier,
+        dataClassification,
+        hostingType,
+        supportType,
+        internetFacing: internetFacing === undefined ? undefined : internetFacing,
         ipAddresses: ipsToCreate.length > 0 ? {
           create: ipsToCreate.map(ip => ({
             ip: ip.ip,
@@ -594,7 +612,16 @@ router.put('/:id', async (req: Request, res: Response) => {
       endOfLifeDate,
       lastReviewDate,
       decommissionDate,
-      comments
+      comments,
+      businessPurpose,
+      businessOwner,
+      technicalOwner,
+      version,
+      criticalityTier,
+      dataClassification,
+      hostingType,
+      supportType,
+      internetFacing
     } = req.body;
 
     // Process IPs: accept either single ipAddress or ipAddresses array
@@ -670,7 +697,16 @@ router.put('/:id', async (req: Request, res: Response) => {
         endOfLifeDate: endOfLifeDate ? new Date(endOfLifeDate) : null,
         lastReviewDate: lastReviewDate ? new Date(lastReviewDate) : null,
         decommissionDate: decommissionDate ? new Date(decommissionDate) : null,
-        comments
+        comments,
+        businessPurpose,
+        businessOwner,
+        technicalOwner,
+        version,
+        criticalityTier,
+        dataClassification,
+        hostingType,
+        supportType,
+        internetFacing: internetFacing === undefined ? undefined : internetFacing
       },
       include: {
         category: true,

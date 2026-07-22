@@ -19,7 +19,13 @@ export function formatCurrency(value: string | number | null): string {
   }).format(num);
 }
 
+// MACS Asset Register status categories map onto these existing values as follows:
+//   Planned              -> 'Planned'
+//   Active               -> 'In Use*', 'Awaiting allocation/delivery/collection', 'Waiting Repair', 'Missing'
+//   To-be-decommissioned -> inferred from a populated future decommissionDate (no dedicated status)
+//   Decommissioned       -> all 'Decommissioned*' / 'Retired*' values
 export const STATUS_LABELS: Record<string, string> = {
+  'Planned': 'Planned',
   'In Use': 'In Use',
   'In Use - Infrastructure': 'In Use - Infrastructure',
   'In Use - Loaned to student': 'In Use - Loaned to student',
@@ -49,6 +55,7 @@ export const CONDITION_LABELS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<string, string> = {
+  'Planned': 'bg-blue-100 text-blue-800',
   'In Use': 'bg-green-100 text-green-800',
   'In Use - Loaned to student': 'bg-green-100 text-green-800',
   'In Use - Loaned to staff': 'bg-green-100 text-green-800',
@@ -75,4 +82,46 @@ export const CONDITION_COLORS: Record<string, string> = {
   FAIR: 'bg-yellow-100 text-yellow-800',
   POOR: 'bg-orange-100 text-orange-800',
   NON_FUNCTIONAL: 'bg-red-100 text-red-800'
+};
+
+// MACS Asset Register compliance fields (criticality, data classification, hosting, support)
+export const CRITICALITY_LABELS: Record<string, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  CROWN_JEWEL: 'Crown Jewel'
+};
+
+export const CRITICALITY_COLORS: Record<string, string> = {
+  LOW: 'bg-gray-100 text-gray-800',
+  MEDIUM: 'bg-yellow-100 text-yellow-800',
+  HIGH: 'bg-orange-100 text-orange-800',
+  CROWN_JEWEL: 'bg-purple-100 text-purple-800'
+};
+
+export const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
+  PUBLIC: 'Public',
+  INTERNAL: 'Internal',
+  SENSITIVE: 'Sensitive',
+  RESTRICTED: 'Restricted'
+};
+
+export const DATA_CLASSIFICATION_COLORS: Record<string, string> = {
+  PUBLIC: 'bg-gray-100 text-gray-800',
+  INTERNAL: 'bg-blue-100 text-blue-800',
+  SENSITIVE: 'bg-orange-100 text-orange-800',
+  RESTRICTED: 'bg-red-100 text-red-800'
+};
+
+export const HOSTING_LABELS: Record<string, string> = {
+  ON_PREM: 'On-Premises',
+  SCHOOL_CLOUD: 'School Managed Cloud',
+  MACS_CLOUD: 'MACS Managed Cloud',
+  THIRD_PARTY_CLOUD: 'Third-Party Managed Cloud'
+};
+
+export const SUPPORT_LABELS: Record<string, string> = {
+  IN_HOUSE: 'In-house IT',
+  SAAS: 'SaaS',
+  VENDOR: 'Vendor Supported'
 };

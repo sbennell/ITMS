@@ -16,6 +16,7 @@ router.use(requireAuth);
 router.use(requireAdmin);
 
 const VALID_STATUS = [
+  'Planned',
   'In Use',
   'In Use - Infrastructure',
   'In Use - Loaned to student',
@@ -35,6 +36,37 @@ const VALID_STATUS = [
 ];
 
 const VALID_CONDITION = ['NEW', 'GOOD', 'FAIR', 'POOR', 'DAMAGED'];
+
+// Compliance/governance fields are export-only for now (see COLUMNS/rowData below) -
+// bulk import of these fields is not yet supported, so no VALID_* arrays are needed here.
+// Mirrors apps/web/src/lib/utils.ts label maps - duplicated here to keep the API
+// package independent of the web package for a handful of small enum labels.
+const CRITICALITY_LABELS: Record<string, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  CROWN_JEWEL: 'Crown Jewel'
+};
+
+const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
+  PUBLIC: 'Public',
+  INTERNAL: 'Internal',
+  SENSITIVE: 'Sensitive',
+  RESTRICTED: 'Restricted'
+};
+
+const HOSTING_LABELS: Record<string, string> = {
+  ON_PREM: 'On-Premises',
+  SCHOOL_CLOUD: 'School Managed Cloud',
+  MACS_CLOUD: 'MACS Managed Cloud',
+  THIRD_PARTY_CLOUD: 'Third-Party Managed Cloud'
+};
+
+const SUPPORT_LABELS: Record<string, string> = {
+  IN_HOUSE: 'In-house IT',
+  SAAS: 'SaaS',
+  VENDOR: 'Vendor Supported'
+};
 
 // Column configuration for Excel
 const COLUMNS = [
@@ -71,7 +103,16 @@ const COLUMNS = [
   { header: 'End of Life Date', key: 'endOfLifeDate', width: 16 },
   { header: 'Last Review Date', key: 'lastReviewDate', width: 16 },
   { header: 'Decommission Date', key: 'decommissionDate', width: 18 },
-  { header: 'Comments', key: 'comments', width: 30 }
+  { header: 'Comments', key: 'comments', width: 30 },
+  { header: 'Business Purpose', key: 'businessPurpose', width: 30 },
+  { header: 'Business Owner', key: 'businessOwner', width: 20 },
+  { header: 'Technical Owner', key: 'technicalOwner', width: 20 },
+  { header: 'Version', key: 'version', width: 14 },
+  { header: 'Criticality', key: 'criticalityTier', width: 14 },
+  { header: 'Data Classification', key: 'dataClassification', width: 16 },
+  { header: 'Hosting', key: 'hostingType', width: 20 },
+  { header: 'Support Type', key: 'supportType', width: 16 },
+  { header: 'Internet Facing', key: 'internetFacing', width: 14 }
 ];
 
 // GET /api/import/template - Download Excel template with dropdowns
@@ -696,7 +737,16 @@ router.get('/export', async (req: Request, res: Response) => {
         endOfLifeDate: asset.endOfLifeDate,
         lastReviewDate: asset.lastReviewDate,
         decommissionDate: asset.decommissionDate,
-        comments: asset.comments
+        comments: asset.comments,
+        businessPurpose: asset.businessPurpose,
+        businessOwner: asset.businessOwner,
+        technicalOwner: asset.technicalOwner,
+        version: asset.version,
+        criticalityTier: asset.criticalityTier ? (CRITICALITY_LABELS[asset.criticalityTier] ?? asset.criticalityTier) : null,
+        dataClassification: asset.dataClassification ? (DATA_CLASSIFICATION_LABELS[asset.dataClassification] ?? asset.dataClassification) : null,
+        hostingType: asset.hostingType ? (HOSTING_LABELS[asset.hostingType] ?? asset.hostingType) : null,
+        supportType: asset.supportType ? (SUPPORT_LABELS[asset.supportType] ?? asset.supportType) : null,
+        internetFacing: asset.internetFacing === null ? null : (asset.internetFacing ? 'Yes' : 'No')
       };
 
       // Add additional IPs

@@ -58,6 +58,17 @@ model Asset {
   // Documentation
   comments            String?
 
+  // Compliance / Governance (MACS Asset Register)
+  businessPurpose     String?   @map("business_purpose")
+  businessOwner       String?   @map("business_owner")
+  technicalOwner      String?   @map("technical_owner")
+  version             String?
+  criticalityTier     String?   @map("criticality_tier")
+  dataClassification  String?   @map("data_classification")
+  hostingType         String?   @map("hosting_type")
+  supportType         String?   @map("support_type")
+  internetFacing      Boolean?  @map("internet_facing")
+
   // Legacy ID from Access database
   legacyId            Int?      @map("legacy_id")
 

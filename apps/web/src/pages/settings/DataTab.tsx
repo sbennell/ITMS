@@ -60,7 +60,7 @@ function DataImport() {
       </h2>
 
       <p className="text-sm text-gray-600 mb-4">
-        Export all assets to Excel or import assets from an Excel/CSV file. The template includes dropdowns for easy data entry.
+        Export the full asset register to Excel (including compliance/governance fields) or import assets from an Excel/CSV file. The template includes dropdowns for easy data entry.
       </p>
 
       {/* Export / Download Template */}
@@ -70,7 +70,7 @@ function DataImport() {
           className="btn btn-primary"
         >
           <Download className="w-4 h-4 mr-2" />
-          Export All Assets
+          Export Asset Register
         </button>
         <button
           onClick={() => api.downloadImportTemplate()}
