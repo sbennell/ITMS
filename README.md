@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.26.0**
+**Version 1.26.1**
 
 A web-based IT Management System for tracking hardware and equipment inventory. Built with React, Express, and SQLite.
 
@@ -57,6 +57,7 @@ A web-based IT Management System for tracking hardware and equipment inventory. 
 
 ### Data Management
 - **Import/Export**: Import assets from Excel/CSV, export to Excel
+- **MACS Asset Register Export**: One-click export of just the minimum fields required by the MACS IT Security Asset Management Standard, in the standard's order
 - **Bulk Operations**: Perform batch updates on multiple assets
 - **Search & Filter**: Find assets by any field with advanced filtering
 - **Sorting**: Sort by any column with natural number ordering

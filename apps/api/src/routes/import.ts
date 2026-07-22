@@ -115,6 +115,29 @@ const COLUMNS = [
   { header: 'Internet Facing', key: 'internetFacing', width: 14 }
 ];
 
+// Column configuration for the MACS Asset Register export - just the minimum
+// required fields from the MACS IT Security Asset Management Standard, in the
+// order the standard lists them, so the sheet can be handed to an auditor as-is.
+const MACS_COLUMNS = [
+  { header: 'Unique ID', key: 'itemNumber', width: 15 },
+  { header: 'Type of Asset', key: 'category', width: 20 },
+  { header: 'Business Purpose / Function', key: 'businessPurpose', width: 30 },
+  { header: 'Business Owner', key: 'businessOwner', width: 20 },
+  { header: 'Technical Owner', key: 'technicalOwner', width: 20 },
+  { header: 'Date of Acquisition / Implementation', key: 'acquiredDate', width: 20 },
+  { header: 'Status', key: 'status', width: 14 },
+  { header: 'Date of Decommissioning / Disposal', key: 'decommissionDate', width: 20 },
+  { header: 'Supplier', key: 'supplier', width: 20 },
+  { header: 'Version', key: 'version', width: 14 },
+  { header: 'End-of-Life Support Date', key: 'endOfLifeDate', width: 18 },
+  { header: 'Criticality Category', key: 'criticalityTier', width: 16 },
+  { header: 'Data Classification', key: 'dataClassification', width: 16 },
+  { header: 'Hosting', key: 'hostingType', width: 20 },
+  { header: 'Support', key: 'supportType', width: 16 },
+  { header: 'Internet Facing / Accessible', key: 'internetFacing', width: 16 },
+  { header: 'Supporting Notes', key: 'comments', width: 30 }
+];
+
 // GET /api/import/template - Download Excel template with dropdowns
 router.get('/template', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
@@ -779,6 +802,80 @@ router.get('/export', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export assets' });
+  }
+});
+
+// GET /api/import/export-macs - Export the MACS Asset Register minimum required fields only
+router.get('/export-macs', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const assets = await prisma.asset.findMany({
+      include: {
+        category: true,
+        supplier: true
+      },
+      orderBy: { itemNumber: 'asc' }
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'IT Management System (ITMS)';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('MACS Asset Register');
+    worksheet.columns = MACS_COLUMNS;
+
+    // Style header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+    headerRow.height = 20;
+
+    for (const asset of assets) {
+      worksheet.addRow({
+        itemNumber: asset.itemNumber,
+        category: asset.category?.name,
+        businessPurpose: asset.businessPurpose,
+        businessOwner: asset.businessOwner,
+        technicalOwner: asset.technicalOwner,
+        acquiredDate: asset.acquiredDate,
+        status: asset.status,
+        decommissionDate: asset.decommissionDate,
+        supplier: asset.supplier?.name,
+        version: asset.version,
+        endOfLifeDate: asset.endOfLifeDate,
+        criticalityTier: asset.criticalityTier ? (CRITICALITY_LABELS[asset.criticalityTier] ?? asset.criticalityTier) : null,
+        dataClassification: asset.dataClassification ? (DATA_CLASSIFICATION_LABELS[asset.dataClassification] ?? asset.dataClassification) : null,
+        hostingType: asset.hostingType ? (HOSTING_LABELS[asset.hostingType] ?? asset.hostingType) : null,
+        supportType: asset.supportType ? (SUPPORT_LABELS[asset.supportType] ?? asset.supportType) : null,
+        internetFacing: asset.internetFacing === null ? null : (asset.internetFacing ? 'Yes' : 'No'),
+        comments: asset.comments
+      });
+    }
+
+    // Format date columns
+    worksheet.getColumn('acquiredDate').numFmt = 'yyyy-mm-dd';
+    worksheet.getColumn('decommissionDate').numFmt = 'yyyy-mm-dd';
+    worksheet.getColumn('endOfLifeDate').numFmt = 'yyyy-mm-dd';
+
+    // Freeze header row
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const filename = `macs-asset-register-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+
+  } catch (error: any) {
+    console.error('MACS export error:', error);
+    res.status(500).json({ error: 'Failed to export MACS asset register' });
   }
 });
 

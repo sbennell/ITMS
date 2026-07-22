@@ -73,6 +73,14 @@ function DataImport() {
           Export Asset Register
         </button>
         <button
+          onClick={() => api.exportAssetsMacs()}
+          className="btn btn-secondary"
+          title="Export just the minimum fields required by the MACS IT Security Asset Management Standard"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export for MACS
+        </button>
+        <button
           onClick={() => api.downloadImportTemplate()}
           className="btn btn-secondary"
         >

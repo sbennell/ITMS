@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.26.1] - 2026-07-22
+
+### Added
+
+- **MACS Asset Register Export**: New "Export for MACS" button (Settings > Data Import/Export, admin only) downloads a focused spreadsheet containing just the 17 minimum required fields from the MACS IT Security Asset Management Standard, in the standard's order (Unique ID, Type of Asset, Business Purpose/Function, Business Owner, Technical Owner, Date of Acquisition, Status, Date of Decommissioning, Supplier, Version, End-of-Life Support Date, Criticality Category, Data Classification, Hosting, Support, Internet Facing, Supporting Notes) - a smaller, audit-ready alternative to the full asset export
+
+### Technical Details
+
+- `apps/api/src/routes/import.ts`: new `GET /export-macs` route and `MACS_COLUMNS` array, reusing the existing `CRITICALITY_LABELS`/`DATA_CLASSIFICATION_LABELS`/`HOSTING_LABELS`/`SUPPORT_LABELS` maps for human-readable values. Same `requireAdmin` gate as the existing `/export` route - unchanged
+- `apps/web/src/lib/api.ts`: new `exportAssetsMacs()` helper
+- `apps/web/src/pages/settings/DataTab.tsx`: new "Export for MACS" button alongside "Export Asset Register"
+
+---
+
 ## [1.26.0] - 2026-07-22
 
 ### Added

@@ -655,6 +655,10 @@ export const api = {
     window.location.href = '/api/import/export';
   },
 
+  exportAssetsMacs: () => {
+    window.location.href = '/api/import/export-macs';
+  },
+
   importAssets: async (file: File, options?: { skipDuplicates?: boolean; updateExisting?: boolean }): Promise<ImportResult> => {
     const formData = new FormData();
     formData.append('file', file);
