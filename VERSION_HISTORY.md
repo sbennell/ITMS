@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.27.5] - 2026-07-22
+
+### Changed
+
+- Moved "Export Software Register" next to "Export Hardware Asset Register" in Settings > Data (previously in its own section below), and renamed "Export Asset Register" to "Export Hardware Asset Register" for clarity alongside the software export
+
+### Technical Details
+
+- `apps/web/src/pages/settings/DataTab.tsx`: merged the separate "Software" export section into the main export button row; updated button label
+
+---
+
 ## [1.27.4] - 2026-07-22
 
 ### Fixed

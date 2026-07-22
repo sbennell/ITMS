@@ -70,7 +70,14 @@ function DataImport() {
           className="btn btn-primary"
         >
           <Download className="w-4 h-4 mr-2" />
-          Export Asset Register
+          Export Hardware Asset Register
+        </button>
+        <button
+          onClick={() => api.exportSoftware()}
+          className="btn btn-primary"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export Software Register
         </button>
         <button
           onClick={() => api.exportAssetsMacs()}
@@ -86,18 +93,6 @@ function DataImport() {
         >
           <Download className="w-4 h-4 mr-2" />
           Download Import Template
-        </button>
-      </div>
-
-      {/* Software Export */}
-      <div className="mb-6 pt-4 border-t">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Software</h3>
-        <button
-          onClick={() => api.exportSoftware()}
-          className="btn btn-secondary"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export Software Register
         </button>
       </div>
 
