@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.27.4] - 2026-07-22
+
+### Fixed
+
+- Fixed a bug where exporting the full Asset Register and re-importing that same file dropped all Compliance/Governance data (Business Purpose, Business Owner, Technical Owner, Version, Criticality, Data Classification, Hosting, Support Type, Internet Facing) - the importer had never been taught to read these columns back in, even though the export had included them since they were added. Re-importing an export now round-trips these fields correctly, whether the cell contains the exported human label (e.g. "High") or the raw stored value (e.g. "HIGH") - invalid values are rejected with a clear error, same as the existing Status/Condition validation.
+
+### Technical Details
+
+- `apps/api/src/routes/import.ts`: added column-header mappings for `businessPurpose`/`businessOwner`/`technicalOwner`/`version`/`criticalityTier`/`dataClassification`/`hostingType`/`supportType`/`internetFacing`; new `resolveEnumValue()` helper resolves a cell's text back to its enum key by matching either the raw key or the human label (case-insensitive), used for the four tier/classification fields; `internetFacing` accepts Yes/No/true/false (case-insensitive); unrecognized values produce a per-row import error instead of silently dropping data
+
+---
+
 ## [1.27.3] - 2026-07-22
 
 ### Changed

@@ -387,6 +387,26 @@ function parseNumber(numStr: string | number | undefined | null): number | null 
   return num;
 }
 
+// Resolve a compliance-field cell (which may contain either the raw enum key,
+// e.g. "LOW", or the human label exported for it, e.g. "Low") back to its key.
+// Accepts round-tripped exports as well as hand-typed values in either form.
+function resolveEnumValue(
+  labelMap: Record<string, string>,
+  input: string | undefined | null
+): { value: string | null; invalid?: string } {
+  if (!input) return { value: null };
+  const trimmed = String(input).trim();
+  if (trimmed === '') return { value: null };
+
+  const keyMatch = Object.keys(labelMap).find((k) => k.toLowerCase() === trimmed.toLowerCase());
+  if (keyMatch) return { value: keyMatch };
+
+  const labelMatch = Object.entries(labelMap).find(([, label]) => label.toLowerCase() === trimmed.toLowerCase());
+  if (labelMatch) return { value: labelMatch[0] };
+
+  return { value: null, invalid: trimmed };
+}
+
 // Helper to get cell value as string
 function getCellString(cell: ExcelJS.Cell): string {
   const value = cell.value;
@@ -462,6 +482,15 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
         else if (header.includes('lastreviewdate') || header.includes('reviewed')) columnMap['lastReviewDate'] = colNumber;
         else if (header.includes('decommissiondate') || header.includes('decommissioned')) columnMap['decommissionDate'] = colNumber;
         else if (header.includes('comments') || header.includes('notes')) columnMap['comments'] = colNumber;
+        else if (header.includes('businesspurpose')) columnMap['businessPurpose'] = colNumber;
+        else if (header.includes('businessowner')) columnMap['businessOwner'] = colNumber;
+        else if (header.includes('technicalowner')) columnMap['technicalOwner'] = colNumber;
+        else if (header.includes('version')) columnMap['version'] = colNumber;
+        else if (header.includes('criticality')) columnMap['criticalityTier'] = colNumber;
+        else if (header.includes('dataclassification')) columnMap['dataClassification'] = colNumber;
+        else if (header.includes('hosting')) columnMap['hostingType'] = colNumber;
+        else if (header.includes('supporttype')) columnMap['supportType'] = colNumber;
+        else if (header.includes('internetfacing')) columnMap['internetFacing'] = colNumber;
       });
 
       // Parse data rows
@@ -584,6 +613,60 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           continue;
         }
 
+        // Validate and resolve compliance/governance enum fields (accepts either the
+        // raw key or the human label exported for it, so re-importing an export round-trips)
+        const criticalityResolved = resolveEnumValue(CRITICALITY_LABELS, row.criticalityTier);
+        if (criticalityResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid criticality "${criticalityResolved.invalid}". Must be one of: ${Object.values(CRITICALITY_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const dataClassificationResolved = resolveEnumValue(DATA_CLASSIFICATION_LABELS, row.dataClassification);
+        if (dataClassificationResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid data classification "${dataClassificationResolved.invalid}". Must be one of: ${Object.values(DATA_CLASSIFICATION_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const hostingResolved = resolveEnumValue(HOSTING_LABELS, row.hostingType);
+        if (hostingResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid hosting "${hostingResolved.invalid}". Must be one of: ${Object.values(HOSTING_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const supportResolved = resolveEnumValue(SUPPORT_LABELS, row.supportType);
+        if (supportResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid support type "${supportResolved.invalid}". Must be one of: ${Object.values(SUPPORT_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        let internetFacing: boolean | null = null;
+        const internetFacingInput = String(row.internetFacing || '').trim().toLowerCase();
+        if (internetFacingInput) {
+          if (['yes', 'y', 'true'].includes(internetFacingInput)) {
+            internetFacing = true;
+          } else if (['no', 'n', 'false'].includes(internetFacingInput)) {
+            internetFacing = false;
+          } else {
+            results.errors.push({
+              row: rowNum,
+              message: `Invalid internet facing value "${row.internetFacing}". Must be Yes or No.`
+            });
+            continue;
+          }
+        }
+
         // Check for existing asset
         const existingAsset = await prisma.asset.findUnique({
           where: { itemNumber }
@@ -650,7 +733,16 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
           endOfLifeDate: parseDate(row.endOfLifeDate),
           lastReviewDate: parseDate(row.lastReviewDate),
           decommissionDate: parseDate(row.decommissionDate),
-          comments: String(row.comments || '').trim() || null
+          comments: String(row.comments || '').trim() || null,
+          businessPurpose: String(row.businessPurpose || '').trim() || null,
+          businessOwner: String(row.businessOwner || '').trim() || null,
+          technicalOwner: String(row.technicalOwner || '').trim() || null,
+          version: String(row.version || '').trim() || null,
+          criticalityTier: criticalityResolved.value,
+          dataClassification: dataClassificationResolved.value,
+          hostingType: hostingResolved.value,
+          supportType: supportResolved.value,
+          internetFacing
         };
 
         if (existingAsset) {
