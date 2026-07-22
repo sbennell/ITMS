@@ -211,7 +211,7 @@ export default function AssetList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Hardware Assets</h1>
           <p className="mt-1 text-sm text-gray-500">
             {data?.pagination.total || 0} total assets
             {selectedIds.size > 0 && ` (${selectedIds.size} selected)`}

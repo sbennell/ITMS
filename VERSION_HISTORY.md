@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.27.1] - 2026-07-22
+
+### Changed
+
+- Renamed "Assets" to "Hardware Assets" and "Software" to "Software Assets" in the sidebar nav, list page headings, and the Settings > Users permission checkboxes, to make the distinction between the two registers clearer. URLs (`/assets`, `/software`), buttons (Add Asset, Export Asset Register, etc.), and form titles are unchanged.
+
+### Technical Details
+
+- `apps/web/src/components/Layout.tsx`: `NAV_ITEMS` display names updated
+- `apps/web/src/pages/AssetList.tsx`, `SoftwareList.tsx`: H1 heading text updated
+- `apps/web/src/pages/settings/UsersTab.tsx`: `PERMISSION_FIELDS` labels updated
+
+---
+
 ## [1.27.0] - 2026-07-22
 
 ### Added

@@ -24,8 +24,8 @@ import { useAuth } from '../App';
 import { useVersionCheck, APP_VERSION } from '../lib/useVersionCheck';
 
 const NAV_ITEMS: Array<{ name: string; href: string; icon: typeof Package; permission: PermissionFlag }> = [
-  { name: 'Assets', href: '/assets', icon: Package, permission: 'canAccessAssets' },
-  { name: 'Software', href: '/software', icon: AppWindow, permission: 'canAccessSoftware' },
+  { name: 'Hardware Assets', href: '/assets', icon: Package, permission: 'canAccessAssets' },
+  { name: 'Software Assets', href: '/software', icon: AppWindow, permission: 'canAccessSoftware' },
   { name: 'IP Addresses', href: '/network', icon: Network, permission: 'canAccessReports' },
   { name: 'Reports', href: '/reports', icon: BarChart2, permission: 'canAccessReports' },
   { name: 'Stocktake', href: '/stocktake', icon: ClipboardCheck, permission: 'canAccessStocktake' },

@@ -5,11 +5,11 @@ import { api, User, PermissionFlag } from '../../lib/api';
 import { useAuth } from '../../App';
 
 const PERMISSION_FIELDS: Array<{ key: PermissionFlag; label: string }> = [
-  { key: 'canAccessAssets', label: 'Assets (incl. label printing)' },
+  { key: 'canAccessAssets', label: 'Hardware Assets (incl. label printing)' },
   { key: 'canAccessStudents', label: 'Students' },
   { key: 'canAccessStocktake', label: 'Stocktake' },
   { key: 'canAccessReports', label: 'Reports & Network/IPAM' },
-  { key: 'canAccessSoftware', label: 'Software' },
+  { key: 'canAccessSoftware', label: 'Software Assets' },
   { key: 'canViewDevicePasswords', label: 'View device passwords' },
   { key: 'canViewStudentPasswords', label: 'View student passwords' }
 ];
