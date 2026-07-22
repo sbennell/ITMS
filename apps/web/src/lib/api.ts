@@ -557,12 +557,13 @@ export const api = {
     else if (params.schoolYear) qs.set('schoolYear', params.schoolYear);
     return `${API_BASE}/students/login-cards${qs.toString() ? `?${qs}` : ''}`;
   },
-  getStudentsExportUrl: (params: { search?: string; status?: string; schoolYear?: string; homeGroup?: string } = {}) => {
+  getStudentsExportUrl: (params: { search?: string; status?: string; schoolYear?: string; homeGroup?: string; fields?: string[] } = {}) => {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
     if (params.status) qs.set('status', params.status);
     if (params.schoolYear) qs.set('schoolYear', params.schoolYear);
     if (params.homeGroup) qs.set('homeGroup', params.homeGroup);
+    if (params.fields && params.fields.length > 0) qs.set('fields', params.fields.join(','));
     return `${API_BASE}/students/export${qs.toString() ? `?${qs}` : ''}`;
   },
 

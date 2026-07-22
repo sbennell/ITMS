@@ -10,6 +10,7 @@ import {
 import { Search, ChevronLeft, ChevronRight, Filter, X, Download } from 'lucide-react';
 import { api, Student } from '../lib/api';
 import StudentLoginCardsModal from '../components/StudentLoginCardsModal';
+import StudentExportModal from '../components/StudentExportModal';
 import { useAuth } from '../App';
 
 const columnHelper = createColumnHelper<Student>();
@@ -58,6 +59,7 @@ export default function StudentList() {
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [showFilters, setShowFilters] = useState(false);
   const [showLoginCardsModal, setShowLoginCardsModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -151,7 +153,7 @@ export default function StudentList() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => window.open(api.getStudentsExportUrl({ search, status, schoolYear, homeGroup }), '_blank')}
+            onClick={() => setShowExportModal(true)}
             className="btn btn-secondary flex items-center gap-2"
           >
             <Download size={18} />
@@ -351,6 +353,14 @@ export default function StudentList() {
           onClose={() => setShowLoginCardsModal(false)}
           yearLevels={yearLevels}
           homeGroups={homeGroups}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <StudentExportModal
+          onClose={() => setShowExportModal(false)}
+          filters={{ search, status, schoolYear, homeGroup }}
         />
       )}
     </div>

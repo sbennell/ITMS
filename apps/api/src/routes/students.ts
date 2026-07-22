@@ -347,38 +347,107 @@ router.get('/login-cards', requirePermission('canViewStudentPasswords'), async (
   }
 });
 
-// Export students (with their assigned assets) to Excel, honoring the same filters as the list view
+// Field catalog for GET /export - keys must stay in sync with the checkboxes in
+// apps/web/src/components/StudentExportModal.tsx
+const STUDENT_EXPORT_FIELDS: Record<string, { header: string; width: number }> = {
+  firstName: { header: 'First Name', width: 16 },
+  surname: { header: 'Surname', width: 16 },
+  homeGroup: { header: 'Home Group', width: 14 },
+  schoolYear: { header: 'Year Level', width: 12 },
+  status: { header: 'Status', width: 14 },
+  email: { header: 'Email', width: 28 },
+  username: { header: 'Username', width: 18 },
+  edupassUsername: { header: 'Edupass Username', width: 20 },
+  birthdate: { header: 'Birthdate', width: 14 }
+};
+
+const ASSET_EXPORT_FIELDS: Record<string, { header: string; width: number }> = {
+  itemNumber: { header: 'Item Number', width: 16 },
+  category: { header: 'Category', width: 16 },
+  manufacturer: { header: 'Manufacturer', width: 16 },
+  model: { header: 'Model', width: 20 },
+  serialNumber: { header: 'Serial Number', width: 20 },
+  description: { header: 'Description', width: 28 },
+  assetStatus: { header: 'Asset Status', width: 16 },
+  condition: { header: 'Condition', width: 12 },
+  location: { header: 'Location', width: 18 },
+  acquiredDate: { header: 'Acquired Date', width: 14 },
+  warrantyExpiration: { header: 'Warranty Expiration', width: 18 },
+  orderNumber: { header: 'Order Number', width: 15 },
+  supplier: { header: 'Supplier', width: 18 },
+  comments: { header: 'Comments', width: 30 }
+};
+
+const DEFAULT_STUDENT_EXPORT_FIELDS = ['firstName', 'surname', 'homeGroup', 'schoolYear', 'status', 'email'];
+const DEFAULT_ASSET_EXPORT_FIELDS = ['itemNumber', 'category', 'manufacturer', 'model', 'serialNumber'];
+
+// Maps an asset export field to its Prisma select shape (relations need a nested select)
+const ASSET_FIELD_SELECT: Record<string, Prisma.AssetSelect> = {
+  itemNumber: { itemNumber: true },
+  category: { category: { select: { name: true } } },
+  manufacturer: { manufacturer: { select: { name: true } } },
+  model: { model: true },
+  serialNumber: { serialNumber: true },
+  description: { description: true },
+  assetStatus: { status: true },
+  condition: { condition: true },
+  location: { location: { select: { name: true } } },
+  acquiredDate: { acquiredDate: true },
+  warrantyExpiration: { warrantyExpiration: true },
+  orderNumber: { orderNumber: true },
+  supplier: { supplier: { select: { name: true } } },
+  comments: { comments: true }
+};
+
+// Reads an asset export field's value off the fetched asset row (handles relation fields)
+function getAssetFieldValue(asset: any, field: string) {
+  switch (field) {
+    case 'category': return asset.category?.name ?? null;
+    case 'manufacturer': return asset.manufacturer?.name ?? null;
+    case 'location': return asset.location?.name ?? null;
+    case 'supplier': return asset.supplier?.name ?? null;
+    case 'assetStatus': return asset.status ?? null;
+    default: return asset[field] ?? null;
+  }
+}
+
+// Export students (with their assigned assets) to Excel, honoring the same filters as the list
+// view plus a caller-selected set of columns (?fields=firstName,surname,itemNumber,...)
 router.get('/export', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
+    const fieldsParam = req.query.fields;
+    const requestedFields = typeof fieldsParam === 'string' && fieldsParam.trim()
+      ? fieldsParam.split(',').map((f) => f.trim()).filter(Boolean)
+      : [...DEFAULT_STUDENT_EXPORT_FIELDS, ...DEFAULT_ASSET_EXPORT_FIELDS];
+
+    const studentFields = requestedFields.filter((f) => f in STUDENT_EXPORT_FIELDS);
+    const assetFields = requestedFields.filter((f) => f in ASSET_EXPORT_FIELDS);
+
+    if (studentFields.length === 0 && assetFields.length === 0) {
+      res.status(400).json({ error: 'At least one field must be selected' });
+      return;
+    }
+
     const where = buildStudentWhere(req.query);
     const { sortBy = 'firstName', sortOrder = 'asc' } = req.query;
     const orderBy: Prisma.StudentOrderByWithRelationInput = {
       [sortBy as string]: sortOrder as 'asc' | 'desc'
     };
 
+    const studentSelect: Record<string, any> = {};
+    for (const f of studentFields) studentSelect[f] = true;
+    if (assetFields.length > 0) {
+      const assetSelect: Record<string, any> = {};
+      for (const f of assetFields) Object.assign(assetSelect, ASSET_FIELD_SELECT[f]);
+      studentSelect.assets = { select: assetSelect, orderBy: { itemNumber: 'asc' } };
+    }
+
     const students = await prisma.student.findMany({
       where,
       orderBy,
-      select: {
-        firstName: true,
-        surname: true,
-        homeGroup: true,
-        schoolYear: true,
-        status: true,
-        email: true,
-        assets: {
-          select: {
-            itemNumber: true,
-            serialNumber: true,
-            model: true,
-            category: { select: { name: true } },
-            manufacturer: { select: { name: true } }
-          },
-          orderBy: { itemNumber: 'asc' }
-        }
-      }
+      select: studentSelect
     });
 
     const workbook = new ExcelJS.Workbook();
@@ -387,17 +456,8 @@ router.get('/export', async (req: Request, res: Response) => {
 
     const worksheet = workbook.addWorksheet('Students');
     worksheet.columns = [
-      { header: 'First Name', key: 'firstName', width: 16 },
-      { header: 'Surname', key: 'surname', width: 16 },
-      { header: 'Home Group', key: 'homeGroup', width: 14 },
-      { header: 'Year Level', key: 'schoolYear', width: 12 },
-      { header: 'Status', key: 'status', width: 14 },
-      { header: 'Email', key: 'email', width: 28 },
-      { header: 'Item Number', key: 'itemNumber', width: 16 },
-      { header: 'Category', key: 'category', width: 16 },
-      { header: 'Manufacturer', key: 'manufacturer', width: 16 },
-      { header: 'Model', key: 'model', width: 20 },
-      { header: 'Serial Number', key: 'serialNumber', width: 20 }
+      ...studentFields.map((f) => ({ header: STUDENT_EXPORT_FIELDS[f].header, key: `student_${f}`, width: STUDENT_EXPORT_FIELDS[f].width })),
+      ...assetFields.map((f) => ({ header: ASSET_EXPORT_FIELDS[f].header, key: `asset_${f}`, width: ASSET_EXPORT_FIELDS[f].width }))
     ];
 
     const headerRow = worksheet.getRow(1);
@@ -410,32 +470,27 @@ router.get('/export', async (req: Request, res: Response) => {
     headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
     headerRow.height = 20;
 
-    for (const student of students) {
-      const studentColumns = {
-        firstName: student.firstName,
-        surname: student.surname,
-        homeGroup: student.homeGroup,
-        schoolYear: student.schoolYear,
-        status: student.status,
-        email: student.email
-      };
+    for (const student of students as any[]) {
+      const studentColumns: Record<string, any> = {};
+      for (const f of studentFields) studentColumns[`student_${f}`] = student[f];
 
-      if (student.assets.length === 0) {
+      const assets: any[] = assetFields.length > 0 ? student.assets : [];
+
+      if (assets.length === 0) {
         worksheet.addRow(studentColumns);
         continue;
       }
 
-      for (const asset of student.assets) {
-        worksheet.addRow({
-          ...studentColumns,
-          itemNumber: asset.itemNumber,
-          category: asset.category?.name,
-          manufacturer: asset.manufacturer?.name,
-          model: asset.model,
-          serialNumber: asset.serialNumber
-        });
+      for (const asset of assets) {
+        const row = { ...studentColumns };
+        for (const f of assetFields) row[`asset_${f}`] = getAssetFieldValue(asset, f);
+        worksheet.addRow(row);
       }
     }
+
+    if (studentFields.includes('birthdate')) worksheet.getColumn('student_birthdate').numFmt = 'yyyy-mm-dd';
+    if (assetFields.includes('acquiredDate')) worksheet.getColumn('asset_acquiredDate').numFmt = 'yyyy-mm-dd';
+    if (assetFields.includes('warrantyExpiration')) worksheet.getColumn('asset_warrantyExpiration').numFmt = 'yyyy-mm-dd';
 
     worksheet.views = [{ state: 'frozen', ySplit: 1 }];
 

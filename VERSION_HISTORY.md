@@ -4,6 +4,21 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.25.1] - 2026-07-22
+
+### Added
+
+- **Customizable Student Export Fields**: The Students page "Export" button now opens a field picker instead of exporting a fixed set of columns. Choose any combination of 9 student fields (name, home group, year level, status, email, username, edupass username, birthdate) and 14 asset fields (item number, category, manufacturer, model, serial number, description, status, condition, location, acquired date, warranty expiration, order number, supplier, comments), with the previous default columns pre-checked and "Select All" / "Select None" shortcuts
+
+### Technical Details
+
+- `apps/api/src/routes/students.ts`: `GET /students/export` now accepts `?fields=` (comma-separated keys), validated against `STUDENT_EXPORT_FIELDS`/`ASSET_EXPORT_FIELDS` whitelists; builds the Prisma `select` and worksheet columns dynamically from the requested fields, with `ASSET_FIELD_SELECT` mapping relation fields (category/manufacturer/location/supplier) to their nested selects. Falls back to the prior default column set when `fields` is omitted; 400s if nothing is selected. Rows are only duplicated per asset when at least one asset field is requested
+- `apps/web/src/components/StudentExportModal.tsx`: new modal with grouped checkboxes for student vs. asset fields, replacing the old one-click export button
+- `apps/web/src/pages/StudentList.tsx`: "Export" button now opens `StudentExportModal` instead of calling the export URL directly
+- `apps/web/src/lib/api.ts`: `getStudentsExportUrl()` accepts an optional `fields: string[]` and appends it as a comma-separated query param
+
+---
+
 ## [1.25.0] - 2026-07-21
 
 ### Added
