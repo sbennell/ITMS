@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.27.5**
+**Version 1.28.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory, plus a separate software/license register. Built with React, Express, and SQLite.
 
@@ -21,7 +21,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **Same Compliance / Governance Fields**: Business purpose, business/technical owner, criticality, data classification, hosting, support type, and internet-facing status - the same taxonomy used for hardware assets
 - **File Attachments**: Upload and download license documents, quotes, or other files per software item (PDF, Word, Excel, PNG, JPEG)
 - **Audit History**: View complete change history for each software item
-- **Software Export**: Admin-only Excel export of the full software register
+- **Software Import/Export**: Admin-only Excel export of the full software register, and import from Excel/CSV (with auto-created Publisher/Category/Supplier lookups) - re-uploading a downloaded export round-trips all fields, including compliance/governance data
 
 ### Label Printing
 - **QR Code Labels**: Generate labels with QR codes for easy asset identification

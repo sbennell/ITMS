@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.0] - 2026-07-22
+
+### Added
+
+- **Software Register Import**: New "Import Software items" section in Settings > Data (admin only), mirroring the existing hardware asset import - upload an Excel/CSV file to create or update software items, with Skip Duplicates / Update Existing options. Accepts the same column headers as the Software export (including Compliance/Governance fields), so a downloaded export can be edited and re-uploaded directly. Publisher, Category, and Supplier values are matched to existing lookups or auto-created, same as hardware import. Invalid Status/Criticality/Data Classification/Hosting/Support Type/Internet Facing values are rejected per-row with a clear error instead of silently dropped
+
+### Technical Details
+
+- `apps/api/src/routes/software.ts`: new `POST /import` route (`requireAdmin`, in addition to the router-level `canAccessSoftware` gate), with its own `multer.memoryStorage()` instance separate from the attachment upload's `diskStorage`; duplicates the `parseDate`/`resolveEnumValue`/`getCellString` helpers and `VALID_SOFTWARE_STATUS` list (mirroring the equivalent hardware helpers in `import.ts`, kept local since they aren't exported)
+- `apps/web/src/lib/api.ts`: new `importSoftware()` function mirroring `importAssets()`
+- `apps/web/src/pages/settings/DataTab.tsx`: extracted the shared file-upload/options/results UI into a reusable `ImportPanel` component, used for both the existing hardware import and the new software import section
+
+---
+
 ## [1.27.5] - 2026-07-22
 
 ### Changed

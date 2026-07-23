@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
+import { parse } from 'csv-parse/sync';
 import { requireAuth, requirePermission, requireAdmin } from './auth.js';
 
 const router = Router();
@@ -71,6 +72,60 @@ const SUPPORT_LABELS: Record<string, string> = {
   SAAS: 'SaaS',
   VENDOR: 'Vendor Supported'
 };
+
+const VALID_SOFTWARE_STATUS = ['Planned', 'Active', 'Trial', 'Decommissioned'];
+
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB - generous for a spreadsheet, bounds memory use
+});
+
+function parseDate(dateStr: string | Date | undefined | null): Date | null {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  const str = String(dateStr).trim();
+  if (str === '') return null;
+  const date = new Date(str);
+  if (isNaN(date.getTime())) return null;
+  return date;
+}
+
+function parseIntOrNull(numStr: string | number | undefined | null): number | null {
+  if (numStr === null || numStr === undefined) return null;
+  if (typeof numStr === 'number') return Math.trunc(numStr);
+  const str = String(numStr).trim();
+  if (str === '') return null;
+  const num = parseInt(str, 10);
+  if (isNaN(num)) return null;
+  return num;
+}
+
+// Resolve a compliance-field cell (which may contain either the raw enum key,
+// e.g. "LOW", or the human label exported for it, e.g. "Low") back to its key.
+function resolveEnumValue(
+  labelMap: Record<string, string>,
+  input: string | undefined | null
+): { value: string | null; invalid?: string } {
+  if (!input) return { value: null };
+  const trimmed = String(input).trim();
+  if (trimmed === '') return { value: null };
+
+  const keyMatch = Object.keys(labelMap).find((k) => k.toLowerCase() === trimmed.toLowerCase());
+  if (keyMatch) return { value: keyMatch };
+
+  const labelMatch = Object.entries(labelMap).find(([, label]) => label.toLowerCase() === trimmed.toLowerCase());
+  if (labelMatch) return { value: labelMatch[0] };
+
+  return { value: null, invalid: trimmed };
+}
+
+function getCellString(cell: ExcelJS.Cell): string {
+  const value = cell.value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object' && 'text' in value) return String((value as any).text).trim();
+  if (typeof value === 'object' && 'result' in value) return String((value as any).result).trim();
+  return String(value).trim();
+}
 
 // List software with pagination, filtering, and sorting
 router.get('/', async (req: Request, res: Response) => {
@@ -305,6 +360,297 @@ router.get('/export', requireAdmin, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Software export error:', error);
     res.status(500).json({ error: 'Failed to export software' });
+  }
+});
+
+// Import software from Excel or CSV (admin only) - accepts the same column headers
+// as the /export sheet, so a downloaded export can be edited and re-uploaded directly
+router.post('/import', requireAdmin, importUpload.single('file'), async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const skipDuplicates = req.query.skipDuplicates === 'true';
+  const updateExisting = req.query.updateExisting === 'true';
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  try {
+    let records: any[] = [];
+    const isExcel = req.file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    req.file.originalname?.endsWith('.xlsx');
+
+    if (isExcel) {
+      const workbook = new ExcelJS.Workbook();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await workbook.xlsx.load(req.file.buffer as any);
+      const worksheet = workbook.worksheets.find(ws => ws.name === 'Software') || workbook.worksheets[0];
+
+      if (!worksheet) {
+        return res.status(400).json({ error: 'No worksheet found in Excel file' });
+      }
+
+      const headerRow = worksheet.getRow(1);
+      const columnMap: { [key: string]: number } = {};
+      headerRow.eachCell((cell, colNumber) => {
+        const header = getCellString(cell).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (header.includes('itemnumber')) columnMap['itemNumber'] = colNumber;
+        else if (header.includes('name')) columnMap['name'] = colNumber;
+        else if (header.includes('publisher')) columnMap['publisher'] = colNumber;
+        else if (header.includes('category')) columnMap['category'] = colNumber;
+        else if (header.includes('description')) columnMap['description'] = colNumber;
+        else if (header.includes('version')) columnMap['version'] = colNumber;
+        else if (header.includes('url')) columnMap['url'] = colNumber;
+        else if (header.includes('appstore')) columnMap['appStore'] = colNumber;
+        else if (header.includes('deploymentmechanism')) columnMap['deploymentMechanism'] = colNumber;
+        else if (header.includes('status')) columnMap['status'] = colNumber;
+        else if (header.includes('businesspurpose')) columnMap['businessPurpose'] = colNumber;
+        else if (header.includes('businessowner')) columnMap['businessOwner'] = colNumber;
+        else if (header.includes('technicalowner')) columnMap['technicalOwner'] = colNumber;
+        else if (header.includes('initialinstalldate')) columnMap['initialInstallDate'] = colNumber;
+        else if (header.includes('licenseexpiration')) columnMap['licenseExpiration'] = colNumber;
+        else if (header.includes('licensecount')) columnMap['licenseCount'] = colNumber;
+        else if (header.includes('supplier')) columnMap['supplier'] = colNumber;
+        else if (header.includes('lastreviewdate')) columnMap['lastReviewDate'] = colNumber;
+        else if (header.includes('decommissiondate')) columnMap['decommissionDate'] = colNumber;
+        else if (header.includes('criticality')) columnMap['criticalityTier'] = colNumber;
+        else if (header.includes('dataclassification')) columnMap['dataClassification'] = colNumber;
+        else if (header.includes('hosting')) columnMap['hostingType'] = colNumber;
+        else if (header.includes('supporttype')) columnMap['supportType'] = colNumber;
+        else if (header.includes('internetfacing')) columnMap['internetFacing'] = colNumber;
+        else if (header.includes('comments') || header.includes('notes')) columnMap['comments'] = colNumber;
+      });
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header
+
+        const record: any = {};
+        for (const [key, colNum] of Object.entries(columnMap)) {
+          const cell = row.getCell(colNum);
+          record[key] = getCellString(cell);
+        }
+
+        if (record.itemNumber) {
+          records.push(record);
+        }
+      });
+    } else {
+      const csvContent = req.file.buffer.toString('utf-8');
+      records = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true
+      });
+    }
+
+    if (records.length === 0) {
+      return res.status(400).json({ error: 'File is empty or has no data rows' });
+    }
+
+    const publisherCache = new Map<string, string>();
+    const categoryCache = new Map<string, string>();
+    const supplierCache = new Map<string, string>();
+
+    const [publishers, categories, suppliers] = await Promise.all([
+      prisma.softwarePublisher.findMany({ select: { id: true, name: true } }),
+      prisma.softwareCategory.findMany({ select: { id: true, name: true } }),
+      prisma.supplier.findMany({ select: { id: true, name: true } })
+    ]);
+
+    publishers.forEach(p => publisherCache.set(p.name.toLowerCase(), p.id));
+    categories.forEach(c => categoryCache.set(c.name.toLowerCase(), c.id));
+    suppliers.forEach(s => supplierCache.set(s.name.toLowerCase(), s.id));
+
+    async function getOrCreateLookup(
+      cache: Map<string, string>,
+      name: string | undefined,
+      createFn: (name: string) => Promise<{ id: string }>
+    ): Promise<string | null> {
+      if (!name || String(name).trim() === '') return null;
+      const normalizedName = String(name).trim().toLowerCase();
+
+      if (cache.has(normalizedName)) {
+        return cache.get(normalizedName)!;
+      }
+
+      const created = await createFn(String(name).trim());
+      cache.set(normalizedName, created.id);
+      return created.id;
+    }
+
+    const results = {
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: [] as { row: number; message: string }[]
+    };
+
+    for (let i = 0; i < records.length; i++) {
+      const row = records[i];
+      const rowNum = i + 2;
+
+      try {
+        const itemNumber = String(row.itemNumber || '').trim();
+        if (!itemNumber) {
+          results.errors.push({ row: rowNum, message: 'Item Number is required' });
+          continue;
+        }
+
+        const name = String(row.name || '').trim();
+        if (!name) {
+          results.errors.push({ row: rowNum, message: 'Name is required' });
+          continue;
+        }
+
+        const statusInput = String(row.status || '').trim();
+        let status = '';
+        if (statusInput) {
+          const matchedStatus = VALID_SOFTWARE_STATUS.find(s => s.toLowerCase() === statusInput.toLowerCase());
+          if (!matchedStatus) {
+            results.errors.push({
+              row: rowNum,
+              message: `Invalid status "${row.status}". Must be one of: ${VALID_SOFTWARE_STATUS.join(', ')}`
+            });
+            continue;
+          }
+          status = matchedStatus;
+        }
+
+        const criticalityResolved = resolveEnumValue(CRITICALITY_LABELS, row.criticalityTier);
+        if (criticalityResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid criticality "${criticalityResolved.invalid}". Must be one of: ${Object.values(CRITICALITY_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const dataClassificationResolved = resolveEnumValue(DATA_CLASSIFICATION_LABELS, row.dataClassification);
+        if (dataClassificationResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid data classification "${dataClassificationResolved.invalid}". Must be one of: ${Object.values(DATA_CLASSIFICATION_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const hostingResolved = resolveEnumValue(HOSTING_LABELS, row.hostingType);
+        if (hostingResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid hosting "${hostingResolved.invalid}". Must be one of: ${Object.values(HOSTING_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        const supportResolved = resolveEnumValue(SUPPORT_LABELS, row.supportType);
+        if (supportResolved.invalid) {
+          results.errors.push({
+            row: rowNum,
+            message: `Invalid support type "${supportResolved.invalid}". Must be one of: ${Object.values(SUPPORT_LABELS).join(', ')}`
+          });
+          continue;
+        }
+
+        let internetFacing: boolean | null = null;
+        const internetFacingInput = String(row.internetFacing || '').trim().toLowerCase();
+        if (internetFacingInput) {
+          if (['yes', 'y', 'true'].includes(internetFacingInput)) {
+            internetFacing = true;
+          } else if (['no', 'n', 'false'].includes(internetFacingInput)) {
+            internetFacing = false;
+          } else {
+            results.errors.push({
+              row: rowNum,
+              message: `Invalid internet facing value "${row.internetFacing}". Must be Yes or No.`
+            });
+            continue;
+          }
+        }
+
+        const existing = await prisma.software.findUnique({ where: { itemNumber } });
+
+        const publisherId = await getOrCreateLookup(
+          publisherCache,
+          row.publisher,
+          (publisherName) => prisma.softwarePublisher.create({ data: { name: publisherName } })
+        );
+        const categoryId = await getOrCreateLookup(
+          categoryCache,
+          row.category,
+          (categoryName) => prisma.softwareCategory.create({ data: { name: categoryName } })
+        );
+        const supplierId = await getOrCreateLookup(
+          supplierCache,
+          row.supplier,
+          (supplierName) => prisma.supplier.create({ data: { name: supplierName } })
+        );
+
+        const softwareData = {
+          name,
+          publisherId,
+          categoryId,
+          description: String(row.description || '').trim() || null,
+          version: String(row.version || '').trim() || null,
+          url: String(row.url || '').trim() || null,
+          appStore: String(row.appStore || '').trim() || null,
+          deploymentMechanism: String(row.deploymentMechanism || '').trim() || null,
+          status: status || (existing?.status || 'Planned'),
+          businessPurpose: String(row.businessPurpose || '').trim() || null,
+          businessOwner: String(row.businessOwner || '').trim() || null,
+          technicalOwner: String(row.technicalOwner || '').trim() || null,
+          initialInstallDate: parseDate(row.initialInstallDate),
+          licenseExpiration: parseDate(row.licenseExpiration),
+          licenseCount: parseIntOrNull(row.licenseCount),
+          supplierId,
+          lastReviewDate: parseDate(row.lastReviewDate),
+          decommissionDate: parseDate(row.decommissionDate),
+          comments: String(row.comments || '').trim() || null,
+          criticalityTier: criticalityResolved.value,
+          dataClassification: dataClassificationResolved.value,
+          hostingType: hostingResolved.value,
+          supportType: supportResolved.value,
+          internetFacing
+        };
+
+        if (existing) {
+          if (updateExisting) {
+            await prisma.software.update({
+              where: { id: existing.id },
+              data: softwareData
+            });
+            results.updated++;
+          } else if (skipDuplicates) {
+            results.skipped++;
+          } else {
+            results.errors.push({
+              row: rowNum,
+              message: `Software with Item Number "${itemNumber}" already exists`
+            });
+          }
+          continue;
+        }
+
+        await prisma.software.create({
+          data: {
+            itemNumber,
+            ...softwareData
+          }
+        });
+        results.created++;
+
+      } catch (error: any) {
+        results.errors.push({
+          row: rowNum,
+          message: error.message || 'Unknown error'
+        });
+      }
+    }
+
+    res.json(results);
+
+  } catch (error: any) {
+    console.error('Software import error:', error);
+    res.status(500).json({ error: 'Failed to import software: ' + error.message });
   }
 });
 

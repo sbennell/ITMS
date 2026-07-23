@@ -3,14 +3,26 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Upload, Download, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-react';
 import { api, ImportResult } from '../../lib/api';
 
-function DataImport() {
+function ImportPanel({
+  title,
+  itemNoun,
+  updateExistingLabel,
+  importFn,
+  onImported
+}: {
+  title: string;
+  itemNoun: string;
+  updateExistingLabel: string;
+  importFn: (file: File, options?: { skipDuplicates?: boolean; updateExisting?: boolean }) => Promise<ImportResult>;
+  onImported: () => void;
+}) {
+  const fileInputId = `import-file-input-${itemNoun.replace(/\s+/g, '-')}`;
   const [file, setFile] = useState<File | null>(null);
   const [skipDuplicates, setSkipDuplicates] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
   const [isImporting, setIsImporting] = useState(false);
-  const queryClient = useQueryClient();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -33,18 +45,12 @@ function DataImport() {
     setResult(null);
 
     try {
-      const importResult = await api.importAssets(file, { skipDuplicates, updateExisting });
+      const importResult = await importFn(file, { skipDuplicates, updateExisting });
       setResult(importResult);
       setFile(null);
-      // Reset file input
-      const fileInput = document.getElementById('import-file-input') as HTMLInputElement;
+      const fileInput = document.getElementById(fileInputId) as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      // Refresh asset list
-      queryClient.invalidateQueries({ queryKey: ['assets'] });
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['manufacturers'] });
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['locations'] });
+      onImported();
     } catch (err: any) {
       setError(err.message || 'Import failed');
     } finally {
@@ -53,55 +59,15 @@ function DataImport() {
   };
 
   return (
-    <div className="card p-6">
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <FileSpreadsheet className="w-5 h-5" />
-        Data Import / Export
-      </h2>
-
-      <p className="text-sm text-gray-600 mb-4">
-        Export the full asset register to Excel (including compliance/governance fields) or import assets from an Excel/CSV file. The template includes dropdowns for easy data entry.
-      </p>
-
-      {/* Export / Download Template */}
-      <div className="mb-6 flex flex-wrap gap-3">
-        <button
-          onClick={() => api.exportAssets()}
-          className="btn btn-primary"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export Hardware Asset Register
-        </button>
-        <button
-          onClick={() => api.exportSoftware()}
-          className="btn btn-primary"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export Software Register
-        </button>
-        <button
-          onClick={() => api.exportAssetsMacs()}
-          className="btn btn-secondary"
-          title="Export just the minimum fields required by the MACS IT Security Asset Management Standard, covering both hardware assets and software (on separate worksheets)"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Export for MACS
-        </button>
-        <button
-          onClick={() => api.downloadImportTemplate()}
-          className="btn btn-secondary"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Download Import Template
-        </button>
-      </div>
+    <div className="pt-4 border-t">
+      <h3 className="text-sm font-medium text-gray-700 mb-3">{title}</h3>
 
       {/* File Upload */}
       <div className="mb-4">
         <label className="label">Select Excel or CSV File</label>
         <div className="flex items-center gap-4">
           <input
-            id="import-file-input"
+            id={fileInputId}
             type="file"
             accept=".xlsx,.csv"
             onChange={handleFileChange}
@@ -145,7 +111,7 @@ function DataImport() {
             }}
             className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
-          <span className="text-sm text-gray-700">Update existing assets (match by item number)</span>
+          <span className="text-sm text-gray-700">{updateExistingLabel}</span>
         </label>
       </div>
 
@@ -163,7 +129,7 @@ function DataImport() {
         ) : (
           <>
             <Upload className="w-4 h-4 mr-2" />
-            Import Assets
+            Import {itemNoun.charAt(0).toUpperCase() + itemNoun.slice(1)}s
           </>
         )}
       </button>
@@ -184,13 +150,13 @@ function DataImport() {
             {result.created > 0 && (
               <div className="flex items-center gap-2 text-green-700">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{result.created} asset{result.created !== 1 ? 's' : ''} created</span>
+                <span>{result.created} {itemNoun}{result.created !== 1 ? 's' : ''} created</span>
               </div>
             )}
             {result.updated > 0 && (
               <div className="flex items-center gap-2 text-blue-700">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{result.updated} asset{result.updated !== 1 ? 's' : ''} updated</span>
+                <span>{result.updated} {itemNoun}{result.updated !== 1 ? 's' : ''} updated</span>
               </div>
             )}
             {result.skipped > 0 && (
@@ -214,6 +180,83 @@ function DataImport() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DataImport() {
+  const queryClient = useQueryClient();
+
+  return (
+    <div className="card p-6">
+      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <FileSpreadsheet className="w-5 h-5" />
+        Data Import / Export
+      </h2>
+
+      <p className="text-sm text-gray-600 mb-4">
+        Export the full hardware or software register to Excel (including compliance/governance fields), or import from an Excel/CSV file - re-uploading a downloaded export round-trips all fields, including compliance/governance data.
+      </p>
+
+      {/* Export / Download Template */}
+      <div className="mb-6 flex flex-wrap gap-3">
+        <button
+          onClick={() => api.exportAssets()}
+          className="btn btn-primary"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export Hardware Asset Register
+        </button>
+        <button
+          onClick={() => api.exportSoftware()}
+          className="btn btn-primary"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export Software Register
+        </button>
+        <button
+          onClick={() => api.exportAssetsMacs()}
+          className="btn btn-secondary"
+          title="Export just the minimum fields required by the MACS IT Security Asset Management Standard, covering both hardware assets and software (on separate worksheets)"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Export for MACS
+        </button>
+        <button
+          onClick={() => api.downloadImportTemplate()}
+          className="btn btn-secondary"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download Import Template
+        </button>
+      </div>
+
+      <ImportPanel
+        title="Hardware Assets"
+        itemNoun="hardware asset"
+        updateExistingLabel="Update existing assets (match by item number)"
+        importFn={api.importAssets}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: ['assets'] });
+          queryClient.invalidateQueries({ queryKey: ['categories'] });
+          queryClient.invalidateQueries({ queryKey: ['manufacturers'] });
+          queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+          queryClient.invalidateQueries({ queryKey: ['locations'] });
+        }}
+      />
+
+      <ImportPanel
+        title="Software Assets"
+        itemNoun="software assets"
+        updateExistingLabel="Update existing software items (match by item number)"
+        importFn={api.importSoftware}
+        onImported={() => {
+          queryClient.invalidateQueries({ queryKey: ['software'] });
+          queryClient.invalidateQueries({ queryKey: ['softwarePublishers'] });
+          queryClient.invalidateQueries({ queryKey: ['softwareCategories'] });
+          queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+        }}
+      />
     </div>
   );
 }

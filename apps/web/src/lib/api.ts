@@ -603,6 +603,24 @@ export const api = {
   exportSoftware: () => {
     window.location.href = '/api/software/export';
   },
+  importSoftware: async (file: File, options?: { skipDuplicates?: boolean; updateExisting?: boolean }): Promise<ImportResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    if (options?.skipDuplicates) params.set('skipDuplicates', 'true');
+    if (options?.updateExisting) params.set('updateExisting', 'true');
+
+    const response = await fetch(`/api/software/import?${params}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Import failed' }));
+      throw new Error(error.error || 'Import failed');
+    }
+    return response.json();
+  },
 
   getSoftwareAttachments: (softwareId: string) =>
     fetchJson<SoftwareAttachment[]>(`/software/${softwareId}/attachments`),
