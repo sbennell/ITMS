@@ -4,6 +4,14 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.2] - 2026-07-23
+
+### Fixed
+
+- Fixed "Import Software assetss" (double s) in Settings > Data - the software import panel's singular noun was accidentally set to the already-plural "software assets", which then had another "s" appended by the pluralization logic. Also corrected the "Update existing software assets" checkbox label to match.
+
+---
+
 ## [1.28.1] - 2026-07-23
 
 ### Changed

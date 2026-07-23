@@ -247,8 +247,8 @@ function DataImport() {
 
       <ImportPanel
         title="Software Assets"
-        itemNoun="software assets"
-        updateExistingLabel="Update existing software items (match by item number)"
+        itemNoun="software asset"
+        updateExistingLabel="Update existing software assets (match by item number)"
         importFn={api.importSoftware}
         onImported={() => {
           queryClient.invalidateQueries({ queryKey: ['software'] });
