@@ -4,6 +4,14 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.1] - 2026-07-23
+
+### Changed
+
+- Shortened the Data Import/Export description text in Settings > Data
+
+---
+
 ## [1.28.0] - 2026-07-22
 
 ### Added

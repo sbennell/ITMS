@@ -195,7 +195,7 @@ function DataImport() {
       </h2>
 
       <p className="text-sm text-gray-600 mb-4">
-        Export the full hardware or software register to Excel (including compliance/governance fields), or import from an Excel/CSV file - re-uploading a downloaded export round-trips all fields, including compliance/governance data.
+        Export the full hardware or software register to Excel
       </p>
 
       {/* Export / Download Template */}
