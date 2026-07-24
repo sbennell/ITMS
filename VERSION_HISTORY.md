@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.5] - 2026-07-24
+
+### Fixed
+
+- Renamed the top Criticality tier from "Crown Jewel" to "Critical". "Crown Jewel" is MACS-specific terminology and this system is also used by non-MACS schools; the MACS Asset Management Standard only requires "a tier rating system" for criticality, it doesn't mandate that literal label, so this doesn't affect MACS compliance while being clearer for everyone else. The underlying stored value is unchanged.
+
+### Technical Details
+
+- Updated `CRITICALITY_LABELS` in `apps/web/src/lib/utils.ts`, `apps/api/src/routes/import.ts`, and `apps/api/src/routes/software.ts`, plus the "Crown Jewel" wording in the Criticality field's hover-help text in `AssetForm.tsx` and `SoftwareForm.tsx`
+
+---
+
 ## [1.28.4] - 2026-07-24
 
 ### Fixed

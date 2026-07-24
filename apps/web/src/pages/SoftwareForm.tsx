@@ -305,7 +305,7 @@ export default function SoftwareForm() {
           <h2 className="text-lg font-semibold mb-4">Compliance / Governance</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <FieldLabel text="Criticality" help="How severe the impact would be if this software were compromised or unavailable. Crown Jewel means critical to core school operations or child safety." />
+              <FieldLabel text="Criticality" help="How severe the impact would be if this software were compromised or unavailable. Critical means essential to core school operations or child safety." />
               <select {...register('criticalityTier')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(CRITICALITY_LABELS).map(([value, label]) => (

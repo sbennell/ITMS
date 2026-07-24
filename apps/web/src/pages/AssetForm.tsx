@@ -590,7 +590,7 @@ export default function AssetForm() {
               <input {...register('version')} className="input" />
             </div>
             <div>
-              <FieldLabel text="Criticality" help="How severe the impact would be if this asset were compromised or unavailable. Crown Jewel means critical to core school operations or child safety." />
+              <FieldLabel text="Criticality" help="How severe the impact would be if this asset were compromised or unavailable. Critical means essential to core school operations or child safety." />
               <select {...register('criticalityTier')} className="input">
                 <option value="">Not set</option>
                 {Object.entries(CRITICALITY_LABELS).map(([value, label]) => (

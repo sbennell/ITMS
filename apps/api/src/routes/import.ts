@@ -45,7 +45,7 @@ const CRITICALITY_LABELS: Record<string, string> = {
   LOW: 'Low',
   MEDIUM: 'Medium',
   HIGH: 'High',
-  CROWN_JEWEL: 'Crown Jewel'
+  CROWN_JEWEL: 'Critical'
 };
 
 const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
