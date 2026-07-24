@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.3] - 2026-07-24
+
+### Fixed
+
+- Fixed `update.ps1` leaving the server's git checkout in a broken, diverged state ("ahead of origin by N commits" with unmerged `package-lock.json`) after repeated updates. The old flow (`git stash` / `git pull` / `git stash pop`) never checked whether the stash-pop actually succeeded, so when a prior `npm install` had left `package-lock.json` modified locally (platform-specific optional dependencies resolve differently) and a later pull also touched that file, the stash-pop silently conflicted and the script carried on regardless - compounding across runs. Replaced with fetch + hard-reset to `origin/<branch>`, which always converges the tree to exactly what's on GitHub and self-heals from any previously diverged/conflicted state. `.env` is gitignored and untouched by this either way.
+
+### Technical Details
+
+- `update.ps1`: "Pulling latest code" step now does `git fetch origin $Branch` then `git reset --hard origin/$Branch` instead of `git stash` / `git pull` / `git stash pop`
+- Verified against a reproduction of the exact failure (local commit + local `package-lock.json` drift + origin ahead with a conflicting change to the same file) using a throwaway test repo - confirmed the new logic recovers to a clean tree matching origin in all cases
+- **If your server is currently stuck in this state**, run this once by hand in `C:\ITMS\app` to recover before the next update: `git reset --hard origin/main` (discards the local-only commits and the conflicted merge; your `.env` and database are untouched)
+
+---
+
 ## [1.28.2] - 2026-07-23
 
 ### Fixed

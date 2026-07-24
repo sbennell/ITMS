@@ -249,35 +249,38 @@ Write-Step "Pulling latest code from GitHub..."
 
 Push-Location $AppPath
 
-# Stash any local changes (like .env)
+# This deployment clone is expected to always exactly mirror origin/$Branch and never carry
+# local commits - .env (the only file anyone would ever hand-edit here) is gitignored, so git
+# never touches it regardless. The only things that ever show up as local modifications are
+# incidental (e.g. package-lock.json getting rewritten by `npm install` below due to
+# platform-specific optional dependency resolution). A stash/pull/stash-pop dance around that
+# is fragile - if a later pull also touches the same file, the stash-pop conflicts, and running
+# unattended (-AutoUpdate) we'd never notice and would carry on building against a half-merged
+# tree. Fetch-and-hard-reset instead: it always converges on exactly what's on GitHub, and also
+# recovers automatically if a previous run (or manual intervention) left the tree in a
+# conflicted or diverged state.
 $ErrorActionPreference = "Continue"
-$stashResult = git stash 2>&1
-$hasStash = "$stashResult" -notlike "*No local changes*"
-
-# Pull latest
-$pullOutput = git pull origin $Branch 2>&1
-$pullExitCode = $LASTEXITCODE
+git fetch origin $Branch 2>&1 | Out-Null
+$fetchExitCode = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 
-if ($pullExitCode -ne 0) {
-    Write-Err "Git pull failed. You may have local conflicts."
-    Write-Host "   Output: $pullOutput"
-    Write-Host "   Try resolving manually in: $AppPath"
-    if ($hasStash) {
-        $ErrorActionPreference = "Continue"
-        git stash pop 2>&1 | Out-Null
-        $ErrorActionPreference = "Stop"
-    }
+if ($fetchExitCode -ne 0) {
+    Write-Err "Git fetch failed. Check your internet connection."
     Pop-Location
     exit 1
 }
 
-# Restore stashed changes
-if ($hasStash) {
-    $ErrorActionPreference = "Continue"
-    git stash pop 2>&1 | Out-Null
-    $ErrorActionPreference = "Stop"
-    Write-Success "Local configuration restored"
+$ErrorActionPreference = "Continue"
+$resetOutput = git reset --hard "origin/$Branch" 2>&1
+$resetExitCode = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+
+if ($resetExitCode -ne 0) {
+    Write-Err "Git reset failed."
+    Write-Host "   Output: $resetOutput"
+    Write-Host "   Try resolving manually in: $AppPath"
+    Pop-Location
+    exit 1
 }
 
 Write-Success "Code updated"
