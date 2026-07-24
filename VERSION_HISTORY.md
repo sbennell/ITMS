@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.6] - 2026-07-24
+
+### Added
+
+- Lookup tables (Categories, Manufacturers, Suppliers, Locations, Software Publishers, Software Categories) can now be renamed in place from Settings > Lookups, not just added/deleted. Click the pencil icon next to an entry, edit the name, and save (or press Escape to cancel).
+
+### Technical Details
+
+- Backend `PUT /:id` routes for all six lookup types already existed; this only adds the missing frontend wiring
+- Added `updateCategory`/`updateManufacturer`/`updateSupplier`/`updateLocation`/`updateSoftwarePublisher`/`updateSoftwareCategory` to `apps/web/src/lib/api.ts`
+- `LookupManager` in `apps/web/src/pages/settings/LookupsTab.tsx` gained an inline-edit state (pencil/check/cancel icons) shared by all six lookup instances
+
+---
+
 ## [1.28.5] - 2026-07-24
 
 ### Fixed

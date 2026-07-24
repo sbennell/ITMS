@@ -706,36 +706,48 @@ export const api = {
   getCategories: () => fetchJson<Lookup[]>('/lookups/categories'),
   createCategory: (data: { name: string; description?: string }) =>
     fetchJson<Lookup>('/lookups/categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateCategory: (id: string, data: { name: string; description?: string }) =>
+    fetchJson<Lookup>(`/lookups/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteCategory: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/categories/${id}`, { method: 'DELETE' }),
 
   getManufacturers: () => fetchJson<Lookup[]>('/lookups/manufacturers'),
   createManufacturer: (data: { name: string }) =>
     fetchJson<Lookup>('/lookups/manufacturers', { method: 'POST', body: JSON.stringify(data) }),
+  updateManufacturer: (id: string, data: { name: string }) =>
+    fetchJson<Lookup>(`/lookups/manufacturers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteManufacturer: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/manufacturers/${id}`, { method: 'DELETE' }),
 
   getSuppliers: () => fetchJson<Lookup[]>('/lookups/suppliers'),
   createSupplier: (data: { name: string }) =>
     fetchJson<Lookup>('/lookups/suppliers', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupplier: (id: string, data: { name: string }) =>
+    fetchJson<Lookup>(`/lookups/suppliers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSupplier: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/suppliers/${id}`, { method: 'DELETE' }),
 
   getLocations: () => fetchJson<Lookup[]>('/lookups/locations'),
   createLocation: (data: { name: string }) =>
     fetchJson<Lookup>('/lookups/locations', { method: 'POST', body: JSON.stringify(data) }),
+  updateLocation: (id: string, data: { name: string }) =>
+    fetchJson<Lookup>(`/lookups/locations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteLocation: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/locations/${id}`, { method: 'DELETE' }),
 
   getSoftwarePublishers: () => fetchJson<Lookup[]>('/lookups/software-publishers'),
   createSoftwarePublisher: (data: { name: string; website?: string; supportUrl?: string; contactInfo?: string }) =>
     fetchJson<Lookup>('/lookups/software-publishers', { method: 'POST', body: JSON.stringify(data) }),
+  updateSoftwarePublisher: (id: string, data: { name: string; website?: string; supportUrl?: string; contactInfo?: string }) =>
+    fetchJson<Lookup>(`/lookups/software-publishers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSoftwarePublisher: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/software-publishers/${id}`, { method: 'DELETE' }),
 
   getSoftwareCategories: () => fetchJson<Lookup[]>('/lookups/software-categories'),
   createSoftwareCategory: (data: { name: string; description?: string }) =>
     fetchJson<Lookup>('/lookups/software-categories', { method: 'POST', body: JSON.stringify(data) }),
+  updateSoftwareCategory: (id: string, data: { name: string; description?: string }) =>
+    fetchJson<Lookup>(`/lookups/software-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteSoftwareCategory: (id: string) =>
     fetchJson<{ success: boolean }>(`/lookups/software-categories/${id}`, { method: 'DELETE' }),
 

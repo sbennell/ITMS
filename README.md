@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.28.5**
+**Version 1.28.6**
 
 A web-based IT Management System for tracking hardware and equipment inventory, plus a separate software/license register. Built with React, Express, and SQLite.
 
@@ -72,6 +72,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **Pagination**: Configurable page sizes (50, 100, 200, 500, 1000, All)
 
 ### Lookup Tables
+- **Add, Rename & Delete**: Every lookup table below supports inline renaming in addition to adding and deleting entries
 - **Categories**: Organize assets by type (Laptop, Desktop, Monitor, etc.)
 - **Manufacturers**: Track device manufacturers
 - **Locations**: Define physical locations for assets
