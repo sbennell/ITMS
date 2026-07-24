@@ -50,8 +50,8 @@ const CRITICALITY_LABELS: Record<string, string> = {
 
 const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
   PUBLIC: 'Public',
-  INTERNAL: 'Internal',
-  SENSITIVE: 'Sensitive',
+  INTERNAL: 'Business Use',
+  SENSITIVE: 'Confidential',
   RESTRICTED: 'Restricted'
 };
 

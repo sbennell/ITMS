@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.4] - 2026-07-24
+
+### Fixed
+
+- Data Classification labels now match the exact wording of the MACS Data Security Management Standard: "Internal" is now "Business Use" and "Sensitive" is now "Confidential" (the underlying stored values are unchanged, so existing records, exports, and imports keep working - only the displayed/exported text changed).
+
+### Technical Details
+
+- Updated `DATA_CLASSIFICATION_LABELS` in `apps/web/src/lib/utils.ts`, `apps/api/src/routes/import.ts`, and `apps/api/src/routes/software.ts` (all three previously duplicated the same label map)
+
+---
+
 ## [1.28.3] - 2026-07-24
 
 ### Fixed
