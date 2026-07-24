@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.28.7] - 2026-07-24
+
+### Added
+
+- Item number in the Stocktake records table is now a link that opens the asset's detail page in a new tab, so you can look up an asset's details mid-scan without losing your place in the stocktake.
+
+### Technical Details
+
+- `apps/web/src/pages/Stocktake.tsx`: item number cell now renders a `react-router-dom` `Link` with `target="_blank" rel="noopener noreferrer"`, matching the styling used for item number links elsewhere (e.g. `AssetList.tsx`)
+
+---
+
 ## [1.28.6] - 2026-07-24
 
 ### Added
