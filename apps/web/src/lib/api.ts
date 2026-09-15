@@ -42,10 +42,12 @@ export interface Student {
     id: string;
     itemNumber: string;
     model: string | null;
+    serialNumber: string | null;
     categoryId: string | null;
     status: string;
     createdAt: string;
     category?: { id: string; name: string } | null;
+    manufacturer?: { id: string; name: string } | null;
   }>;
 }
 

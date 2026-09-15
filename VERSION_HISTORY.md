@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.30.21] - 2026-09-15
+
+### Added
+
+- Student detail page: the Assigned Assets table now shows Make (manufacturer) and S/N (serial number) columns alongside Item #, Model, Category, and Status.
+
+### Technical Details
+
+- `apps/api/src/routes/students.ts`: `GET /:id` now selects `serialNumber` and the related `manufacturer` on each assigned asset.
+- `apps/web/src/lib/api.ts`: `Student.assets` entries now carry `serialNumber` and `manufacturer`.
+- `apps/web/src/pages/StudentDetail.tsx`: added Make and S/N columns to the Assigned Assets table.
+
+---
+
 ## [1.30.20] - 2026-09-15
 
 ### Fixed

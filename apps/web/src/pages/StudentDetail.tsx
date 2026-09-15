@@ -114,7 +114,9 @@ export default function StudentDetail() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-gray-700">Item #</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-700">Make</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-700">Model</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-700">S/N</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-700">Category</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
                 </tr>
@@ -130,7 +132,9 @@ export default function StudentDetail() {
                         {asset.itemNumber}
                       </Link>
                     </td>
+                    <td className="px-4 py-3">{asset.manufacturer?.name || '-'}</td>
                     <td className="px-4 py-3">{asset.model || '-'}</td>
+                    <td className="px-4 py-3">{asset.serialNumber || '-'}</td>
                     <td className="px-4 py-3">{asset.category?.name || '-'}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">

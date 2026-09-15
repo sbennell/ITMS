@@ -524,10 +524,17 @@ router.get('/:id', async (req: Request, res: Response) => {
             id: true,
             itemNumber: true,
             model: true,
+            serialNumber: true,
             categoryId: true,
             status: true,
             createdAt: true,
             category: {
+              select: {
+                id: true,
+                name: true
+              }
+            },
+            manufacturer: {
               select: {
                 id: true,
                 name: true
