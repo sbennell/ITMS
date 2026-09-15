@@ -1,15 +1,16 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-  createColumnHelper
+  createColumnHelper,
+  type VisibilityState
 } from '@tanstack/react-table';
-import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown, Printer, Copy, Pencil } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, Filter, Columns3, X, ArrowUp, ArrowDown, Printer, Copy, Pencil } from 'lucide-react';
 import { api, Asset } from '../lib/api';
-import { cn, STATUS_LABELS, STATUS_COLORS, CRITICALITY_LABELS, CRITICALITY_COLORS } from '../lib/utils';
+import { cn, formatDate, formatCurrency, STATUS_LABELS, STATUS_COLORS, CRITICALITY_LABELS, CRITICALITY_COLORS } from '../lib/utils';
 import BatchPrintModal from '../components/BatchPrintModal';
 import BulkEditModal from '../components/BulkEditModal';
 
@@ -19,6 +20,7 @@ const columns = [
   columnHelper.accessor('itemNumber', {
     header: 'Item #',
     size: 120,
+    enableHiding: false,
     cell: (info) => (
       <Link
         to={`/assets/${info.row.original.id}`}
@@ -31,16 +33,19 @@ const columns = [
   columnHelper.accessor('manufacturer', {
     header: 'Manufacturer',
     size: 140,
+    enableHiding: false,
     cell: (info) => info.getValue()?.name || '-'
   }),
   columnHelper.accessor('model', {
     header: 'Model',
     size: 140,
+    enableHiding: false,
     cell: (info) => info.getValue() || '-'
   }),
   columnHelper.accessor('serialNumber', {
     header: 'Serial Number',
     size: 160,
+    enableHiding: false,
     cell: (info) => info.getValue() || '-'
   }),
   columnHelper.accessor('category', {
@@ -95,6 +100,55 @@ const columns = [
     header: 'Location',
     size: 140,
     cell: (info) => info.getValue()?.name || '-'
+  }),
+  columnHelper.accessor('hostname', {
+    header: 'Hostname',
+    size: 140,
+    cell: (info) => info.getValue() || '-'
+  }),
+  columnHelper.accessor('ipAddresses', {
+    header: 'IP Addresses',
+    size: 160,
+    cell: (info) => {
+      const ips = info.getValue();
+      if (!ips || ips.length === 0) return '-';
+      return ips.map((e) => (e.label ? `${e.ip} (${e.label})` : e.ip)).join(', ');
+    }
+  }),
+  columnHelper.accessor('warrantyExpiration', {
+    header: 'Warranty Expiration',
+    size: 150,
+    cell: (info) => formatDate(info.getValue())
+  }),
+  columnHelper.accessor('endOfLifeDate', {
+    header: 'End of Life Date',
+    size: 140,
+    cell: (info) => formatDate(info.getValue())
+  }),
+  columnHelper.accessor('lastReviewDate', {
+    header: 'Last Review Date',
+    size: 140,
+    cell: (info) => formatDate(info.getValue())
+  }),
+  columnHelper.accessor('acquiredDate', {
+    header: 'Acquired Date',
+    size: 130,
+    cell: (info) => formatDate(info.getValue())
+  }),
+  columnHelper.accessor('purchasePrice', {
+    header: 'Purchase Price',
+    size: 120,
+    cell: (info) => formatCurrency(info.getValue())
+  }),
+  columnHelper.accessor('supplier', {
+    header: 'Supplier',
+    size: 140,
+    cell: (info) => info.getValue()?.name || '-'
+  }),
+  columnHelper.accessor('orderNumber', {
+    header: 'Order Number',
+    size: 130,
+    cell: (info) => info.getValue() || '-'
   })
 ];
 
@@ -118,8 +172,52 @@ const COLUMN_META: { id: string; header: string; getText: (asset: Asset) => stri
     header: 'Assigned To',
     getText: (a) => (a.student ? `${a.student.prefName || a.student.firstName} ${a.student.surname}` : a.assignedTo || '')
   },
-  { id: 'location', header: 'Location', getText: (a) => a.location?.name || '' }
+  { id: 'location', header: 'Location', getText: (a) => a.location?.name || '' },
+  { id: 'hostname', header: 'Hostname', getText: (a) => a.hostname || '' },
+  {
+    id: 'ipAddresses',
+    header: 'IP Addresses',
+    getText: (a) => (a.ipAddresses?.length ? a.ipAddresses.map((e) => (e.label ? `${e.ip} (${e.label})` : e.ip)).join(', ') : '')
+  },
+  { id: 'warrantyExpiration', header: 'Warranty Expiration', getText: (a) => (a.warrantyExpiration ? formatDate(a.warrantyExpiration) : '') },
+  { id: 'endOfLifeDate', header: 'End of Life Date', getText: (a) => (a.endOfLifeDate ? formatDate(a.endOfLifeDate) : '') },
+  { id: 'lastReviewDate', header: 'Last Review Date', getText: (a) => (a.lastReviewDate ? formatDate(a.lastReviewDate) : '') },
+  { id: 'acquiredDate', header: 'Acquired Date', getText: (a) => (a.acquiredDate ? formatDate(a.acquiredDate) : '') },
+  { id: 'purchasePrice', header: 'Purchase Price', getText: (a) => (a.purchasePrice ? formatCurrency(a.purchasePrice) : '') },
+  { id: 'supplier', header: 'Supplier', getText: (a) => a.supplier?.name || '' },
+  { id: 'orderNumber', header: 'Order Number', getText: (a) => a.orderNumber || '' }
 ];
+
+const LOCKED_COLUMN_IDS = ['itemNumber', 'manufacturer', 'model', 'serialNumber'];
+const TOGGLEABLE_COLUMN_META = COLUMN_META.filter(({ id }) => !LOCKED_COLUMN_IDS.includes(id));
+
+// New columns are opt-in: hidden until the user turns them on via the Columns picker.
+const DEFAULT_HIDDEN_COLUMN_IDS = [
+  'hostname', 'ipAddresses', 'warrantyExpiration', 'endOfLifeDate',
+  'lastReviewDate', 'acquiredDate', 'purchasePrice', 'supplier', 'orderNumber'
+];
+
+const COLUMN_VISIBILITY_STORAGE_KEY = 'assets.columnVisibility';
+
+// Loads saved column visibility, seeding new columns to hidden by default so they
+// don't suddenly clutter the table for existing users until explicitly turned on.
+function loadColumnVisibility(): VisibilityState {
+  const defaults: VisibilityState = {};
+  for (const id of DEFAULT_HIDDEN_COLUMN_IDS) defaults[id] = false;
+  try {
+    const raw = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return defaults;
+    const result: VisibilityState = { ...defaults };
+    for (const { id } of TOGGLEABLE_COLUMN_META) {
+      if (id in parsed) result[id] = Boolean((parsed as Record<string, unknown>)[id]);
+    }
+    return result;
+  } catch {
+    return defaults;
+  }
+}
 
 const AUTO_SIZE_MIN = 60;
 const AUTO_SIZE_MAX = 400;
@@ -171,6 +269,9 @@ export default function AssetList() {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
   const hasAutoSizedColumns = useRef(false);
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(loadColumnVisibility);
+  const columnPickerRef = useRef<HTMLDivElement>(null);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -228,14 +329,41 @@ export default function AssetList() {
     }
   }, [data]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(columnVisibility));
+    } catch {
+      // localStorage unavailable/full - visibility just won't persist this session
+    }
+  }, [columnVisibility]);
+
+  useEffect(() => {
+    if (!showColumnPicker) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (columnPickerRef.current && !columnPickerRef.current.contains(e.target as Node)) {
+        setShowColumnPicker(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowColumnPicker(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showColumnPicker]);
+
   const table = useReactTable({
     data: data?.data || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: 'onChange',
     enableColumnResizing: true,
-    state: { columnSizing },
+    state: { columnSizing, columnVisibility },
     onColumnSizingChange: setColumnSizing,
+    onColumnVisibilityChange: setColumnVisibility,
     defaultColumn: {
       minSize: 60
     }
@@ -366,6 +494,36 @@ export default function AssetList() {
               </span>
             )}
           </button>
+
+          {/* Column visibility toggle */}
+          <div className="relative" ref={columnPickerRef}>
+            <button
+              onClick={() => setShowColumnPicker(!showColumnPicker)}
+              className={cn('btn', showColumnPicker ? 'btn-primary' : 'btn-secondary')}
+            >
+              <Columns3 className="w-4 h-4 mr-2" />
+              Columns
+            </button>
+
+            {showColumnPicker && (
+              <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-56 py-2 max-h-80 overflow-y-auto">
+                {TOGGLEABLE_COLUMN_META.map(({ id, header }) => (
+                  <label
+                    key={id}
+                    className="flex items-center gap-2 px-4 py-1.5 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={columnVisibility[id] ?? true}
+                      onChange={() => setColumnVisibility((old) => ({ ...old, [id]: !(old[id] ?? true) }))}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {header}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Expanded filters */}

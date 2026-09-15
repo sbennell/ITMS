@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.32.0] - 2026-09-15
+
+### Added
+
+- Hardware Assets table: a "Columns" picker (next to "Filters") lets you choose which columns are shown. Item #, Manufacturer, Model, and Serial Number always stay visible; Category, Status, Criticality, Assigned To, and Location remain visible by default as before. Nine more fields are now available as opt-in columns (hidden until turned on): Hostname, IP Addresses, Warranty Expiration, End of Life Date, Last Review Date, Acquired Date, Purchase Price, Supplier, and Order Number. Choices are remembered in the browser across visits.
+
+### Technical Details
+
+- `apps/web/src/pages/AssetList.tsx`: added `enableHiding: false` to the 4 locked columns; added 9 new `columnHelper.accessor` column defs (reusing `formatDate`/`formatCurrency` from `apps/web/src/lib/utils.ts`) plus matching `COLUMN_META` entries for auto-fit sizing; added `TOGGLEABLE_COLUMN_META` (locked columns filtered out) and `loadColumnVisibility()`/`localStorage` persistence (key `assets.columnVisibility`, JSON-shaped, wrapped in try/catch, defaulting new columns to hidden); wired `columnVisibility` into `useReactTable` as controlled state (`state.columnVisibility` / `onColumnVisibilityChange`); added a "Columns" button opening a floating checklist panel (click-outside/Escape to close).
+- The checklist checkboxes read/write the `columnVisibility` React state directly rather than going through TanStack Table's `column.toggleVisibility()`/`getIsVisible()` helpers - those were found to intermittently no-op in this setup (verified via debug logging: `toggleVisibility()` computed the correct next state but it didn't reliably reach a re-render), so the picker bypasses them while the table's row/header rendering still consumes `columnVisibility` from state as normal.
+- Sorting was deliberately not extended to the 9 new columns - `supplier` is a Prisma relation not special-cased in `apps/api/src/routes/assets.ts`'s generic `orderBy: { [sortBy]: sortOrder }` fallback (unlike `manufacturer`/`category`/`location`), so adding it to the sortable column list would send an invalid query shape.
+
+---
+
 ## [1.31.2] - 2026-09-15
 
 ### Added
