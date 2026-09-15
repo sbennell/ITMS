@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.31.2] - 2026-09-15
+
+### Added
+
+- Hardware Assets table: columns now auto-fit to their widest content (header or cell text) the first time a page of data loads, instead of starting at fixed default widths. Manual dragging (added in 1.31.1) still works on top of this and is unaffected by later data changes.
+
+### Technical Details
+
+- `apps/web/src/pages/AssetList.tsx`: added `computeAutoColumnSizing()`, which measures header and cell text with an offscreen canvas (`measureTextWidth`) and clamps each column between 60-400px; a `useLayoutEffect` runs it once (guarded by a `hasAutoSizedColumns` ref) against the first non-empty page of asset data and seeds the now-controlled `columnSizing` table state (`state.columnSizing` / `onColumnSizingChange`) before paint.
+
+---
+
 ## [1.31.1] - 2026-09-15
 
 ### Added

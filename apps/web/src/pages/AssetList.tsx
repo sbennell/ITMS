@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -98,6 +98,69 @@ const columns = [
   })
 ];
 
+// Header text and a plain-text accessor for each column, used to auto-fit column
+// widths to their content on first load - kept separate from the cell renderers
+// above since those return JSX (badges, links) rather than measurable text.
+const COLUMN_META: { id: string; header: string; getText: (asset: Asset) => string }[] = [
+  { id: 'itemNumber', header: 'Item #', getText: (a) => a.itemNumber || '' },
+  { id: 'manufacturer', header: 'Manufacturer', getText: (a) => a.manufacturer?.name || '' },
+  { id: 'model', header: 'Model', getText: (a) => a.model || '' },
+  { id: 'serialNumber', header: 'Serial Number', getText: (a) => a.serialNumber || '' },
+  { id: 'category', header: 'Category', getText: (a) => a.category?.name || '' },
+  { id: 'status', header: 'Status', getText: (a) => STATUS_LABELS[a.status] || a.status || '' },
+  {
+    id: 'criticalityTier',
+    header: 'Criticality',
+    getText: (a) => (a.criticalityTier ? CRITICALITY_LABELS[a.criticalityTier] || a.criticalityTier : '')
+  },
+  {
+    id: 'assignedTo',
+    header: 'Assigned To',
+    getText: (a) => (a.student ? `${a.student.prefName || a.student.firstName} ${a.student.surname}` : a.assignedTo || '')
+  },
+  { id: 'location', header: 'Location', getText: (a) => a.location?.name || '' }
+];
+
+const AUTO_SIZE_MIN = 60;
+const AUTO_SIZE_MAX = 400;
+const CELL_FONT = '400 14px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const HEADER_FONT = '500 12px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const CELL_PADDING = 48; // px-6 left + right
+const HEADER_EXTRA = 88; // px-6 header padding (48) + sort arrow icon/gap (24) + safety margin (16)
+// Header text renders uppercase with tracking-wider letter-spacing (~0.025em), which
+// canvas measureText doesn't emulate - approximate it as extra px per character.
+const HEADER_LETTER_SPACING_PER_CHAR = 0.6;
+const BADGE_PADDING = 20; // status/criticality render as rounded pill badges
+
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (!text) return 0;
+  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return text.length * 7;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+// Auto-fit each column to the widest content it holds (header or any cell in the
+// current page of data), so long values are visible without manual resizing on
+// first load. Clamped to a sane range - after this, resizing is fully manual.
+function computeAutoColumnSizing(assets: Asset[]): Record<string, number> {
+  const sizing: Record<string, number> = {};
+  for (const { id, header, getText } of COLUMN_META) {
+    let maxWidth = measureTextWidth(header, HEADER_FONT) + header.length * HEADER_LETTER_SPACING_PER_CHAR + HEADER_EXTRA;
+    for (const asset of assets) {
+      const text = getText(asset);
+      if (!text) continue;
+      let width = measureTextWidth(text, CELL_FONT) + CELL_PADDING;
+      if (id === 'status' || id === 'criticalityTier') width += BADGE_PADDING;
+      if (width > maxWidth) maxWidth = width;
+    }
+    sizing[id] = Math.round(Math.max(AUTO_SIZE_MIN, Math.min(AUTO_SIZE_MAX, maxWidth)));
+  }
+  return sizing;
+}
+
 export default function AssetList() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -106,6 +169,8 @@ export default function AssetList() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [columnSizing, setColumnSizing] = useState<Record<string, number>>({});
+  const hasAutoSizedColumns = useRef(false);
 
   const page = parseInt(searchParams.get('page') || '1', 10);
   const limit = parseInt(searchParams.get('limit') || '50', 10);
@@ -156,12 +221,21 @@ export default function AssetList() {
     queryFn: api.getLocations
   });
 
+  useLayoutEffect(() => {
+    if (!hasAutoSizedColumns.current && data?.data && data.data.length > 0) {
+      setColumnSizing(computeAutoColumnSizing(data.data));
+      hasAutoSizedColumns.current = true;
+    }
+  }, [data]);
+
   const table = useReactTable({
     data: data?.data || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: 'onChange',
     enableColumnResizing: true,
+    state: { columnSizing },
+    onColumnSizingChange: setColumnSizing,
     defaultColumn: {
       minSize: 60
     }
