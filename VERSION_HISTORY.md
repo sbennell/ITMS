@@ -4,7 +4,7 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
-## [1.30.21] - 2026-09-15
+## [1.31.0] - 2026-09-15
 
 ### Added
 
