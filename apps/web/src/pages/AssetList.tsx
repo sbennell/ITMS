@@ -18,6 +18,7 @@ const columnHelper = createColumnHelper<Asset>();
 const columns = [
   columnHelper.accessor('itemNumber', {
     header: 'Item #',
+    size: 120,
     cell: (info) => (
       <Link
         to={`/assets/${info.row.original.id}`}
@@ -29,22 +30,27 @@ const columns = [
   }),
   columnHelper.accessor('manufacturer', {
     header: 'Manufacturer',
+    size: 140,
     cell: (info) => info.getValue()?.name || '-'
   }),
   columnHelper.accessor('model', {
     header: 'Model',
+    size: 140,
     cell: (info) => info.getValue() || '-'
   }),
   columnHelper.accessor('serialNumber', {
     header: 'Serial Number',
+    size: 160,
     cell: (info) => info.getValue() || '-'
   }),
   columnHelper.accessor('category', {
     header: 'Category',
+    size: 130,
     cell: (info) => info.getValue()?.name || '-'
   }),
   columnHelper.accessor('status', {
     header: 'Status',
+    size: 150,
     cell: (info) => {
       const status = info.getValue();
       return (
@@ -56,6 +62,7 @@ const columns = [
   }),
   columnHelper.accessor('criticalityTier', {
     header: 'Criticality',
+    size: 120,
     cell: (info) => {
       const tier = info.getValue();
       if (!tier) return '-';
@@ -68,6 +75,7 @@ const columns = [
   }),
   columnHelper.accessor('assignedTo', {
     header: 'Assigned To',
+    size: 180,
     cell: (info) => {
       const asset = info.row.original;
       if (asset.student) {
@@ -85,6 +93,7 @@ const columns = [
   }),
   columnHelper.accessor('location', {
     header: 'Location',
+    size: 140,
     cell: (info) => info.getValue()?.name || '-'
   })
 ];
@@ -150,7 +159,12 @@ export default function AssetList() {
   const table = useReactTable({
     data: data?.data || [],
     columns,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
+    columnResizeMode: 'onChange',
+    enableColumnResizing: true,
+    defaultColumn: {
+      minSize: 60
+    }
   });
 
   const updateParams = (updates: Record<string, string | undefined>) => {
@@ -382,7 +396,10 @@ export default function AssetList() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table
+              className="divide-y divide-gray-200"
+              style={{ width: table.getTotalSize() + 40, tableLayout: 'fixed' }}
+            >
               <thead className="bg-gray-50">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
@@ -401,16 +418,19 @@ export default function AssetList() {
                       return (
                         <th
                           key={header.id}
+                          style={{ width: header.getSize() }}
                           className={cn(
-                            "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                            "relative px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                             isSortable && "cursor-pointer hover:bg-gray-100 select-none"
                           )}
                           onClick={() => isSortable && handleSort(columnId)}
                         >
-                          <div className="flex items-center gap-1">
-                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          <div className="flex items-center gap-1 overflow-hidden">
+                            <span className="truncate">
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                            </span>
                             {isSortable && (
-                              <span className="ml-1">
+                              <span className="ml-1 flex-shrink-0">
                                 {isSorted ? (
                                   sortOrder === 'asc' ? (
                                     <ArrowUp className="w-3 h-3 text-primary-600" />
@@ -423,6 +443,17 @@ export default function AssetList() {
                               </span>
                             )}
                           </div>
+                          {header.column.getCanResize() && (
+                            <div
+                              onMouseDown={header.getResizeHandler()}
+                              onTouchStart={header.getResizeHandler()}
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                'absolute top-0 right-0 h-full w-2 cursor-col-resize select-none touch-none',
+                                header.column.getIsResizing() ? 'bg-primary-500' : 'hover:bg-gray-300'
+                              )}
+                            />
+                          )}
                         </th>
                       );
                     })}
@@ -441,7 +472,11 @@ export default function AssetList() {
                       />
                     </td>
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td
+                        key={cell.id}
+                        style={{ width: cell.column.getSize() }}
+                        className="px-6 py-4 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-900"
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

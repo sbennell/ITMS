@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.31.1] - 2026-09-15
+
+### Added
+
+- Hardware Assets table: columns can now be resized by dragging the handle on the right edge of each column header, so a wide value (e.g. a long model name or serial number) can be seen in full without truncation.
+
+### Technical Details
+
+- `apps/web/src/pages/AssetList.tsx`: enabled `@tanstack/react-table` column resizing (`columnResizeMode: 'onChange'`), gave each column an initial `size`, switched the table to `table-layout: fixed` with per-column widths driven by `header.getSize()`/`cell.column.getSize()`, and added a drag handle (`onMouseDown`/`onTouchStart` via `header.getResizeHandler()`) on each resizable header. Cell/header content truncates with an ellipsis instead of overflowing.
+
+---
+
 ## [1.31.0] - 2026-09-15
 
 ### Added
