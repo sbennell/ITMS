@@ -416,6 +416,65 @@ function getCellString(cell: ExcelJS.Cell): string {
   return String(value).trim();
 }
 
+// Normalize a raw column header (Excel cell text or CSV header) for matching -
+// shared by both import paths so a CSV built from the exported/template header
+// text (e.g. "LAN MAC", "Item Number *") maps the same way an .xlsx file does.
+function normalizeHeader(header: string): string {
+  return header.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Map a normalized header to its internal field key, or null if unrecognized.
+// Order matters: a more specific pattern must be checked before a shorter one
+// it contains as a substring (e.g. "wlanmac" contains "lanmac"; "ipaddress2label"
+// contains "ipaddress2") - otherwise the shorter branch wins and the longer one
+// is never reached.
+function mapHeaderToKey(header: string): string | null {
+  if (header.includes('itemnumber')) return 'itemNumber';
+  else if (header.includes('serialnumber')) return 'serialNumber';
+  else if (header.includes('manufacturer')) return 'manufacturer';
+  else if (header.includes('model')) return 'model';
+  else if (header.includes('category')) return 'category';
+  else if (header.includes('description')) return 'description';
+  else if (header.includes('status')) return 'status';
+  else if (header.includes('condition')) return 'condition';
+  else if (header.includes('acquireddate') || header.includes('acquired')) return 'acquiredDate';
+  else if (header.includes('purchaseprice') || header.includes('price')) return 'purchasePrice';
+  else if (header.includes('supplier')) return 'supplier';
+  else if (header.includes('ordernumber') || header.includes('order')) return 'orderNumber';
+  else if (header.includes('hostname')) return 'hostname';
+  else if (header.includes('deviceusername') || header.includes('username')) return 'deviceUsername';
+  else if (header.includes('devicepassword') || header.includes('password')) return 'devicePassword';
+  else if (header.includes('wlanmac')) return 'wlanMacAddress';
+  else if (header.includes('lanmac')) return 'lanMacAddress';
+  else if (header.includes('ipaddress5label')) return 'ipAddress5Label';
+  else if (header.includes('ipaddress5') || header === 'ipaddress5') return 'ipAddress5';
+  else if (header.includes('ipaddress4label')) return 'ipAddress4Label';
+  else if (header.includes('ipaddress4') || header === 'ipaddress4') return 'ipAddress4';
+  else if (header.includes('ipaddress3label')) return 'ipAddress3Label';
+  else if (header.includes('ipaddress3') || header === 'ipaddress3') return 'ipAddress3';
+  else if (header.includes('ipaddress2label')) return 'ipAddress2Label';
+  else if (header.includes('ipaddress2') || header === 'ipaddress2') return 'ipAddress2';
+  else if (header.includes('ipaddresslabel')) return 'ipAddressLabel';
+  else if (header.includes('ipaddress') || header === 'ip') return 'ipAddress';
+  else if (header.includes('assignedto') || header.includes('assigned')) return 'assignedTo';
+  else if (header.includes('location')) return 'location';
+  else if (header.includes('warrantyexpiration') || header.includes('warranty')) return 'warrantyExpiration';
+  else if (header.includes('endoflife') || header.includes('eol')) return 'endOfLifeDate';
+  else if (header.includes('lastreviewdate') || header.includes('reviewed')) return 'lastReviewDate';
+  else if (header.includes('decommissiondate') || header.includes('decommissioned')) return 'decommissionDate';
+  else if (header.includes('comments') || header.includes('notes')) return 'comments';
+  else if (header.includes('businesspurpose')) return 'businessPurpose';
+  else if (header.includes('businessowner')) return 'businessOwner';
+  else if (header.includes('technicalowner')) return 'technicalOwner';
+  else if (header.includes('version')) return 'version';
+  else if (header.includes('criticality')) return 'criticalityTier';
+  else if (header.includes('dataclassification')) return 'dataClassification';
+  else if (header.includes('hosting')) return 'hostingType';
+  else if (header.includes('supporttype')) return 'supportType';
+  else if (header.includes('internetfacing')) return 'internetFacing';
+  return null;
+}
+
 // POST /api/import/assets - Import assets from Excel or CSV
 router.post('/assets', upload.single('file'), async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
@@ -446,51 +505,8 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       const headerRow = worksheet.getRow(1);
       const columnMap: { [key: string]: number } = {};
       headerRow.eachCell((cell, colNumber) => {
-        const header = getCellString(cell).toLowerCase().replace(/[^a-z0-9]/g, '');
-        // Map header to column key
-        if (header.includes('itemnumber')) columnMap['itemNumber'] = colNumber;
-        else if (header.includes('serialnumber')) columnMap['serialNumber'] = colNumber;
-        else if (header.includes('manufacturer')) columnMap['manufacturer'] = colNumber;
-        else if (header.includes('model')) columnMap['model'] = colNumber;
-        else if (header.includes('category')) columnMap['category'] = colNumber;
-        else if (header.includes('description')) columnMap['description'] = colNumber;
-        else if (header.includes('status')) columnMap['status'] = colNumber;
-        else if (header.includes('condition')) columnMap['condition'] = colNumber;
-        else if (header.includes('acquireddate') || header.includes('acquired')) columnMap['acquiredDate'] = colNumber;
-        else if (header.includes('purchaseprice') || header.includes('price')) columnMap['purchasePrice'] = colNumber;
-        else if (header.includes('supplier')) columnMap['supplier'] = colNumber;
-        else if (header.includes('ordernumber') || header.includes('order')) columnMap['orderNumber'] = colNumber;
-        else if (header.includes('hostname')) columnMap['hostname'] = colNumber;
-        else if (header.includes('deviceusername') || header.includes('username')) columnMap['deviceUsername'] = colNumber;
-        else if (header.includes('devicepassword') || header.includes('password')) columnMap['devicePassword'] = colNumber;
-        else if (header.includes('lanmac') || header === 'lanmac') columnMap['lanMacAddress'] = colNumber;
-        else if (header.includes('wlanmac') || header === 'wlanmac') columnMap['wlanMacAddress'] = colNumber;
-        else if (header.includes('ipaddress5') || header === 'ipaddress5') columnMap['ipAddress5'] = colNumber;
-        else if (header.includes('ipaddress5label')) columnMap['ipAddress5Label'] = colNumber;
-        else if (header.includes('ipaddress4') || header === 'ipaddress4') columnMap['ipAddress4'] = colNumber;
-        else if (header.includes('ipaddress4label')) columnMap['ipAddress4Label'] = colNumber;
-        else if (header.includes('ipaddress3') || header === 'ipaddress3') columnMap['ipAddress3'] = colNumber;
-        else if (header.includes('ipaddress3label')) columnMap['ipAddress3Label'] = colNumber;
-        else if (header.includes('ipaddress2') || header === 'ipaddress2') columnMap['ipAddress2'] = colNumber;
-        else if (header.includes('ipaddress2label')) columnMap['ipAddress2Label'] = colNumber;
-        else if (header.includes('ipaddresslabel')) columnMap['ipAddressLabel'] = colNumber;
-        else if (header.includes('ipaddress') || header === 'ip') columnMap['ipAddress'] = colNumber;
-        else if (header.includes('assignedto') || header.includes('assigned')) columnMap['assignedTo'] = colNumber;
-        else if (header.includes('location')) columnMap['location'] = colNumber;
-        else if (header.includes('warrantyexpiration') || header.includes('warranty')) columnMap['warrantyExpiration'] = colNumber;
-        else if (header.includes('endoflife') || header.includes('eol')) columnMap['endOfLifeDate'] = colNumber;
-        else if (header.includes('lastreviewdate') || header.includes('reviewed')) columnMap['lastReviewDate'] = colNumber;
-        else if (header.includes('decommissiondate') || header.includes('decommissioned')) columnMap['decommissionDate'] = colNumber;
-        else if (header.includes('comments') || header.includes('notes')) columnMap['comments'] = colNumber;
-        else if (header.includes('businesspurpose')) columnMap['businessPurpose'] = colNumber;
-        else if (header.includes('businessowner')) columnMap['businessOwner'] = colNumber;
-        else if (header.includes('technicalowner')) columnMap['technicalOwner'] = colNumber;
-        else if (header.includes('version')) columnMap['version'] = colNumber;
-        else if (header.includes('criticality')) columnMap['criticalityTier'] = colNumber;
-        else if (header.includes('dataclassification')) columnMap['dataClassification'] = colNumber;
-        else if (header.includes('hosting')) columnMap['hostingType'] = colNumber;
-        else if (header.includes('supporttype')) columnMap['supportType'] = colNumber;
-        else if (header.includes('internetfacing')) columnMap['internetFacing'] = colNumber;
+        const key = mapHeaderToKey(normalizeHeader(getCellString(cell)));
+        if (key) columnMap[key] = colNumber;
       });
 
       // Parse data rows
@@ -516,12 +532,23 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       });
 
     } else {
-      // Parse CSV file
+      // Parse CSV file - remap raw headers (e.g. "LAN MAC", "Item Number *", as
+      // produced by the export/template) to the internal field keys the same way
+      // the Excel path does, since csv-parse otherwise keys records by the raw
+      // header text verbatim.
       const csvContent = req.file.buffer.toString('utf-8');
-      records = parse(csvContent, {
+      const rawRecords: Record<string, string>[] = parse(csvContent, {
         columns: true,
         skip_empty_lines: true,
         trim: true
+      });
+      records = rawRecords.map((rawRecord) => {
+        const record: any = {};
+        for (const [rawHeader, value] of Object.entries(rawRecord)) {
+          const key = mapHeaderToKey(normalizeHeader(rawHeader));
+          if (key) record[key] = value;
+        }
+        return record;
       });
     }
 

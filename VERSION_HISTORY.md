@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.30.20] - 2026-09-15
+
+### Fixed
+
+- Hardware asset import: MAC address columns (and IP Address 2-5 Label columns) could be misidentified in Excel imports because the header-matching logic checked a shorter pattern (e.g. "lanmac") before a longer one that contains it as a substring (e.g. "wlanmac"), so WLAN MAC was silently read as LAN MAC and the actual WLAN MAC value was dropped.
+- Hardware asset CSV import: raw CSV headers (e.g. "LAN MAC", "Item Number *", as produced by the export/template) were used verbatim as field keys with no normalization, so a CSV built from the exported template failed to map almost every column, including MAC addresses. CSV import now uses the same header-normalization logic as the Excel import path.
+
+### Technical Details
+
+- `apps/api/src/routes/import.ts`: extracted the header-matching logic into shared `normalizeHeader()`/`mapHeaderToKey()` helpers, reordered the ambiguous cases (`wlanmac`/`lanmac`, `ipAddressNLabel`/`ipAddressN`) so the longer pattern is checked first, and applied the same mapping to CSV records (previously CSV used `csv-parse`'s raw header text as object keys with no remapping).
+
+---
+
 ## [1.30.19] - 2026-09-10
 
 ### Changed
