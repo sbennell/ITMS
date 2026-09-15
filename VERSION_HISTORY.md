@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.32.1] - 2026-09-16
+
+### Added
+
+- Hardware Assets table: column widths (from a manual drag-resize or the auto-fit-to-content pass) are now remembered in the browser across page loads, the same way column visibility already is. Auto-fit only runs once, on the very first visit with nothing saved yet - after that, your saved widths win.
+
+### Technical Details
+
+- `apps/web/src/pages/AssetList.tsx`: added `loadColumnSizing()`/`COLUMN_SIZING_STORAGE_KEY` (`assets.columnSizing`, JSON-shaped, try/catch guarded, same pattern as the existing column-visibility persistence). A mount-only `useLayoutEffect` loads saved sizing first and marks `hasAutoSizedColumns` so the existing content-based auto-fit effect skips itself when a saved size map is present; a new `useEffect` persists `columnSizing` to `localStorage` on every change (manual resize or auto-fit).
+
+---
+
 ## [1.32.0] - 2026-09-15
 
 ### Added

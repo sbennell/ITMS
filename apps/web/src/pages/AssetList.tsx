@@ -240,6 +240,27 @@ function measureTextWidth(text: string, font: string): number {
   return ctx.measureText(text).width;
 }
 
+const COLUMN_SIZING_STORAGE_KEY = 'assets.columnSizing';
+
+// Loads saved column widths (from a previous manual resize or auto-fit), or null
+// if nothing valid is saved yet - callers use null to mean "run auto-fit instead".
+function loadColumnSizing(): Record<string, number> | null {
+  try {
+    const raw = localStorage.getItem(COLUMN_SIZING_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const result: Record<string, number> = {};
+    for (const { id } of COLUMN_META) {
+      const value = (parsed as Record<string, unknown>)[id];
+      if (typeof value === 'number' && Number.isFinite(value)) result[id] = value;
+    }
+    return Object.keys(result).length > 0 ? result : null;
+  } catch {
+    return null;
+  }
+}
+
 // Auto-fit each column to the widest content it holds (header or any cell in the
 // current page of data), so long values are visible without manual resizing on
 // first load. Clamped to a sane range - after this, resizing is fully manual.
@@ -323,11 +344,28 @@ export default function AssetList() {
   });
 
   useLayoutEffect(() => {
+    const saved = loadColumnSizing();
+    if (saved) {
+      setColumnSizing(saved);
+      hasAutoSizedColumns.current = true;
+    }
+  }, []);
+
+  useLayoutEffect(() => {
     if (!hasAutoSizedColumns.current && data?.data && data.data.length > 0) {
       setColumnSizing(computeAutoColumnSizing(data.data));
       hasAutoSizedColumns.current = true;
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!hasAutoSizedColumns.current) return;
+    try {
+      localStorage.setItem(COLUMN_SIZING_STORAGE_KEY, JSON.stringify(columnSizing));
+    } catch {
+      // localStorage unavailable/full - sizing just won't persist this session
+    }
+  }, [columnSizing]);
 
   useEffect(() => {
     try {
