@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.34.3] - 2026-09-16
+
+### Changed
+
+- Dymo 1933081 (Bordered) label: the details text column (Assigned To/Item/Model/Serial/Hostname-IP) is now center-aligned instead of left-aligned, matching Organization Name.
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: `buildDymoLabelXmlBordered()`'s details `TextObject`'s `HorizontalAlignment` (both the object-level and `FormattedText`-level settings) changed from `Left` to `Center`.
+
+---
+
 ## [1.34.2] - 2026-09-16
 
 ### Changed
