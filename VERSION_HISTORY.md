@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.34.2] - 2026-09-16
+
+### Changed
+
+- Dymo 1933081 (Bordered) label: Model, Serial Number, and Hostname/IP are now bold, matching Assigned To, Item Number, and Organization Name - all text on this label is bold.
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: `buildDymoLabelXmlBordered()`'s `detailLines` entries for Model/Serial/Hostname-IP changed from `bold: false` to `bold: true`.
+
+---
+
 ## [1.34.1] - 2026-09-16
 
 ### Fixed

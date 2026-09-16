@@ -731,9 +731,9 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
   const detailLines: { text: string; bold: boolean }[] = [];
   if (assignedText) detailLines.push({ text: assignedText, bold: true });
   detailLines.push({ text: itemText, bold: true });
-  if (modelText) detailLines.push({ text: modelText, bold: false });
-  if (serialText) detailLines.push({ text: serialText, bold: false });
-  if (hostIpText) detailLines.push({ text: hostIpText, bold: false });
+  if (modelText) detailLines.push({ text: modelText, bold: true });
+  if (serialText) detailLines.push({ text: serialText, bold: true });
+  if (hostIpText) detailLines.push({ text: hostIpText, bold: true });
 
   return `<?xml version="1.0" encoding="utf-8"?>
 <DesktopLabel Version="1">
