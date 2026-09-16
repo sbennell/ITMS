@@ -4,6 +4,22 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.33.0] - 2026-09-16
+
+### Added
+
+- New "Dymo 1933081 (Bordered)" label size option: a bordered copy of the plain Dymo 1933081 label, matching the visible border, QR/text vertical divider, and horizontal divider above a full-width Organization Name row already used by the Dymo 24mm Tape label and the Brother DK-22211 (Bordered) label. Selectable in Settings and both print dialogs (per-asset and batch), for both native DYMO printing and the server-side PDF fallback (print/download/batch).
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: `buildAddressStyleLabelXml()` gained an `isBordered` parameter that adds a `RectangleObject` border, `LineObject` vertical/horizontal dividers, and moves `OrgName` to a full-width row below the horizontal divider (Model/Serial/Hostname-IP compress to fit above it); added `buildDymoLabelXmlBordered()` wrapper. `createLabelPDF()` (the PDF fallback) gained an equivalent `isBordered` branch (derived from the widened `LabelSettings.labelType`), mirroring the Brother bordered label's `page.drawRectangle`/`page.drawLine` approach almost line-for-line, including the same dynamic line-height compression technique. Verified visually by rendering the PDF fallback directly (border/dividers/full-width org row all correct, both with all optional fields present and with a minimal field set) and confirmed the unbordered output is byte-identical in structure to the pre-change version (only non-deterministic QR PNG encoding bytes differ, verified present even between two runs of the unmodified original code).
+- `apps/api/src/routes/labels.ts`: `DYMO_LABEL_TYPES` and `GET /label-types` gained the new type; `/dymo-xml/:assetId` and `/dymo-xml-batch` extended their `variant` query param dispatch to a third value (`1933081-bordered`) since those two routes don't reliably thread `labelType` through (unlike `/print`, `/print-batch`, `/download`, `/download-batch`, which already do and needed no route changes).
+- `apps/api/src/services/labelService.ts`: `LabelSettings.labelType` union and `parseSettings()`'s allowlist extended with the new type.
+- Frontend: `apps/web/src/lib/api.ts`, `apps/web/src/lib/labelPreferences.ts`, `apps/web/src/components/LabelPreviewModal.tsx`, `apps/web/src/components/BatchPrintModal.tsx`, `apps/web/src/pages/settings/GeneralTab.tsx` - added the new type to every `labelType` union, `isDymo`-style check, and label-size `<select>` (placed directly after the plain Dymo 1933081 option, matching how the Brother bordered option sits after its plain sibling).
+- No physical DYMO printer is available to test-print in this environment - coordinates are a principled best-effort first pass (same category of change as the Brother bordered label's own 8+ commit incremental-tuning history in this file); expect follow-up 0.5mm-style adjustments once tested on real hardware.
+
+---
+
 ## [1.32.1] - 2026-09-16
 
 ### Added

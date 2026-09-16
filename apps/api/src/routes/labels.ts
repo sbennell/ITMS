@@ -17,10 +17,11 @@ import {
   createLabelPreview as createDymoPreview,
   printLabel as printDymo,
   buildDymoLabelXml,
+  buildDymoLabelXmlBordered,
   buildDymoLabelManagerXml,
 } from '../services/labelService-dymo.js';
 
-const DYMO_LABEL_TYPES = new Set(['dymo-1933081', 'dymo-labelmanager']);
+const DYMO_LABEL_TYPES = new Set(['dymo-1933081', 'dymo-1933081-bordered', 'dymo-labelmanager']);
 
 const router = Router();
 
@@ -383,6 +384,7 @@ router.get('/label-types', requireAuth, requirePermission('canAccessAssets'), as
       { id: 'brother-dk22211', name: 'Brother DK-22211 (29×62mm)' },
       { id: 'brother-dk22211-bordered', name: 'Brother DK-22211 (Bordered)' },
       { id: 'dymo-1933081', name: 'Dymo 1933081 (25×89mm)' },
+      { id: 'dymo-1933081-bordered', name: 'Dymo 1933081 (Bordered)' },
       { id: 'dymo-labelmanager', name: 'Dymo 24mm Tape' },
     ]);
   } catch (error) {
@@ -508,7 +510,11 @@ router.get('/dymo-xml/:assetId', requireAuth, requirePermission('canAccessAssets
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
     const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
-    const buildXml = req.query.variant === 'labelmanager' ? buildDymoLabelManagerXml : buildDymoLabelXml;
+    const buildXml = req.query.variant === 'labelmanager'
+      ? buildDymoLabelManagerXml
+      : req.query.variant === '1933081-bordered'
+        ? buildDymoLabelXmlBordered
+        : buildDymoLabelXml;
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -572,7 +578,11 @@ router.get('/dymo-xml-batch', requireAuth, requirePermission('canAccessAssets'),
     const showHostname = req.query.showHostname !== undefined ? req.query.showHostname === 'true' : undefined;
     const showIpAddress = req.query.showIpAddress !== undefined ? req.query.showIpAddress === 'true' : undefined;
     const qrCodeContent = req.query.qrCodeContent as 'full' | 'itemNumber' | undefined;
-    const buildXml = req.query.variant === 'labelmanager' ? buildDymoLabelManagerXml : buildDymoLabelXml;
+    const buildXml = req.query.variant === 'labelmanager'
+      ? buildDymoLabelManagerXml
+      : req.query.variant === '1933081-bordered'
+        ? buildDymoLabelXmlBordered
+        : buildDymoLabelXml;
 
     const settingsRecords = await prisma.settings.findMany({
       where: {

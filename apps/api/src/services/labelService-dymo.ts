@@ -23,6 +23,7 @@ export interface LabelAsset {
 
 export interface LabelSettings {
   printerName: string;
+  labelType?: 'brother-dk22211' | 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-1933081-bordered' | 'dymo-labelmanager';
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
@@ -177,7 +178,8 @@ const BASE_HEIGHT_TWIPS = 1440;
 async function buildAddressStyleLabelXml(
   asset: LabelAsset,
   settings: Partial<LabelSettings>,
-  layout: AddressLabelLayout
+  layout: AddressLabelLayout,
+  isBordered: boolean = false
 ): Promise<string> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
   const sx = layout.widthTwips / BASE_WIDTH_TWIPS;
@@ -198,10 +200,39 @@ async function buildAddressStyleLabelXml(
   const itemModelSerialSize = hasHostIp ? 10 : 13;
   const itemModelSerialHeight = hasHostIp ? 200 : 260;
   const itemY = 390;
-  const modelY = hasHostIp ? 600 : 665;
-  const serialY = hasHostIp ? 810 : 940;
-  const hostIpY = 1020;
+
+  // Bordered variant: outline + a vertical divider between the QR and the text column +
+  // a horizontal divider above Organization Name (now a full-width row), matching the
+  // Dymo 24mm Tape label and the Brother DK-22211 (Bordered) label. QR is shrunk/recentered
+  // and the text column nudged right so both clear the vertical divider; Model/Serial/
+  // Hostname-IP compress to fit above the horizontal divider (Item's position is
+  // unchanged, preserving its existing ~10-twip clearance from Assigned To above it).
+  // All numbers below are in this function's base 5040x1440 canvas and go through the
+  // scX/scY helpers above like everything else here, even though the 1933081 itself
+  // scales 1:1 - unverified against a physical printer, expect follow-up tuning.
+  const borderInset = 28; // ~0.5mm (1440 twips/in / 25.4mm/in * 0.5mm)
+  const qrX = isBordered ? 400 : 370;
+  const qrY = isBordered ? 80 : 214;
+  const qrSize = isBordered ? 1000 : 1134;
+  const dividerX = qrX + qrSize + 30; // ~0.5mm clear of the QR
+  const textX = isBordered ? dividerX + 30 : 1520; // ~0.5mm clear of the divider
+  const textWidth = isBordered ? 4940 - textX : 3420; // keeps the same right edge as unbordered
+  const hDividerY = 1120;
+  const detailBottomLimit = hDividerY - borderInset; // ~0.5mm clear of the horizontal divider
+  // Row count above Item is 3 (Model/Serial/Hostname-IP) when Hostname-IP shows, else 2
+  // (Model/Serial only) - the increment is the gap count, one fewer than the row count.
+  const borderedRowIncrement = Math.round(
+    (detailBottomLimit - itemModelSerialHeight - itemY) / (hasHostIp ? 3 : 2)
+  );
+  const modelY = isBordered ? itemY + borderedRowIncrement : (hasHostIp ? 600 : 665);
+  const serialY = isBordered ? itemY + borderedRowIncrement * 2 : (hasHostIp ? 810 : 940);
+  const hostIpY = isBordered ? itemY + borderedRowIncrement * 3 : 1020;
   const hostIpHeight = 200;
+  // Organization Name moves to a full-width row under the horizontal divider when bordered.
+  const orgX = isBordered ? borderInset : textX;
+  const orgY = isBordered ? hDividerY + borderInset : 1247;
+  const orgWidth = isBordered ? 5040 - borderInset * 2 : textWidth;
+  const orgHeight = isBordered ? 220 : 250;
   const hostIpSize = 10;
 
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -229,8 +260,45 @@ async function buildAddressStyleLabelXml(
       <HorizontalAlignment>Center</HorizontalAlignment>
       <VerticalAlignment>Center</VerticalAlignment>
     </ImageObject>
-    <Bounds X="${scX(370)}" Y="${scY(214)}" Width="${scX(1134)}" Height="${scY(1134)}" />
+    <Bounds X="${scX(qrX)}" Y="${scY(qrY)}" Width="${scX(qrSize)}" Height="${scY(qrSize)}" />
   </ObjectInfo>
+
+  ${isBordered ? `<ObjectInfo>
+    <RectangleObject>
+      <Name>Border</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+    </RectangleObject>
+    <Bounds X="${scX(borderInset)}" Y="${scY(borderInset)}" Width="${scX(5040 - borderInset * 2)}" Height="${scY(1440 - borderInset * 2)}" />
+  </ObjectInfo>
+  <ObjectInfo>
+    <LineObject>
+      <Name>VDivider</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+    </LineObject>
+    <Bounds X="${scX(dividerX)}" Y="${scY(borderInset)}" Width="${scX(15)}" Height="${scY(hDividerY - borderInset)}" />
+  </ObjectInfo>
+  <ObjectInfo>
+    <LineObject>
+      <Name>HDivider</Name>
+      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
+      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
+      <LinkedObjectName></LinkedObjectName>
+      <Rotation>Rotation0</Rotation>
+      <IsMirrored>False</IsMirrored>
+      <IsVariable>False</IsVariable>
+    </LineObject>
+    <Bounds X="${scX(borderInset)}" Y="${scY(hDividerY)}" Width="${scX(5040 - borderInset * 2)}" Height="${scY(15)}" />
+  </ObjectInfo>` : ''}
 
   ${assignedText ? `<ObjectInfo>
     <TextObject>
@@ -256,7 +324,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(130)}" Width="${scX(3420)}" Height="${scY(250)}" />
+    <Bounds X="${scX(textX)}" Y="${scY(130)}" Width="${scX(textWidth)}" Height="${scY(250)}" />
   </ObjectInfo>` : ''}
 
   <ObjectInfo>
@@ -283,7 +351,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(itemY)}" Width="${scX(3420)}" Height="${scY(itemModelSerialHeight)}" />
+    <Bounds X="${scX(textX)}" Y="${scY(itemY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
   </ObjectInfo>
 
   ${modelText ? `<ObjectInfo>
@@ -310,7 +378,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(modelY)}" Width="${scX(3420)}" Height="${scY(itemModelSerialHeight)}" />
+    <Bounds X="${scX(textX)}" Y="${scY(modelY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
   </ObjectInfo>` : ''}
 
   ${serialText ? `<ObjectInfo>
@@ -337,7 +405,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(serialY)}" Width="${scX(3420)}" Height="${scY(itemModelSerialHeight)}" />
+    <Bounds X="${scX(textX)}" Y="${scY(serialY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
   </ObjectInfo>` : ''}
 
   ${hostIpText ? `<ObjectInfo>
@@ -364,7 +432,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(hostIpY)}" Width="${scX(3420)}" Height="${scY(hostIpHeight)}" />
+    <Bounds X="${scX(textX)}" Y="${scY(hostIpY)}" Width="${scX(textWidth)}" Height="${scY(hostIpHeight)}" />
   </ObjectInfo>` : ''}
 
   ${orgText ? `<ObjectInfo>
@@ -391,7 +459,7 @@ async function buildAddressStyleLabelXml(
         </Element>
       </StyledText>
     </TextObject>
-    <Bounds X="${scX(1520)}" Y="${scY(1247)}" Width="${scX(3420)}" Height="${scY(250)}" />
+    <Bounds X="${scX(orgX)}" Y="${scY(orgY)}" Width="${scX(orgWidth)}" Height="${scY(orgHeight)}" />
   </ObjectInfo>` : ''}
 
 </DieCutLabel>`;
@@ -408,6 +476,20 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
     widthTwips: BASE_WIDTH_TWIPS,
     heightTwips: BASE_HEIGHT_TWIPS,
   });
+}
+
+/**
+ * Build the bordered variant of the Dymo 1933081 label XML above - identical layout
+ * plus an outline, a vertical divider between the QR and the text column, and a
+ * horizontal divider above Organization Name (now a full-width row), matching the
+ * Dymo 24mm Tape label and the Brother DK-22211 (Bordered) label.
+ */
+export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
+  return buildAddressStyleLabelXml(asset, settings, {
+    paperName: '30252 Address',
+    widthTwips: BASE_WIDTH_TWIPS,
+    heightTwips: BASE_HEIGHT_TWIPS,
+  }, true);
 }
 
 // The LabelManager Executive 640 is a continuous D1-tape device, not a die-cut
@@ -685,6 +767,8 @@ export async function createLabelPDF(
   settings: Partial<LabelSettings> = {}
 ): Promise<Uint8Array> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
+  const isBordered = opts.labelType === 'dymo-1933081-bordered';
+  const MM_TO_PT = 72 / 25.4;
 
   // Generate QR code
   const qrContent = buildQRContent(asset, opts);
@@ -701,13 +785,33 @@ export async function createLabelPDF(
   // Embed QR code image
   const qrImage = await doc.embedPng(qrBuffer);
 
-  // Layout: Centered text
   const margin = 3;
-  const qrSize = 45; // Larger QR code
+  const borderInset = 2;
 
-  // QR code on LEFT, vertically centered
-  const qrX = margin;
-  const qrY = (LABEL_HEIGHT_PT - qrSize) / 2;
+  // Bordered variant: outline + a vertical divider between the QR and the text column +
+  // a horizontal divider above Organization Name (a full-width row), matching the Dymo
+  // 24mm Tape label and the Brother DK-22211 (Bordered) label. QR and the text stack
+  // both shrink to fit the band above the horizontal divider; Organization Name moves
+  // out of the text stack into its own full-width row below it. Unverified against a
+  // physical printer - expect follow-up tuning, same as the Brother bordered label's own
+  // incremental-tuning history in VERSION_HISTORY.md.
+  if (isBordered) {
+    page.drawRectangle({
+      x: borderInset,
+      y: borderInset,
+      width: LABEL_WIDTH_PT - borderInset * 2,
+      height: LABEL_HEIGHT_PT - borderInset * 2,
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1.5,
+    });
+  }
+
+  const orgDividerY = isBordered ? 13 : 0; // divider line's y, and Organization Name's ceiling
+  const qrSize = isBordered ? 38 : 45;
+  const qrX = isBordered ? borderInset + 2 : margin;
+  const qrY = isBordered
+    ? orgDividerY + 2 + ((LABEL_HEIGHT_PT - borderInset - 2 - (orgDividerY + 2)) - qrSize) / 2
+    : (LABEL_HEIGHT_PT - qrSize) / 2;
 
   page.drawImage(qrImage, {
     x: qrX,
@@ -716,19 +820,47 @@ export async function createLabelPDF(
     height: qrSize,
   });
 
+  if (isBordered) {
+    const dividerX = qrX + qrSize + 3;
+    page.drawLine({
+      start: { x: dividerX, y: LABEL_HEIGHT_PT - borderInset },
+      end: { x: dividerX, y: orgDividerY },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+    page.drawLine({
+      start: { x: borderInset, y: orgDividerY },
+      end: { x: LABEL_WIDTH_PT - borderInset, y: orgDividerY },
+      thickness: 1,
+      color: rgb(0, 0, 0),
+    });
+  }
+
   // Text centered horizontally in the space to the right of QR code
-  let textY = LABEL_HEIGHT_PT - 13; // Start near top of label (moved down 0.2mm to avoid cutoff)
-  const qrAreaEnd = margin + qrSize + 1; // End of QR code area (~17mm)
+  const qrAreaEnd = qrX + qrSize + (isBordered ? 3 : 1); // End of QR code area
   const textAreaStart = qrAreaEnd;
-  const textAreaEnd = LABEL_WIDTH_PT - margin;
+  const textAreaEnd = isBordered ? LABEL_WIDTH_PT - borderInset - 2 : LABEL_WIDTH_PT - margin;
   const labelCenterX = textAreaStart + ((textAreaEnd - textAreaStart) / 2);
+  // Available width for the Model auto-fit check - bordered uses the actual text-band
+  // width; unbordered preserves its original (QR-agnostic) full-width-minus-margins math.
+  const textAreaWidth = isBordered ? textAreaEnd - textAreaStart : LABEL_WIDTH_PT - (margin * 2);
 
   // Text styling - increased sizes
   const fontSize = 10;
   const boldFontSize = 10;
   const assignedToFontSize = 10;
-  const lineHeight = 9;
-  const textAreaWidth = LABEL_WIDTH_PT - (margin * 2); // Available width for centered text
+  // Bordered variant keeps the last detail line at least 2pt clear of the horizontal
+  // divider, compressing line spacing only as much as the worst case (all optional
+  // fields shown) requires - same dynamic-compression approach as the Brother label.
+  const lineCount = (opts.showAssignedTo && asset.assignedTo ? 1 : 0) + 1
+    + (asset.model ? 1 : 0) + (asset.serialNumber ? 1 : 0)
+    + ((opts.showHostname && asset.hostname) || (opts.showIpAddress && asset.ipAddress) ? 1 : 0);
+  let textY = isBordered ? LABEL_HEIGHT_PT - borderInset - 4 : LABEL_HEIGHT_PT - 13; // moved down 0.2mm unbordered to avoid cutoff
+  const detailStartY = textY;
+  const detailBottomLimit = isBordered ? orgDividerY + 2 : 3;
+  const lineHeight = isBordered && lineCount > 1
+    ? Math.min(9, (detailStartY - detailBottomLimit) / (lineCount - 1))
+    : 9;
 
   // Assigned To (if present) - centered
   if (opts.showAssignedTo && asset.assignedTo) {
@@ -832,20 +964,24 @@ export async function createLabelPDF(
     textY -= lineHeight;
   }
 
-  // Organization Name - centered
-  if (asset.organizationName && textY > 3) {
+  // Organization Name - bordered variant becomes its own full-width centered row below
+  // the horizontal divider, matching the Dymo 24mm Tape / Brother bordered labels; the
+  // unbordered layout keeps it as the last line in the QR-adjacent text stack.
+  if (asset.organizationName && (isBordered || textY > 3)) {
     const orgText = truncateText(asset.organizationName, 40);
-    const orgWidth = boldFont.widthOfTextAtSize(orgText, fontSize);
-    const orgX = labelCenterX - (orgWidth / 2);
+    const orgFontSize = fontSize;
+    const orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
+    const orgX = isBordered ? (LABEL_WIDTH_PT - orgWidth) / 2 : labelCenterX - (orgWidth / 2);
+    const orgY = isBordered ? 4 : textY;
 
     page.drawText(orgText, {
       x: orgX,
-      y: textY,
-      size: fontSize,
+      y: orgY,
+      size: orgFontSize,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
-    textY -= lineHeight;
+    if (!isBordered) textY -= lineHeight;
   }
 
   return doc.save();

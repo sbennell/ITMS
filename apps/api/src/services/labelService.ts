@@ -24,7 +24,7 @@ export interface LabelAsset {
 
 export interface LabelSettings {
   printerName: string;
-  labelType: 'brother-dk22211' | 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-labelmanager';
+  labelType: 'brother-dk22211' | 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-1933081-bordered' | 'dymo-labelmanager';
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
@@ -540,8 +540,8 @@ export function parseSettings(
 
   return {
     printerName: get('label.printerName') || DEFAULT_SETTINGS.printerName,
-    labelType: (['brother-dk22211-bordered', 'dymo-1933081', 'dymo-labelmanager'].includes(get('label.labelType') || '')
-      ? get('label.labelType') as 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-labelmanager'
+    labelType: (['brother-dk22211-bordered', 'dymo-1933081', 'dymo-1933081-bordered', 'dymo-labelmanager'].includes(get('label.labelType') || '')
+      ? get('label.labelType') as 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-1933081-bordered' | 'dymo-labelmanager'
       : 'brother-dk22211'),
     showAssignedTo: get('label.showAssignedTo') !== 'false',
     showHostname: get('label.showHostname') !== 'false',

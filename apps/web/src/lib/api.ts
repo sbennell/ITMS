@@ -256,7 +256,7 @@ export interface BulkUpdateResult {
 
 export interface LabelSettings {
   printerName: string;
-  labelType: 'brother-dk22211' | 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-labelmanager';
+  labelType: 'brother-dk22211' | 'brother-dk22211-bordered' | 'dymo-1933081' | 'dymo-1933081-bordered' | 'dymo-labelmanager';
   showAssignedTo: boolean;
   showHostname: boolean;
   showIpAddress: boolean;
@@ -852,6 +852,7 @@ export const api = {
     if (settings?.showIpAddress !== undefined) params.set('showIpAddress', String(settings.showIpAddress));
     if (settings?.qrCodeContent !== undefined) params.set('qrCodeContent', settings.qrCodeContent);
     if (settings?.labelType === 'dymo-labelmanager') params.set('variant', 'labelmanager');
+    else if (settings?.labelType === 'dymo-1933081-bordered') params.set('variant', '1933081-bordered');
     const queryString = params.toString();
     return fetchJson<{ itemNumber: string; xml: string }>(`/labels/dymo-xml/${assetId}${queryString ? '?' + queryString : ''}`);
   },
@@ -863,6 +864,7 @@ export const api = {
     if (settings?.showIpAddress !== undefined) params.set('showIpAddress', String(settings.showIpAddress));
     if (settings?.qrCodeContent !== undefined) params.set('qrCodeContent', settings.qrCodeContent);
     if (settings?.labelType === 'dymo-labelmanager') params.set('variant', 'labelmanager');
+    else if (settings?.labelType === 'dymo-1933081-bordered') params.set('variant', '1933081-bordered');
     return fetchJson<{ labels: { assetId: string; itemNumber: string; xml: string }[]; notFound: string[] }>(`/labels/dymo-xml-batch?${params.toString()}`);
   },
   getLabelSettings: () => fetchJson<LabelSettings>('/labels/settings'),
