@@ -167,8 +167,7 @@ const BASE_HEIGHT_TWIPS = 1440;
 async function buildAddressStyleLabelXml(
   asset: LabelAsset,
   settings: Partial<LabelSettings>,
-  layout: AddressLabelLayout,
-  isBordered: boolean = false
+  layout: AddressLabelLayout
 ): Promise<string> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
   const sx = layout.widthTwips / BASE_WIDTH_TWIPS;
@@ -189,39 +188,19 @@ async function buildAddressStyleLabelXml(
   const itemModelSerialSize = hasHostIp ? 10 : 13;
   const itemModelSerialHeight = hasHostIp ? 200 : 260;
   const itemY = 390;
-
-  // Bordered variant: outline + a vertical divider between the QR and the text column +
-  // a horizontal divider above Organization Name (now a full-width row), matching the
-  // Dymo 24mm Tape label and the Brother DK-22211 (Bordered) label. QR is shrunk/recentered
-  // and the text column nudged right so both clear the vertical divider; Model/Serial/
-  // Hostname-IP compress to fit above the horizontal divider (Item's position is
-  // unchanged, preserving its existing ~10-twip clearance from Assigned To above it).
-  // All numbers below are in this function's base 5040x1440 canvas and go through the
-  // scX/scY helpers above like everything else here, even though the 1933081 itself
-  // scales 1:1 - unverified against a physical printer, expect follow-up tuning.
-  const borderInset = 28; // ~0.5mm (1440 twips/in / 25.4mm/in * 0.5mm)
-  const qrX = isBordered ? 400 : 370;
-  const qrY = isBordered ? 80 : 214;
-  const qrSize = isBordered ? 1000 : 1134;
-  const dividerX = qrX + qrSize + 30; // ~0.5mm clear of the QR
-  const textX = isBordered ? dividerX + 30 : 1520; // ~0.5mm clear of the divider
-  const textWidth = isBordered ? 4940 - textX : 3420; // keeps the same right edge as unbordered
-  const hDividerY = 1120;
-  const detailBottomLimit = hDividerY - borderInset; // ~0.5mm clear of the horizontal divider
-  // Row count above Item is 3 (Model/Serial/Hostname-IP) when Hostname-IP shows, else 2
-  // (Model/Serial only) - the increment is the gap count, one fewer than the row count.
-  const borderedRowIncrement = Math.round(
-    (detailBottomLimit - itemModelSerialHeight - itemY) / (hasHostIp ? 3 : 2)
-  );
-  const modelY = isBordered ? itemY + borderedRowIncrement : (hasHostIp ? 600 : 665);
-  const serialY = isBordered ? itemY + borderedRowIncrement * 2 : (hasHostIp ? 810 : 940);
-  const hostIpY = isBordered ? itemY + borderedRowIncrement * 3 : 1020;
+  const qrX = 370;
+  const qrY = 214;
+  const qrSize = 1134;
+  const textX = 1520;
+  const textWidth = 3420;
+  const modelY = hasHostIp ? 600 : 665;
+  const serialY = hasHostIp ? 810 : 940;
+  const hostIpY = 1020;
   const hostIpHeight = 200;
-  // Organization Name moves to a full-width row under the horizontal divider when bordered.
-  const orgX = isBordered ? borderInset : textX;
-  const orgY = isBordered ? hDividerY + borderInset : 1247;
-  const orgWidth = isBordered ? 5040 - borderInset * 2 : textWidth;
-  const orgHeight = isBordered ? 220 : 250;
+  const orgX = textX;
+  const orgY = 1247;
+  const orgWidth = textWidth;
+  const orgHeight = 250;
   const hostIpSize = 10;
 
   return `<?xml version="1.0" encoding="utf-8"?>
@@ -251,43 +230,6 @@ async function buildAddressStyleLabelXml(
     </ImageObject>
     <Bounds X="${scX(qrX)}" Y="${scY(qrY)}" Width="${scX(qrSize)}" Height="${scY(qrSize)}" />
   </ObjectInfo>
-
-  ${isBordered ? `<ObjectInfo>
-    <RectangleObject>
-      <Name>Border</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-    </RectangleObject>
-    <Bounds X="${scX(borderInset)}" Y="${scY(borderInset)}" Width="${scX(5040 - borderInset * 2)}" Height="${scY(1440 - borderInset * 2)}" />
-  </ObjectInfo>
-  <ObjectInfo>
-    <LineObject>
-      <Name>VDivider</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-    </LineObject>
-    <Bounds X="${scX(dividerX)}" Y="${scY(borderInset)}" Width="${scX(15)}" Height="${scY(hDividerY - borderInset)}" />
-  </ObjectInfo>
-  <ObjectInfo>
-    <LineObject>
-      <Name>HDivider</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-    </LineObject>
-    <Bounds X="${scX(borderInset)}" Y="${scY(hDividerY)}" Width="${scX(5040 - borderInset * 2)}" Height="${scY(15)}" />
-  </ObjectInfo>` : ''}
 
   ${assignedText ? `<ObjectInfo>
     <TextObject>
@@ -465,20 +407,6 @@ export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<Lab
     widthTwips: BASE_WIDTH_TWIPS,
     heightTwips: BASE_HEIGHT_TWIPS,
   });
-}
-
-/**
- * Build the bordered variant of the Dymo 1933081 label XML above - identical layout
- * plus an outline, a vertical divider between the QR and the text column, and a
- * horizontal divider above Organization Name (now a full-width row), matching the
- * Dymo 24mm Tape label and the Brother DK-22211 (Bordered) label.
- */
-export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
-  return buildAddressStyleLabelXml(asset, settings, {
-    paperName: '30252 Address',
-    widthTwips: BASE_WIDTH_TWIPS,
-    heightTwips: BASE_HEIGHT_TWIPS,
-  }, true);
 }
 
 // The LabelManager Executive 640 is a continuous D1-tape device, not a die-cut
@@ -738,6 +666,230 @@ export async function buildDymoLabelManagerXml(asset: LabelAsset, settings: Part
         </TextObject>
       </LabelObjects>
     </GrowingDynamicLayoutManager>
+  </DYMOLabel>
+  <LabelApplication>Blank</LabelApplication>
+  <DataTable>
+    <Columns></Columns>
+    <Rows></Rows>
+  </DataTable>
+</DesktopLabel>`;
+}
+
+// The Dymo 1933081 "Bordered" option uses this same DesktopLabel/DYMOLabel/
+// DynamicLayoutManager schema, not the twips DieCutLabel schema buildAddressStyleLabelXml
+// uses above - DYMO Connect's DieCutLabel renderer does not actually draw a
+// RectangleObject/LineObject as visible ink (confirmed by a real print: the label came
+// out with no border at all). The constants below were read directly off a "1933081
+// Drbl 1 x 3-1/2 in" label exported from DYMO Connect Desktop with a manually-added
+// border - same QR+vertical-divider+details layout with a horizontal divider above a
+// full-width Organization Name row as the LabelManager tape above and the Brother
+// DK-22211 (Bordered) label. Unlike the tape, this uses DynamicLayoutManager (not
+// GrowingDynamicLayoutManager/HasFixedLength) since the 1933081 is a fixed-size die-cut
+// label, not a continuous tape roll that needs to grow to fit content.
+const BORDERED1933081_LABEL_NAME = '1933081 Drbl 1 x 3-1/2 in';
+
+const BORDERED1933081_BORDER_X_IN = 0.22916667;
+const BORDERED1933081_BORDER_Y_IN = 0.05;
+const BORDERED1933081_BORDER_WIDTH_IN = 3.2083333;
+const BORDERED1933081_BORDER_HEIGHT_IN = 0.9;
+
+const BORDERED1933081_QR_X_IN = 0.22916667;
+const BORDERED1933081_QR_Y_IN = 0.05000006;
+const BORDERED1933081_QR_WIDTH_IN = 0.6725561;
+const BORDERED1933081_QR_HEIGHT_IN = 0.71111095;
+
+const BORDERED1933081_VDIVIDER_X_IN = 0.84391016;
+const BORDERED1933081_VDIVIDER_Y_IN = 0.057560734;
+const BORDERED1933081_VDIVIDER_WIDTH_IN = 0.10000005;
+const BORDERED1933081_VDIVIDER_HEIGHT_IN = 0.7035502;
+
+const BORDERED1933081_DETAILS_X_IN = 0.96936655;
+const BORDERED1933081_DETAILS_Y_IN = 0.057560734;
+const BORDERED1933081_DETAILS_WIDTH_IN = 2.4637587;
+const BORDERED1933081_DETAILS_HEIGHT_IN = 0.6966938;
+
+const BORDERED1933081_HDIVIDER_X_IN = 0.22916682;
+const BORDERED1933081_HDIVIDER_Y_IN = 0.711111;
+const BORDERED1933081_HDIVIDER_WIDTH_IN = 3.1783333;
+const BORDERED1933081_HDIVIDER_HEIGHT_IN = 0.1;
+
+const BORDERED1933081_ORG_X_IN = 0.22916667;
+const BORDERED1933081_ORG_Y_IN = 0.761111;
+const BORDERED1933081_ORG_WIDTH_IN = 3.1783333;
+const BORDERED1933081_ORG_HEIGHT_IN = 0.1611729;
+
+/**
+ * Build the bordered variant of the Dymo 1933081 label XML, printed the same way as
+ * buildDymoLabelXml above (DYMO Connect's local web service, LabelWriter printer
+ * family) but using the DesktopLabel/DynamicLayoutManager schema instead of the twips
+ * DieCutLabel schema, since only that schema actually renders a visible border.
+ */
+export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
+  const opts = { ...DEFAULT_SETTINGS, ...settings };
+  const { qrContent, assignedText, itemText, modelText, serialText, hostIpText, orgText } = deriveLabelFields(asset, opts);
+
+  const detailLines: { text: string; bold: boolean }[] = [];
+  if (assignedText) detailLines.push({ text: assignedText, bold: true });
+  detailLines.push({ text: itemText, bold: true });
+  if (modelText) detailLines.push({ text: modelText, bold: false });
+  if (serialText) detailLines.push({ text: serialText, bold: false });
+  if (hostIpText) detailLines.push({ text: hostIpText, bold: false });
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<DesktopLabel Version="1">
+  <DYMOLabel Version="4">
+    <Description>DYMO Label</Description>
+    <Orientation>Landscape</Orientation>
+    <LabelName>${BORDERED1933081_LABEL_NAME}</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint>
+        <X>${BORDERED1933081_BORDER_X_IN}</X>
+        <Y>${BORDERED1933081_BORDER_Y_IN}</Y>
+      </DYMOPoint>
+      <Size>
+        <Width>${BORDERED1933081_BORDER_WIDTH_IN}</Width>
+        <Height>${BORDERED1933081_BORDER_HEIGHT_IN}</Height>
+      </Size>
+    </DYMORect>
+    <BorderColor>${LABELMANAGER_INK_BRUSH}</BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>True</Show_Border>
+    <HasFixedLength>False</HasFixedLength>
+    <FixedLengthValue>0</FixedLengthValue>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        <QRCodeObject>
+          <Name>QRCode</Name>
+          <Brushes>
+            <BackgroundBrush>${LABELMANAGER_TRANSPARENT_BRUSH}</BackgroundBrush>
+            <BorderBrush>${LABELMANAGER_INK_BRUSH}</BorderBrush>
+            <StrokeBrush>${LABELMANAGER_INK_BRUSH}</StrokeBrush>
+            <FillBrush>${LABELMANAGER_INK_BRUSH}</FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <BarcodeFormat>QRCode</BarcodeFormat>
+          <Data><DataString>${escapeXml(qrContent)}</DataString></Data>
+          <HorizontalAlignment>Center</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <Size>Large</Size>
+          <EQRCodeType>QRCodeText</EQRCodeType>
+          <TextDataHolder><Value>${escapeXml(qrContent)}</Value></TextDataHolder>
+          <ObjectLayout>
+            <DYMOPoint>
+              <X>${BORDERED1933081_QR_X_IN}</X>
+              <Y>${BORDERED1933081_QR_Y_IN}</Y>
+            </DYMOPoint>
+            <Size>
+              <Width>${BORDERED1933081_QR_WIDTH_IN}</Width>
+              <Height>${BORDERED1933081_QR_HEIGHT_IN}</Height>
+            </Size>
+          </ObjectLayout>
+        </QRCodeObject>
+        ${buildDividerLine('LineObject1', 'Vertical', BORDERED1933081_VDIVIDER_X_IN, BORDERED1933081_VDIVIDER_Y_IN, BORDERED1933081_VDIVIDER_WIDTH_IN, BORDERED1933081_VDIVIDER_HEIGHT_IN)}
+        <TextObject>
+          <Name>TextObject1</Name>
+          <Brushes>
+            <BackgroundBrush>${LABELMANAGER_TRANSPARENT_BRUSH}</BackgroundBrush>
+            <BorderBrush>${LABELMANAGER_INK_BRUSH}</BorderBrush>
+            <StrokeBrush>${LABELMANAGER_INK_BRUSH}</StrokeBrush>
+            <FillBrush>${LABELMANAGER_INK_BRUSH}</FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <HorizontalAlignment>Left</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <FitMode>AlwaysFit</FitMode>
+          <IsVertical>False</IsVertical>
+          <FormattedText>
+            <FitMode>AlwaysFit</FitMode>
+            <HorizontalAlignment>Left</HorizontalAlignment>
+            <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
+            ${detailLines.map(line => `<LineTextSpan>
+              <TextSpan>
+                <Text>${line.text}</Text>
+                <FontInfo>
+                  <FontName>Arial</FontName>
+                  <FontSize>9.1</FontSize>
+                  <IsBold>${line.bold ? 'True' : 'False'}</IsBold>
+                  <IsItalic>False</IsItalic>
+                  <IsUnderline>False</IsUnderline>
+                  <FontBrush>${LABELMANAGER_INK_BRUSH}</FontBrush>
+                </FontInfo>
+              </TextSpan>
+            </LineTextSpan>`).join('\n            ')}
+          </FormattedText>
+          <ObjectLayout>
+            <DYMOPoint>
+              <X>${BORDERED1933081_DETAILS_X_IN}</X>
+              <Y>${BORDERED1933081_DETAILS_Y_IN}</Y>
+            </DYMOPoint>
+            <Size>
+              <Width>${BORDERED1933081_DETAILS_WIDTH_IN}</Width>
+              <Height>${BORDERED1933081_DETAILS_HEIGHT_IN}</Height>
+            </Size>
+          </ObjectLayout>
+        </TextObject>
+        ${orgText ? `${buildDividerLine('LineObject0', 'Horizontal', BORDERED1933081_HDIVIDER_X_IN, BORDERED1933081_HDIVIDER_Y_IN, BORDERED1933081_HDIVIDER_WIDTH_IN, BORDERED1933081_HDIVIDER_HEIGHT_IN)}
+        <TextObject>
+          <Name>TextObject2</Name>
+          <Brushes>
+            <BackgroundBrush>${LABELMANAGER_TRANSPARENT_BRUSH}</BackgroundBrush>
+            <BorderBrush>${LABELMANAGER_INK_BRUSH}</BorderBrush>
+            <StrokeBrush>${LABELMANAGER_INK_BRUSH}</StrokeBrush>
+            <FillBrush>${LABELMANAGER_INK_BRUSH}</FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <HorizontalAlignment>Center</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <FitMode>AlwaysFit</FitMode>
+          <IsVertical>False</IsVertical>
+          <FormattedText>
+            <FitMode>AlwaysFit</FitMode>
+            <HorizontalAlignment>Center</HorizontalAlignment>
+            <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
+            <LineTextSpan>
+              <TextSpan>
+                <Text>${orgText}</Text>
+                <FontInfo>
+                  <FontName>Arial</FontName>
+                  <FontSize>8.6</FontSize>
+                  <IsBold>True</IsBold>
+                  <IsItalic>False</IsItalic>
+                  <IsUnderline>False</IsUnderline>
+                  <FontBrush>${LABELMANAGER_INK_BRUSH}</FontBrush>
+                </FontInfo>
+              </TextSpan>
+            </LineTextSpan>
+          </FormattedText>
+          <ObjectLayout>
+            <DYMOPoint>
+              <X>${BORDERED1933081_ORG_X_IN}</X>
+              <Y>${BORDERED1933081_ORG_Y_IN}</Y>
+            </DYMOPoint>
+            <Size>
+              <Width>${BORDERED1933081_ORG_WIDTH_IN}</Width>
+              <Height>${BORDERED1933081_ORG_HEIGHT_IN}</Height>
+            </Size>
+          </ObjectLayout>
+        </TextObject>` : ''}
+      </LabelObjects>
+    </DynamicLayoutManager>
   </DYMOLabel>
   <LabelApplication>Blank</LabelApplication>
   <DataTable>

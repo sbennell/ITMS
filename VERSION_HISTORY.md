@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.34.1] - 2026-09-16
+
+### Fixed
+
+- Dymo 1933081 (Bordered) label: the border, dividers, and full-width Organization Name row now actually print. The previous implementation added them as `RectangleObject`/`LineObject` elements inside DYMO's twips-based `DieCutLabel` XML schema (the same schema the plain 1933081 uses) - a real print test showed the label printed correctly but with **no border at all**, meaning that schema silently ignores those elements. Rebuilt the bordered variant on DYMO Connect's `DesktopLabel`/`DYMOLabel`/`DynamicLayoutManager` schema instead (the same family already used for the working 24mm Tape label), using exact geometry read off a real "1933081 Drbl 1 x 3-1/2 in" label exported from DYMO Connect Desktop with a border - the same layout as before (QR + vertical divider + details column, horizontal divider above a full-width Organization Name row) but now using object types DYMO's renderer actually draws.
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: reverted `buildAddressStyleLabelXml()`/`buildDymoLabelXml()` to their pre-1.33.0 unbordered-only form (removed the non-functional `isBordered` branch, `RectangleObject`/`LineObject` additions, and the reshuffled Model/Serial/Hostname-IP positions). Replaced `buildDymoLabelXmlBordered()` with a standalone implementation modeled directly on `buildDymoLabelManagerXml()` (reusing its `buildDividerLine()`/brush helpers), using a new set of `BORDERED1933081_*_IN` geometry constants taken verbatim from the user-supplied real DYMO Connect export, including a native `QRCodeObject` (DYMO-rendered) rather than the rasterized-PNG `ImageObject` workaround the `DieCutLabel` schema needs.
+- Verified structurally (well-formed XML matching the reference's schema/element types, correct conditional omission of the divider/org row when Organization Name is absent, correct handling of the extra Hostname/IP detail line the reference didn't need to show) and end-to-end via the running app (`GET /labels/dymo-xml/:assetId?variant=1933081-bordered` returns `DesktopLabel`/`Show_Border=True`/`QRCodeObject`/`DynamicLayoutManager`; the plain 1933081 route is confirmed unchanged, still `DieCutLabel`/`30252 Address`). Physical print verification is on the user, per their report that prompted this fix.
+
+---
+
 ## [1.34.0] - 2026-09-16
 
 ### Changed
