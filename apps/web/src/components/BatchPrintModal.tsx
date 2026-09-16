@@ -206,7 +206,7 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
           )}
           {isDymo && !dymo.checking && !dymo.available && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-              {dymo.reason || 'DYMO Label Software not detected on this device'} — use Download PDF instead.
+              {dymo.reason || 'DYMO Label Software not detected on this device'} — DYMO labels can only be printed via DYMO Connect, install it to continue.
             </div>
           )}
 
@@ -228,13 +228,15 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
 
         {/* Footer */}
         <div className="flex justify-between p-4 border-t bg-gray-50">
-          <button
-            onClick={handleDownload}
-            className="btn btn-secondary"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download PDF
-          </button>
+          {!isDymo ? (
+            <button
+              onClick={handleDownload}
+              className="btn btn-secondary"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download PDF
+            </button>
+          ) : <div />}
           <div className="flex gap-2">
             <button
               onClick={onClose}
@@ -249,7 +251,7 @@ export default function BatchPrintModal({ assetIds, onClose, onSuccess }: BatchP
               </div>
             ) : isDymo && !dymo.available ? (
               <div className="text-sm text-gray-500 flex items-center px-3">
-                Download only
+                DYMO Connect required
               </div>
             ) : (
             <button

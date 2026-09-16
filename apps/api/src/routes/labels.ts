@@ -13,15 +13,14 @@ import {
   LabelSettings,
 } from '../services/labelService.js';
 import {
-  createLabelPDF as createDymoPDF,
   createLabelPreview as createDymoPreview,
-  printLabel as printDymo,
   buildDymoLabelXml,
   buildDymoLabelXmlBordered,
   buildDymoLabelManagerXml,
 } from '../services/labelService-dymo.js';
 
 const DYMO_LABEL_TYPES = new Set(['dymo-1933081', 'dymo-1933081-bordered', 'dymo-labelmanager']);
+const DYMO_ONLY_VIA_CONNECT_MESSAGE = 'DYMO labels can only be printed via DYMO Connect in the browser - use the print dialog\'s DYMO print option instead of server printing or PDF download.';
 
 const router = Router();
 
@@ -115,10 +114,9 @@ router.post('/print/:assetId', requireAuth, requirePermission('canAccessAssets')
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
-    // Select correct service based on label type
-    const isDymo = DYMO_LABEL_TYPES.has(finalSettings.labelType);
-    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
-    const printLabel = isDymo ? printDymo : printBrother;
+    if (DYMO_LABEL_TYPES.has(finalSettings.labelType)) {
+      return res.status(400).json({ error: DYMO_ONLY_VIA_CONNECT_MESSAGE });
+    }
 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
@@ -131,10 +129,10 @@ router.post('/print/:assetId', requireAuth, requirePermission('canAccessAssets')
 
     // Generate and print label
     const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
-    const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+    const pdfBytes = await createBrotherPDF(labelAsset, finalSettings);
 
     for (let i = 0; i < copies; i++) {
-      await printLabel(pdfBytes, settings.printerName);
+      await printBrother(pdfBytes, settings.printerName);
     }
 
     res.json({
@@ -183,10 +181,9 @@ router.post('/print-batch', requireAuth, requirePermission('canAccessAssets'), a
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
-    // Select correct service based on label type
-    const isDymo = DYMO_LABEL_TYPES.has(finalSettings.labelType);
-    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
-    const printLabel = isDymo ? printDymo : printBrother;
+    if (DYMO_LABEL_TYPES.has(finalSettings.labelType)) {
+      return res.status(400).json({ error: DYMO_ONLY_VIA_CONNECT_MESSAGE });
+    }
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -210,9 +207,9 @@ router.post('/print-batch', requireAuth, requirePermission('canAccessAssets'), a
         }
 
         const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
-        const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+        const pdfBytes = await createBrotherPDF(labelAsset, finalSettings);
         for (let i = 0; i < copies; i++) {
-          await printLabel(pdfBytes, settings.printerName);
+          await printBrother(pdfBytes, settings.printerName);
         }
         printed++;
       } catch (error) {
@@ -283,9 +280,9 @@ router.get('/download-batch', requireAuth, requirePermission('canAccessAssets'),
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
-    // Select correct service based on label type
-    const isDymo = DYMO_LABEL_TYPES.has(finalSettings.labelType);
-    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
+    if (DYMO_LABEL_TYPES.has(finalSettings.labelType)) {
+      return res.status(400).json({ error: DYMO_ONLY_VIA_CONNECT_MESSAGE });
+    }
 
     // Fetch all assets
     const assets = await prisma.asset.findMany({
@@ -312,7 +309,7 @@ router.get('/download-batch', requireAuth, requirePermission('canAccessAssets'),
       }
 
       const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
-      const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+      const pdfBytes = await createBrotherPDF(labelAsset, finalSettings);
       const labelPdf = await PDFDocument.load(pdfBytes);
       const [page] = await combinedPdf.copyPages(labelPdf, [0]);
       combinedPdf.addPage(page);
@@ -475,9 +472,9 @@ router.get('/download/:assetId', requireAuth, requirePermission('canAccessAssets
       ...(qrCodeContent !== undefined && { qrCodeContent }),
     };
 
-    // Select correct service based on label type
-    const isDymo = DYMO_LABEL_TYPES.has(finalSettings.labelType);
-    const createLabelPDF = isDymo ? createDymoPDF : createBrotherPDF;
+    if (DYMO_LABEL_TYPES.has(finalSettings.labelType)) {
+      return res.status(400).json({ error: DYMO_ONLY_VIA_CONNECT_MESSAGE });
+    }
 
     // Resolve first IP (all IPs are equal now)
     const primaryIP = asset.ipAddresses?.[0]?.ip;
@@ -489,7 +486,7 @@ router.get('/download/:assetId', requireAuth, requirePermission('canAccessAssets
     }
 
     const labelAsset: LabelAsset = { ...asset, ipAddress: primaryIP, organizationName, assignedTo };
-    const pdfBytes = await createLabelPDF(labelAsset, finalSettings);
+    const pdfBytes = await createBrotherPDF(labelAsset, finalSettings);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="label-${asset.itemNumber}.pdf"`);

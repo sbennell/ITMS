@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.34.0] - 2026-09-16
+
+### Changed
+
+- All DYMO labels (1933081, 1933081 Bordered, 24mm Tape) can now only be printed via DYMO Connect in the browser - the server-side PDF fallback (used for server printing, "Download PDF", and batch PDF download) has been removed for DYMO label types. Brother labels are unaffected and keep the PDF path. The print dialogs no longer show a "Download PDF" button when a DYMO label is selected, and the "DYMO Label Software not detected" message no longer offers it as a fallback - DYMO Connect is now required to print a DYMO label at all.
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: removed `createLabelPDF()`, `printLabel()`, `getAvailablePrinters()` (already dead/unused - only Brother's version was ever imported), and `truncateText()` (only used by the removed `createLabelPDF`); removed the now-unused `pdf-lib`/`pdf-to-printer`/`fs`/`os`/`path` imports and `LABEL_WIDTH_PT`/`LABEL_HEIGHT_PT` constants; removed the now-unread `labelType` field from this file's `LabelSettings` interface. `createLabelPreview()` (the small QR-only preview thumbnail, unrelated to printing/PDF output) is unchanged.
+- `apps/api/src/routes/labels.ts`: `/print/:assetId`, `/print-batch`, `/download/:assetId`, `/download-batch` now return `400` with a clear message when a DYMO `labelType` is requested, instead of routing to the (now removed) DYMO PDF builder. `/preview/:assetId` and `/dymo-xml/:assetId`/`/dymo-xml-batch` (the actual DYMO Connect path) are unchanged.
+- `apps/web/src/components/LabelPreviewModal.tsx`, `apps/web/src/components/BatchPrintModal.tsx`: hide the "Download PDF" button when a DYMO label type is selected; updated the "DYMO Label Software not detected" banner and the print-button-area fallback text to stop mentioning PDF download as an alternative.
+
+---
+
 ## [1.33.0] - 2026-09-16
 
 ### Added
