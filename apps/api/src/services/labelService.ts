@@ -189,9 +189,8 @@ export async function createLabelPDF(
   // Bordered variant keeps text at least 0.5mm clear of the right border.
   const textAreaWidth = LABEL_WIDTH_PT - textX - (isBordered ? borderInset + 0.5 * MM_TO_PT : margin);
 
-  // Assigned To name - centered within the text column (to the right of the QR, same
-  // as Item/Model/etc below), not across the full label width - it was overlapping the
-  // QR code for longer names. Auto-fit to fill the column width.
+  // Assigned To name - left-aligned within the text column (to the right of the QR),
+  // matching Item/Model/etc below it. Auto-fit to fill the column width.
   const topMargin = 12; // Space from top for assigned to name
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = asset.assignedTo;
@@ -211,7 +210,7 @@ export async function createLabelPDF(
     // Bordered variant nudges the Assigned To text down 1mm total - it was still
     // touching the top border.
     page.drawText(assignedText, {
-      x: textX + (textAreaWidth - assignedWidth) / 2,
+      x: textX,
       y: LABEL_HEIGHT_PT - topMargin - (isBordered ? MM_TO_PT : 0),
       size: assignedFontSize,
       font: boldFont,

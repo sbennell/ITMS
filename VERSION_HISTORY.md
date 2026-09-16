@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.2] - 2026-09-16
+
+### Changed
+
+- Brother DK-22211 label (both plain and Bordered): Assigned To text is now left-aligned within the text column instead of centered, matching Item/Model/Serial/etc below it.
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `createLabelPDF()`'s Assigned To `x` position changed from `textX + (textAreaWidth - assignedWidth) / 2` to `textX`.
+
+---
+
 ## [1.35.1] - 2026-09-16
 
 ### Fixed
