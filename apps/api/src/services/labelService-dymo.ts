@@ -146,274 +146,13 @@ function deriveLabelFields(asset: LabelAsset, opts: LabelSettings): LabelFields 
   return { qrContent, assignedText, itemText, modelText, serialText, hostIpText, orgText };
 }
 
-interface AddressLabelLayout {
-  paperName: string;
-  widthTwips: number;
-  heightTwips: number;
-}
-
-// Base layout below is authored for the Dymo 1933081 canvas (5040x1440 twips, i.e.
-// 1"x3.5" at 1440 twips/inch) and scaled per-axis for other label sizes (e.g. the
-// LabelManager Executive 640's 24mm tape), so both labels share one template.
-const BASE_WIDTH_TWIPS = 5040;
-const BASE_HEIGHT_TWIPS = 1440;
-
-/**
- * Build a native DYMO DieCutLabel XML, printed directly through DYMO Label
- * Software's local web service from the browser. Coordinates are in twips (1440
- * per inch). Shared by the Dymo 1933081 (LabelWriter) and LabelManager Executive
- * 640 (tape) label builders below, scaled to each device's label dimensions.
- */
-async function buildAddressStyleLabelXml(
-  asset: LabelAsset,
-  settings: Partial<LabelSettings>,
-  layout: AddressLabelLayout
-): Promise<string> {
-  const opts = { ...DEFAULT_SETTINGS, ...settings };
-  const sx = layout.widthTwips / BASE_WIDTH_TWIPS;
-  const sy = layout.heightTwips / BASE_HEIGHT_TWIPS;
-  const scX = (n: number) => Math.round(n * sx);
-  const scY = (n: number) => Math.round(n * sy);
-  const scFont = (n: number) => Math.max(4, Math.round(n * sy));
-  const { qrContent, assignedText, itemText, modelText, serialText, hostIpText, orgText } = deriveLabelFields(asset, opts);
-  // DYMO's native BarcodeObject doesn't reliably honor Bounds for QR sizing (its
-  // internal "Size: Large" auto-sizing clips/shrinks unpredictably regardless of the
-  // requested Bounds) - render the QR as a PNG instead and embed it as an ImageObject,
-  // which scales predictably to Bounds via ScaleMode=Fill.
-  const qrPngBase64 = (await generateQRCode(qrContent, 300)).toString('base64');
-
-  // When Hostname/IP isn't shown, redistribute its row to Item Number/Model/Serial
-  // Number instead of leaving the space blank.
-  const hasHostIp = !!hostIpText;
-  const itemModelSerialSize = hasHostIp ? 10 : 13;
-  const itemModelSerialHeight = hasHostIp ? 200 : 260;
-  const itemY = 390;
-  const qrX = 370;
-  const qrY = 214;
-  const qrSize = 1134;
-  const textX = 1520;
-  const textWidth = 3420;
-  const modelY = hasHostIp ? 600 : 665;
-  const serialY = hasHostIp ? 810 : 940;
-  const hostIpY = 1020;
-  const hostIpHeight = 200;
-  const orgX = textX;
-  const orgY = 1247;
-  const orgWidth = textWidth;
-  const orgHeight = 250;
-  const hostIpSize = 10;
-
-  return `<?xml version="1.0" encoding="utf-8"?>
-<DieCutLabel Version="8.0" Units="twips">
-  <PaperOrientation>Landscape</PaperOrientation>
-  <Id>Address</Id>
-  <PaperName>${layout.paperName}</PaperName>
-  <DrawCommands>
-    <RoundRectangle X="0" Y="0" Width="${layout.widthTwips}" Height="${layout.heightTwips}" Rx="${scY(270)}" Ry="${scY(270)}" />
-  </DrawCommands>
-
-  <ObjectInfo>
-    <ImageObject>
-      <Name>QRCode</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>False</IsVariable>
-      <Image>${qrPngBase64}</Image>
-      <ScaleMode>Fill</ScaleMode>
-      <BorderWidth>0</BorderWidth>
-      <BorderColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Center</VerticalAlignment>
-    </ImageObject>
-    <Bounds X="${scX(qrX)}" Y="${scY(qrY)}" Width="${scX(qrSize)}" Height="${scY(qrSize)}" />
-  </ObjectInfo>
-
-  ${assignedText ? `<ObjectInfo>
-    <TextObject>
-      <Name>AssignedTo</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${assignedText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(14)}" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(textX)}" Y="${scY(130)}" Width="${scX(textWidth)}" Height="${scY(250)}" />
-  </ObjectInfo>` : ''}
-
-  <ObjectInfo>
-    <TextObject>
-      <Name>ItemNumber</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${itemText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(itemModelSerialSize)}" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(textX)}" Y="${scY(itemY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
-  </ObjectInfo>
-
-  ${modelText ? `<ObjectInfo>
-    <TextObject>
-      <Name>Model</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${modelText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(itemModelSerialSize)}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(textX)}" Y="${scY(modelY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
-  </ObjectInfo>` : ''}
-
-  ${serialText ? `<ObjectInfo>
-    <TextObject>
-      <Name>SerialNumber</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${serialText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(itemModelSerialSize)}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(textX)}" Y="${scY(serialY)}" Width="${scX(textWidth)}" Height="${scY(itemModelSerialHeight)}" />
-  </ObjectInfo>` : ''}
-
-  ${hostIpText ? `<ObjectInfo>
-    <TextObject>
-      <Name>HostnameIP</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${hostIpText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(hostIpSize)}" Bold="False" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(textX)}" Y="${scY(hostIpY)}" Width="${scX(textWidth)}" Height="${scY(hostIpHeight)}" />
-  </ObjectInfo>` : ''}
-
-  ${orgText ? `<ObjectInfo>
-    <TextObject>
-      <Name>OrgName</Name>
-      <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-      <BackColor Alpha="0" Red="255" Green="255" Blue="255" />
-      <LinkedObjectName></LinkedObjectName>
-      <Rotation>Rotation0</Rotation>
-      <IsMirrored>False</IsMirrored>
-      <IsVariable>True</IsVariable>
-      <HorizontalAlignment>Center</HorizontalAlignment>
-      <VerticalAlignment>Middle</VerticalAlignment>
-      <TextFitMode>ShrinkToFit</TextFitMode>
-      <UseFullFontHeight>True</UseFullFontHeight>
-      <Verticalized>False</Verticalized>
-      <StyledText>
-        <Element>
-          <String>${orgText}</String>
-          <Attributes>
-            <Font Family="Arial" Size="${scFont(14)}" Bold="True" Italic="False" Underline="False" Strikeout="False" />
-            <ForeColor Alpha="255" Red="0" Green="0" Blue="0" />
-          </Attributes>
-        </Element>
-      </StyledText>
-    </TextObject>
-    <Bounds X="${scX(orgX)}" Y="${scY(orgY)}" Width="${scX(orgWidth)}" Height="${scY(orgHeight)}" />
-  </ObjectInfo>` : ''}
-
-</DieCutLabel>`;
-}
-
-/**
- * Build a native DYMO DieCutLabel XML for the Dymo 1933081 (1"x3.5" address-style)
- * label, printed directly through DYMO Label Software's local web service from the
- * browser. Coordinates are in twips (1440 per inch); label is 5040x1440 twips.
- */
-export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
-  return buildAddressStyleLabelXml(asset, settings, {
-    paperName: '30252 Address',
-    widthTwips: BASE_WIDTH_TWIPS,
-    heightTwips: BASE_HEIGHT_TWIPS,
-  });
-}
 
 // The LabelManager Executive 640 is a continuous D1-tape device, not a die-cut
 // LabelWriter - DYMO Connect only accepts continuous-media labels in its newer
-// DesktopLabel/DYMOLabel/GrowingDynamicLayoutManager schema (inches, not twips; see
-// buildAddressStyleLabelXml above for the twips-based DieCutLabel schema used by the
-// 1933081). The constants below (tape preset name, box positions/sizes, fixed print
+// DesktopLabel/DYMOLabel/GrowingDynamicLayoutManager schema. The Dymo 1933081 below
+// (buildAddress1933081Xml) uses the closely-related non-growing DynamicLayoutManager
+// schema instead, since it's a fixed-size die-cut label, not a continuous tape roll.
+// The constants below (tape preset name, box positions/sizes, fixed print
 // length) were read directly off a label exported from DYMO Connect Desktop after
 // manual tuning for this printer/tape - they aren't values we chose, so they should
 // hold for any label using the same cassette. Layout is a QR box top-left, a details
@@ -496,8 +235,8 @@ function buildDividerLine(name: string, lineType: 'Horizontal' | 'Vertical', x: 
 /**
  * Build a native DYMO label XML for the LabelManager Executive 640 (24mm tape),
  * printed via DYMO Connect's Tape printer API (see dymoLabelPrinter.ts). Uses a
- * native QRCodeObject - DYMO renders the QR itself - rather than the rasterized-PNG
- * workaround the DieCutLabel schema above needs for its BarcodeObject.
+ * native QRCodeObject - DYMO renders the QR itself, no rasterized-PNG workaround
+ * needed (unlike DYMO's older twips-based DieCutLabel schema and its BarcodeObject).
  */
 export async function buildDymoLabelManagerXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
@@ -675,56 +414,56 @@ export async function buildDymoLabelManagerXml(asset: LabelAsset, settings: Part
 </DesktopLabel>`;
 }
 
-// The Dymo 1933081 "Bordered" option uses this same DesktopLabel/DYMOLabel/
-// DynamicLayoutManager schema, not the twips DieCutLabel schema buildAddressStyleLabelXml
-// uses above - DYMO Connect's DieCutLabel renderer does not actually draw a
-// RectangleObject/LineObject as visible ink (confirmed by a real print: the label came
+// The Dymo 1933081 (plain and "Bordered") both use this DesktopLabel/DYMOLabel/
+// DynamicLayoutManager schema - not DYMO's older twips-based DieCutLabel schema, whose
+// DieCutLabel renderer does not actually draw a RectangleObject/LineObject as visible
+// ink (confirmed by a real print: a label built with that schema's RectangleObject came
 // out with no border at all). The constants below were read directly off a "1933081
 // Drbl 1 x 3-1/2 in" label exported from DYMO Connect Desktop with a manually-added
 // border - same QR+vertical-divider+details layout with a horizontal divider above a
 // full-width Organization Name row as the LabelManager tape above and the Brother
-// DK-22211 (Bordered) label. Unlike the tape, this uses DynamicLayoutManager (not
-// GrowingDynamicLayoutManager/HasFixedLength) since the 1933081 is a fixed-size die-cut
-// label, not a continuous tape roll that needs to grow to fit content.
-const BORDERED1933081_LABEL_NAME = '1933081 Drbl 1 x 3-1/2 in';
+// DK-22211 (Bordered) label; the plain (unbordered) 1933081 uses the exact same layout,
+// just with Show_Border=False and the two divider lines omitted. Unlike the tape, this
+// uses DynamicLayoutManager (not GrowingDynamicLayoutManager/HasFixedLength) since the
+// 1933081 is a fixed-size die-cut label, not a continuous tape roll that needs to grow
+// to fit content.
+const ADDRESS1933081_LABEL_NAME = '1933081 Drbl 1 x 3-1/2 in';
 
-const BORDERED1933081_BORDER_X_IN = 0.22916667;
-const BORDERED1933081_BORDER_Y_IN = 0.05;
-const BORDERED1933081_BORDER_WIDTH_IN = 3.2083333;
-const BORDERED1933081_BORDER_HEIGHT_IN = 0.9;
+const ADDRESS1933081_BORDER_X_IN = 0.22916667;
+const ADDRESS1933081_BORDER_Y_IN = 0.05;
+const ADDRESS1933081_BORDER_WIDTH_IN = 3.2083333;
+const ADDRESS1933081_BORDER_HEIGHT_IN = 0.9;
 
-const BORDERED1933081_QR_X_IN = 0.22916667;
-const BORDERED1933081_QR_Y_IN = 0.05000006;
-const BORDERED1933081_QR_WIDTH_IN = 0.6725561;
-const BORDERED1933081_QR_HEIGHT_IN = 0.71111095;
+const ADDRESS1933081_QR_X_IN = 0.22916667;
+const ADDRESS1933081_QR_Y_IN = 0.05000006;
+const ADDRESS1933081_QR_WIDTH_IN = 0.6725561;
+const ADDRESS1933081_QR_HEIGHT_IN = 0.71111095;
 
-const BORDERED1933081_VDIVIDER_X_IN = 0.84391016;
-const BORDERED1933081_VDIVIDER_Y_IN = 0.057560734;
-const BORDERED1933081_VDIVIDER_WIDTH_IN = 0.10000005;
-const BORDERED1933081_VDIVIDER_HEIGHT_IN = 0.7035502;
+const ADDRESS1933081_VDIVIDER_X_IN = 0.84391016;
+const ADDRESS1933081_VDIVIDER_Y_IN = 0.057560734;
+const ADDRESS1933081_VDIVIDER_WIDTH_IN = 0.10000005;
+const ADDRESS1933081_VDIVIDER_HEIGHT_IN = 0.7035502;
 
-const BORDERED1933081_DETAILS_X_IN = 0.96936655;
-const BORDERED1933081_DETAILS_Y_IN = 0.057560734;
-const BORDERED1933081_DETAILS_WIDTH_IN = 2.4637587;
-const BORDERED1933081_DETAILS_HEIGHT_IN = 0.6966938;
+const ADDRESS1933081_DETAILS_X_IN = 0.96936655;
+const ADDRESS1933081_DETAILS_Y_IN = 0.057560734;
+const ADDRESS1933081_DETAILS_WIDTH_IN = 2.4637587;
+const ADDRESS1933081_DETAILS_HEIGHT_IN = 0.6966938;
 
-const BORDERED1933081_HDIVIDER_X_IN = 0.22916682;
-const BORDERED1933081_HDIVIDER_Y_IN = 0.711111;
-const BORDERED1933081_HDIVIDER_WIDTH_IN = 3.1783333;
-const BORDERED1933081_HDIVIDER_HEIGHT_IN = 0.1;
+const ADDRESS1933081_HDIVIDER_X_IN = 0.22916682;
+const ADDRESS1933081_HDIVIDER_Y_IN = 0.711111;
+const ADDRESS1933081_HDIVIDER_WIDTH_IN = 3.1783333;
+const ADDRESS1933081_HDIVIDER_HEIGHT_IN = 0.1;
 
-const BORDERED1933081_ORG_X_IN = 0.22916667;
-const BORDERED1933081_ORG_Y_IN = 0.761111;
-const BORDERED1933081_ORG_WIDTH_IN = 3.1783333;
-const BORDERED1933081_ORG_HEIGHT_IN = 0.1611729;
+const ADDRESS1933081_ORG_X_IN = 0.22916667;
+const ADDRESS1933081_ORG_Y_IN = 0.761111;
+const ADDRESS1933081_ORG_WIDTH_IN = 3.1783333;
+const ADDRESS1933081_ORG_HEIGHT_IN = 0.1611729;
 
 /**
- * Build the bordered variant of the Dymo 1933081 label XML, printed the same way as
- * buildDymoLabelXml above (DYMO Connect's local web service, LabelWriter printer
- * family) but using the DesktopLabel/DynamicLayoutManager schema instead of the twips
- * DieCutLabel schema, since only that schema actually renders a visible border.
+ * Build the Dymo 1933081 label XML (plain or bordered - same layout either way),
+ * printed through DYMO Connect's local web service, LabelWriter printer family.
  */
-export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
+async function buildAddress1933081Xml(asset: LabelAsset, settings: Partial<LabelSettings>, isBordered: boolean): Promise<string> {
   const opts = { ...DEFAULT_SETTINGS, ...settings };
   const { qrContent, assignedText, itemText, modelText, serialText, hostIpText, orgText } = deriveLabelFields(asset, opts);
 
@@ -740,22 +479,22 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
   <DYMOLabel Version="4">
     <Description>DYMO Label</Description>
     <Orientation>Landscape</Orientation>
-    <LabelName>${BORDERED1933081_LABEL_NAME}</LabelName>
+    <LabelName>${ADDRESS1933081_LABEL_NAME}</LabelName>
     <InitialLength>0</InitialLength>
     <BorderStyle>SolidLine</BorderStyle>
     <DYMORect>
       <DYMOPoint>
-        <X>${BORDERED1933081_BORDER_X_IN}</X>
-        <Y>${BORDERED1933081_BORDER_Y_IN}</Y>
+        <X>${ADDRESS1933081_BORDER_X_IN}</X>
+        <Y>${ADDRESS1933081_BORDER_Y_IN}</Y>
       </DYMOPoint>
       <Size>
-        <Width>${BORDERED1933081_BORDER_WIDTH_IN}</Width>
-        <Height>${BORDERED1933081_BORDER_HEIGHT_IN}</Height>
+        <Width>${ADDRESS1933081_BORDER_WIDTH_IN}</Width>
+        <Height>${ADDRESS1933081_BORDER_HEIGHT_IN}</Height>
       </Size>
     </DYMORect>
     <BorderColor>${LABELMANAGER_INK_BRUSH}</BorderColor>
     <BorderThickness>1</BorderThickness>
-    <Show_Border>True</Show_Border>
+    <Show_Border>${isBordered ? 'True' : 'False'}</Show_Border>
     <HasFixedLength>False</HasFixedLength>
     <FixedLengthValue>0</FixedLengthValue>
     <DynamicLayoutManager>
@@ -783,16 +522,16 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
           <TextDataHolder><Value>${escapeXml(qrContent)}</Value></TextDataHolder>
           <ObjectLayout>
             <DYMOPoint>
-              <X>${BORDERED1933081_QR_X_IN}</X>
-              <Y>${BORDERED1933081_QR_Y_IN}</Y>
+              <X>${ADDRESS1933081_QR_X_IN}</X>
+              <Y>${ADDRESS1933081_QR_Y_IN}</Y>
             </DYMOPoint>
             <Size>
-              <Width>${BORDERED1933081_QR_WIDTH_IN}</Width>
-              <Height>${BORDERED1933081_QR_HEIGHT_IN}</Height>
+              <Width>${ADDRESS1933081_QR_WIDTH_IN}</Width>
+              <Height>${ADDRESS1933081_QR_HEIGHT_IN}</Height>
             </Size>
           </ObjectLayout>
         </QRCodeObject>
-        ${buildDividerLine('LineObject1', 'Vertical', BORDERED1933081_VDIVIDER_X_IN, BORDERED1933081_VDIVIDER_Y_IN, BORDERED1933081_VDIVIDER_WIDTH_IN, BORDERED1933081_VDIVIDER_HEIGHT_IN)}
+        ${isBordered ? buildDividerLine('LineObject1', 'Vertical', ADDRESS1933081_VDIVIDER_X_IN, ADDRESS1933081_VDIVIDER_Y_IN, ADDRESS1933081_VDIVIDER_WIDTH_IN, ADDRESS1933081_VDIVIDER_HEIGHT_IN) : ''}
         <TextObject>
           <Name>TextObject1</Name>
           <Brushes>
@@ -831,16 +570,16 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
           </FormattedText>
           <ObjectLayout>
             <DYMOPoint>
-              <X>${BORDERED1933081_DETAILS_X_IN}</X>
-              <Y>${BORDERED1933081_DETAILS_Y_IN}</Y>
+              <X>${ADDRESS1933081_DETAILS_X_IN}</X>
+              <Y>${ADDRESS1933081_DETAILS_Y_IN}</Y>
             </DYMOPoint>
             <Size>
-              <Width>${BORDERED1933081_DETAILS_WIDTH_IN}</Width>
-              <Height>${BORDERED1933081_DETAILS_HEIGHT_IN}</Height>
+              <Width>${ADDRESS1933081_DETAILS_WIDTH_IN}</Width>
+              <Height>${ADDRESS1933081_DETAILS_HEIGHT_IN}</Height>
             </Size>
           </ObjectLayout>
         </TextObject>
-        ${orgText ? `${buildDividerLine('LineObject0', 'Horizontal', BORDERED1933081_HDIVIDER_X_IN, BORDERED1933081_HDIVIDER_Y_IN, BORDERED1933081_HDIVIDER_WIDTH_IN, BORDERED1933081_HDIVIDER_HEIGHT_IN)}
+        ${orgText ? `${isBordered ? buildDividerLine('LineObject0', 'Horizontal', ADDRESS1933081_HDIVIDER_X_IN, ADDRESS1933081_HDIVIDER_Y_IN, ADDRESS1933081_HDIVIDER_WIDTH_IN, ADDRESS1933081_HDIVIDER_HEIGHT_IN) : ''}
         <TextObject>
           <Name>TextObject2</Name>
           <Brushes>
@@ -879,12 +618,12 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
           </FormattedText>
           <ObjectLayout>
             <DYMOPoint>
-              <X>${BORDERED1933081_ORG_X_IN}</X>
-              <Y>${BORDERED1933081_ORG_Y_IN}</Y>
+              <X>${ADDRESS1933081_ORG_X_IN}</X>
+              <Y>${ADDRESS1933081_ORG_Y_IN}</Y>
             </DYMOPoint>
             <Size>
-              <Width>${BORDERED1933081_ORG_WIDTH_IN}</Width>
-              <Height>${BORDERED1933081_ORG_HEIGHT_IN}</Height>
+              <Width>${ADDRESS1933081_ORG_WIDTH_IN}</Width>
+              <Height>${ADDRESS1933081_ORG_HEIGHT_IN}</Height>
             </Size>
           </ObjectLayout>
         </TextObject>` : ''}
@@ -897,6 +636,23 @@ export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Par
     <Rows></Rows>
   </DataTable>
 </DesktopLabel>`;
+}
+
+/**
+ * Build the plain (unbordered) Dymo 1933081 label XML - same layout as the bordered
+ * variant below, just without the outline or the two divider lines.
+ */
+export async function buildDymoLabelXml(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
+  return buildAddress1933081Xml(asset, settings, false);
+}
+
+/**
+ * Build the bordered variant of the Dymo 1933081 label XML above - same layout, plus
+ * an outline, a vertical divider between the QR and the text column, and a horizontal
+ * divider above Organization Name.
+ */
+export async function buildDymoLabelXmlBordered(asset: LabelAsset, settings: Partial<LabelSettings> = {}): Promise<string> {
+  return buildAddress1933081Xml(asset, settings, true);
 }
 
 /**

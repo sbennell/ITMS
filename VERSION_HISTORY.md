@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.0] - 2026-09-16
+
+### Changed
+
+- Dymo 1933081 (plain, unbordered) label now uses the exact same layout as Dymo 1933081 (Bordered) - centered bold text, QR positioning, and the full-width Organization Name row - just without the outline and the two divider lines. Previously the plain label used an older, differently-laid-out schema (left-column text, smaller Organization Name row, non-bold Model/Serial/Hostname-IP).
+
+### Technical Details
+
+- `apps/api/src/services/labelService-dymo.ts`: removed the old twips-based `buildAddressStyleLabelXml()` (and its `AddressLabelLayout`/`BASE_WIDTH_TWIPS`/`BASE_HEIGHT_TWIPS`), which was only reachable via the plain `buildDymoLabelXml()` after 1.34.1 moved the bordered variant off it. Renamed the `BORDERED1933081_*` geometry constants to `ADDRESS1933081_*` (now shared, not bordered-specific) and refactored `buildDymoLabelXmlBordered()`'s body into an internal `buildAddress1933081Xml(asset, settings, isBordered)`, with `Show_Border` and the two `buildDividerLine()` calls gated on `isBordered`. `buildDymoLabelXml()` and `buildDymoLabelXmlBordered()` are now both thin wrappers around it (`isBordered: false`/`true`).
+- Verified the two variants produce identical QR/details/Organization Name text and positioning (only `Show_Border` and the two `LineObject` dividers differ) via a direct comparison script, and confirmed end-to-end via the running app that `GET /labels/dymo-xml/:assetId` (no `variant`) now returns the new `DesktopLabel`/`Show_Border=False` schema.
+
+---
+
 ## [1.34.3] - 2026-09-16
 
 ### Changed
