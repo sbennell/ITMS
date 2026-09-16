@@ -183,11 +183,18 @@ export async function createLabelPDF(
     });
   }
 
-  // Assigned To name - centered at top of label, auto-fit to fill width
+  // Text starts after QR code. Bordered variant nudges it right by 1mm to clear the
+  // vertical divider.
+  const textX = qrX + qrSize + 2 + (isBordered ? MM_TO_PT : 0);
+  // Bordered variant keeps text at least 0.5mm clear of the right border.
+  const textAreaWidth = LABEL_WIDTH_PT - textX - (isBordered ? borderInset + 0.5 * MM_TO_PT : margin);
+
+  // Assigned To name - centered within the text column (to the right of the QR, same
+  // as Item/Model/etc below), not across the full label width - it was overlapping the
+  // QR code for longer names. Auto-fit to fill the column width.
   const topMargin = 12; // Space from top for assigned to name
   if (opts.showAssignedTo && asset.assignedTo) {
     const assignedText = asset.assignedTo;
-    const availableWidth = LABEL_WIDTH_PT - (margin * 2);
     const maxAssignedFontSize = 14;
     const minAssignedFontSize = 7;
 
@@ -196,15 +203,15 @@ export async function createLabelPDF(
     let assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
 
     // Scale down if text is too wide
-    if (assignedWidth > availableWidth) {
-      assignedFontSize = Math.max(minAssignedFontSize, (availableWidth / assignedWidth) * maxAssignedFontSize);
+    if (assignedWidth > textAreaWidth) {
+      assignedFontSize = Math.max(minAssignedFontSize, (textAreaWidth / assignedWidth) * maxAssignedFontSize);
       assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
     }
 
     // Bordered variant nudges the Assigned To text down 1mm total - it was still
     // touching the top border.
     page.drawText(assignedText, {
-      x: (LABEL_WIDTH_PT - assignedWidth) / 2,
+      x: textX + (textAreaWidth - assignedWidth) / 2,
       y: LABEL_HEIGHT_PT - topMargin - (isBordered ? MM_TO_PT : 0),
       size: assignedFontSize,
       font: boldFont,
@@ -212,9 +219,6 @@ export async function createLabelPDF(
     });
   }
 
-  // Text starts after QR code. Bordered variant nudges it right by 1mm to clear the
-  // vertical divider.
-  const textX = qrX + qrSize + 2 + (isBordered ? MM_TO_PT : 0);
   // Start below the assigned to name. Bordered variant adds another 0.5mm of clearance
   // from the top border on top of the existing margin.
   let textY = LABEL_HEIGHT_PT - 24 - (isBordered ? 0.5 * MM_TO_PT : 0);
@@ -234,8 +238,6 @@ export async function createLabelPDF(
   const lineHeight = isBordered && lineCount > 1
     ? Math.min(10, (detailStartY - detailBottomLimit) / (lineCount - 1))
     : 10;
-  // Bordered variant keeps the detail text at least 0.5mm clear of the right border.
-  const textAreaWidth = LABEL_WIDTH_PT - textX - (isBordered ? borderInset + 0.5 * MM_TO_PT : margin);
 
   // Item Number with prefix - bold and larger
   page.drawText(truncateText(`Item: ${asset.itemNumber}`, 28), {

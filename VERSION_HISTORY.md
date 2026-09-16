@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.1] - 2026-09-16
+
+### Fixed
+
+- Brother DK-22211 label (both plain and Bordered): Assigned To text is now centered within the text column to the right of the QR code, matching Item/Model/Serial/etc below it - it was previously centered across the full label width, so longer names visually started under/behind the QR code instead of in the text area.
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `createLabelPDF()` moved the `textX`/`textAreaWidth` calculation earlier (it's needed for both the Assigned To block and the detail-line block below it) and changed Assigned To's font-fit and `x` position to use the text column's bounds (`textX` + `textAreaWidth`) instead of the full label width - same fix applied to both label variants, since the bug wasn't bordered-specific.
+
+---
+
 ## [1.35.0] - 2026-09-16
 
 ### Changed
