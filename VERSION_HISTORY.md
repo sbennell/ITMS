@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.4] - 2026-09-18
+
+### Fixed
+
+- Brother DK-22211 (Bordered) label: Organization Name's left/right border gaps are now visually balanced - the advance-width centering formula was mathematically symmetric, but real prints showed the left gap noticeably wider than the right due to font glyph side-bearing differences.
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `createLabelPDF()`'s Organization Name draw position is nudged 0.5mm left (`orgOpticalOffsetPt`) on the bordered variant to compensate.
+
+---
+
 ## [1.35.3] - 2026-09-18
 
 ### Fixed
