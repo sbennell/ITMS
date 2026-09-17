@@ -313,9 +313,13 @@ export async function createLabelPDF(
   // Organization Name - centered at bottom, auto-fit to fill width
   if (asset.organizationName) {
     const orgText = asset.organizationName;
-    // Bordered variant keeps the org text at least 0.5mm clear of the left/right border.
+    // Bordered variant keeps the org text at least 0.5mm clear of the border. The border
+    // itself is a stroked rectangle centred on the borderInset line, so its ink extends a
+    // further borderWidth/2 inward - that half-stroke has to be added to borderInset before
+    // the 0.5mm gap, or the text ends up flush against the visible line instead of clear of it.
+    const borderStrokeHalfPt = 0.75; // half of the border's 1.5pt borderWidth
     const availableWidth = isBordered
-      ? LABEL_WIDTH_PT - (borderInset + 0.5 * MM_TO_PT) * 2
+      ? LABEL_WIDTH_PT - (borderInset + borderStrokeHalfPt + 0.5 * MM_TO_PT) * 2
       : LABEL_WIDTH_PT - (margin * 2);
     const maxFontSize = 14;
     const minFontSize = 6;

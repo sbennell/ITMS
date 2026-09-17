@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.3] - 2026-09-18
+
+### Fixed
+
+- Brother DK-22211 (Bordered) label: Organization Name text no longer touches the border - the 0.5mm clearance was measured from the border's centreline inset instead of its actual (stroked) inner edge, leaving almost no real gap on long names.
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `createLabelPDF()`'s Organization Name `availableWidth` calculation now adds `borderStrokeHalfPt` (0.75pt, half of the border's 1.5pt `borderWidth`) on top of `borderInset` before the 0.5mm gap, so the clearance is measured from the border's visible ink edge rather than its stroke centreline.
+
+---
+
 ## [1.35.2] - 2026-09-16
 
 ### Changed
