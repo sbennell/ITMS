@@ -349,11 +349,11 @@ export async function createLabelPDF(
       orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
     }
 
-    // Advance-width centering is symmetric on paper, but on real prints the left gap reads
-    // noticeably wider than the right (glyph side-bearings aren't symmetric - the leading
-    // character recedes further from its box edge than the trailing one does). Nudge left
-    // by 0.5mm to balance the two visually.
-    const orgOpticalOffsetPt = isBordered ? 0.5 * MM_TO_PT : 0;
+    // Advance-width centering is symmetric on paper, but on real prints the gap reads
+    // unevenly (glyph side-bearings aren't symmetric - the leading character recedes
+    // further from its box edge than the trailing one does). A 0.5mm left nudge
+    // overcorrected and made the right gap bigger than the left, so split the difference.
+    const orgOpticalOffsetPt = isBordered ? 0.25 * MM_TO_PT : 0;
 
     page.drawText(orgText, {
       x: (LABEL_WIDTH_PT - orgWidth) / 2 - orgOpticalOffsetPt,

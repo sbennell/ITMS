@@ -4,6 +4,18 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.5] - 2026-09-18
+
+### Fixed
+
+- Brother DK-22211 (Bordered) label: the previous 0.5mm left nudge on Organization Name overcorrected - the right gap ended up bigger than the left on a real print. Reduced to 0.25mm.
+
+### Technical Details
+
+- `apps/api/src/services/labelService.ts`: `createLabelPDF()`'s `orgOpticalOffsetPt` reduced from `0.5 * MM_TO_PT` to `0.25 * MM_TO_PT`.
+
+---
+
 ## [1.35.4] - 2026-09-18
 
 ### Fixed
