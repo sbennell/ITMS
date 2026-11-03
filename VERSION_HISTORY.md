@@ -4,6 +4,26 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.8] - 2026-11-04
+
+### Changed
+
+- Upgraded `csv-parse` from 5.6.0 to 7.0.3 in the API. CSV import behaviour is unchanged for asset, software and student imports.
+
+### Fixed
+
+- Software CSV import: files saved by Excel as "CSV UTF-8" (with a byte order mark) no longer have the first column header misread. The new `csv-parse` version strips the byte order mark when `trim` is enabled.
+
+### Security
+
+- Clears the moderate `csv-parse` audit finding. 8 moderate findings remain (uuid and minimatch via exceljs).
+
+### Technical Details
+
+- `apps/api/package.json`: `csv-parse` range changed from `^5.6.0` to `^7.0.3`. `package-lock.json` updated to match. No source changes, since `csv-parse/sync` still provides a CommonJS build.
+
+---
+
 ## [1.35.7] - 2026-11-04
 
 ### Removed
