@@ -4,6 +4,22 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.7] - 2026-11-04
+
+### Removed
+
+- Removed the unused `zod` dependency from the API. Nothing in the codebase imported it.
+
+### Security
+
+- Clears the remaining high severity audit finding (zod memory exhaustion). 9 moderate findings remain (csv-parse, and uuid/minimatch via exceljs).
+
+### Technical Details
+
+- `apps/api/package.json`: removed `zod`. `package-lock.json` updated to match.
+
+---
+
 ## [1.35.6] - 2026-11-04
 
 ### Changed
