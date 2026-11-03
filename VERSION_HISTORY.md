@@ -4,6 +4,22 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.6] - 2026-11-04
+
+### Changed
+
+- Updated npm dependencies to their latest versions within the current major versions (including vite 6.4.5, express 4.22.3, express-rate-limit 8.7.3, bwip-js 4.11.4, recharts 3.10.1 and react-hook-form 7.91.0).
+
+### Security
+
+- Applied `npm audit fix`, reducing reported vulnerabilities from 26 (2 critical, 10 high) to 10 (1 high, 9 moderate). The remaining issues (zod, csv-parse, and uuid/minimatch via exceljs) need major version upgrades and are not included.
+
+### Technical Details
+
+- `package-lock.json` only. No `package.json` dependency ranges changed.
+
+---
+
 ## [1.35.5] - 2026-09-18
 
 ### Fixed
