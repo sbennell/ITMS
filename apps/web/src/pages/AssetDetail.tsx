@@ -26,7 +26,7 @@ export default function AssetDetail() {
   const queryClient = useQueryClient();
   const { hasPermission } = useAuth();
   const [showLabelModal, setShowLabelModal] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
 
   const { data: asset, isLoading, error } = useQuery({
@@ -190,21 +190,21 @@ export default function AssetDetail() {
               <dd className="text-sm text-gray-900 flex items-center gap-2">
                 {!hasPermission('canViewDevicePasswords') ? (
                   <span className="text-gray-400 italic">Hidden</span>
-                ) : asset.devicePassword ? (
+                ) : asset.hasDevicePassword ? (
                   <>
-                    <span>{showPassword ? asset.devicePassword : '********'}</span>
+                    <span>{revealedPassword ?? '********'}</span>
                     <button
                       onClick={() => {
-                        if (showPassword) {
-                          setShowPassword(false);
+                        if (revealedPassword !== null) {
+                          setRevealedPassword(null);
                         } else {
                           setShowPasswordPrompt(true);
                         }
                       }}
                       className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
-                      title={showPassword ? 'Hide password' : 'Show password'}
+                      title={revealedPassword !== null ? 'Hide password' : 'Show password'}
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {revealedPassword !== null ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </>
                 ) : (
@@ -375,9 +375,10 @@ export default function AssetDetail() {
       {/* Password Prompt Modal */}
       {showPasswordPrompt && (
         <PasswordPromptModal
-          onSuccess={() => {
+          assetId={asset.id}
+          onSuccess={(devicePassword) => {
             setShowPasswordPrompt(false);
-            setShowPassword(true);
+            setRevealedPassword(devicePassword);
           }}
           onClose={() => setShowPasswordPrompt(false)}
         />

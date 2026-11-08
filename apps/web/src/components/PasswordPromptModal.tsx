@@ -3,11 +3,12 @@ import { X, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { api } from '../lib/api';
 
 interface PasswordPromptModalProps {
-  onSuccess: () => void;
+  assetId: string;
+  onSuccess: (devicePassword: string | null) => void;
   onClose: () => void;
 }
 
-export default function PasswordPromptModal({ onSuccess, onClose }: PasswordPromptModalProps) {
+export default function PasswordPromptModal({ assetId, onSuccess, onClose }: PasswordPromptModalProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -24,15 +25,11 @@ export default function PasswordPromptModal({ onSuccess, onClose }: PasswordProm
     setError('');
 
     try {
-      const result = await api.verifyPassword(password);
-      if (result.valid) {
-        onSuccess();
-      } else {
-        setError('Incorrect password');
-        setPassword('');
-      }
-    } catch {
-      setError('Failed to verify password');
+      const result = await api.revealDevicePassword(assetId, password);
+      onSuccess(result.devicePassword);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to verify password');
+      setPassword('');
     } finally {
       setLoading(false);
     }

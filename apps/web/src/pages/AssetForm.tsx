@@ -162,7 +162,7 @@ export default function AssetForm() {
         orderNumber: asset.orderNumber || '',
         hostname: asset.hostname || '',
         deviceUsername: asset.deviceUsername || '',
-        devicePassword: asset.devicePassword || '',
+        devicePassword: '',
         lanMacAddress: asset.lanMacAddress || '',
         wlanMacAddress: asset.wlanMacAddress || '',
         assignedTo: asset.assignedTo || '',
@@ -588,10 +588,10 @@ export default function AssetForm() {
                     {...register('devicePassword')}
                     type="password"
                     className="input"
-                    placeholder={isEditing && asset?.devicePassword ? 'Modify or leave blank to keep existing' : 'Enter password'}
+                    placeholder={isEditing && asset?.hasDevicePassword ? 'Leave blank to keep existing' : 'Enter password'}
                     autoComplete={isEditing ? 'off' : 'new-password'}
                   />
-                  {isEditing && asset?.devicePassword && (
+                  {isEditing && asset?.hasDevicePassword && (
                     <p className="mt-1 text-xs text-gray-500">
                       ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
                     </p>

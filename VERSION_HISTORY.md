@@ -4,6 +4,36 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.17] - 2026-11-09
+
+### Security
+
+- Device passwords are no longer included in asset responses for any user. They are released by a new endpoint only after the server confirms the signed in user's account password and permission. Previously the password prompt was only enforced in the browser. Wrong passwords are limited to 10 attempts per 15 minutes.
+
+### Changed
+
+- The asset edit form no longer pre-fills the device password. Leaving it blank keeps the existing password.
+
+### Fixed
+
+- Value report: category and manufacturer averages now count only assets with a price, matching the summary figure.
+- Asset and software lists load much faster on large registers. Full records are now loaded only for the requested page.
+
+### Removed
+
+- `POST /api/auth/verify-password`, which is replaced by the new reveal endpoint.
+
+### Technical Details
+
+- `apps/api/src/routes/assets.ts`: added `POST /assets/:id/reveal-password` and changed the list to load one page of full rows.
+- `apps/api/src/routes/software.ts`, `apps/api/src/lib/itemSort.ts`: shared numeric item number paging.
+- `apps/api/src/lib/redact.ts`: `redactAssetPassword` always removes the password and reports `hasDevicePassword`.
+- `apps/api/src/routes/reports.ts`: corrected the average calculations.
+- `apps/web/src/components/PasswordPromptModal.tsx`, `apps/web/src/pages/AssetDetail.tsx`, `apps/web/src/pages/AssetForm.tsx`, `apps/web/src/lib/api.ts`: use the reveal endpoint.
+- `apps/api/tests`: added list, report and password reveal tests.
+
+---
+
 ## [1.35.16] - 2026-11-09
 
 ### Fixed

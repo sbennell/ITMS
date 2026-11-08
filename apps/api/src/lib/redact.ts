@@ -1,18 +1,14 @@
 import { Request } from 'express';
 
-export function canViewDevicePasswords(req: Request): boolean {
-  return req.session.role === 'ADMIN' || req.session.canViewDevicePasswords === true;
-}
-
 export function canViewStudentPasswords(req: Request): boolean {
   return req.session.role === 'ADMIN' || req.session.canViewStudentPasswords === true;
 }
 
+// Asset responses never carry the password, it is only released by POST /assets/:id/reveal-password
 export function redactAssetPassword<T extends { devicePassword?: string | null }>(
-  asset: T,
-  allowed: boolean
-): T {
-  return allowed ? asset : { ...asset, devicePassword: null };
+  asset: T
+): T & { hasDevicePassword: boolean } {
+  return { ...asset, devicePassword: null, hasDevicePassword: !!asset.devicePassword };
 }
 
 // Audit entries hold the password at the top level (create) or under before/after (update)

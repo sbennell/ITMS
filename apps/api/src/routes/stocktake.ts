@@ -11,7 +11,7 @@ router.use(requireAuth, requirePermission('canAccessStocktake'));
 // Stocktake screens never show device passwords, so they are never sent
 const withoutPassword = <T extends { asset: { devicePassword?: string | null } }>(record: T): T => ({
   ...record,
-  asset: redactAssetPassword(record.asset, false)
+  asset: redactAssetPassword(record.asset)
 });
 
 const STOCKTAKE_STATUSES = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
@@ -410,7 +410,7 @@ router.post('/:id/quick-verify', async (req: Request, res: Response) => {
     }
 
     if (record.verified) {
-      return res.status(400).json({ error: 'Asset already verified', asset: redactAssetPassword(asset, false) });
+      return res.status(400).json({ error: 'Asset already verified', asset: redactAssetPassword(asset) });
     }
 
     // Verify the asset

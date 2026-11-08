@@ -97,6 +97,7 @@ export interface Asset {
   hostname: string | null;
   deviceUsername: string | null;
   devicePassword: string | null;
+  hasDevicePassword?: boolean;
   lanMacAddress: string | null;
   wlanMacAddress: string | null;
   ipAddresses: AssetIPEntry[];
@@ -488,8 +489,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword })
     }),
-  verifyPassword: (password: string) =>
-    fetchJson<{ valid: boolean }>('/auth/verify-password', {
+  revealDevicePassword: (assetId: string, password: string) =>
+    fetchJson<{ devicePassword: string | null }>(`/assets/${assetId}/reveal-password`, {
       method: 'POST',
       body: JSON.stringify({ password })
     }),

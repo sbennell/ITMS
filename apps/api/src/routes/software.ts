@@ -6,6 +6,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
 import { onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
+import { itemNumberPageIds } from '../lib/itemSort.js';
 import { requireAuth, requirePermission, requireAdmin } from './auth.js';
 
 const router = Router();
@@ -183,17 +184,19 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy = { publisher: { name: sortOrder as 'asc' | 'desc' } };
     } else if (sortBy === 'category') {
       orderBy = { category: { name: sortOrder as 'asc' | 'desc' } };
-    } else if (sortBy === 'itemNumber') {
-      orderBy = { itemNumber: 'asc' }; // Placeholder, re-sorted below for natural numeric order
     }
+
+    const pageIds = sortBy === 'itemNumber'
+      ? itemNumberPageIds(await prisma.software.findMany({ where, select: { id: true, itemNumber: true } }), sortOrder, skip, limitNum)
+      : null;
 
     const [total, softwareRaw] = await Promise.all([
       prisma.software.count({ where }),
       prisma.software.findMany({
-        where,
-        orderBy,
-        skip: sortBy === 'itemNumber' ? 0 : skip,
-        take: sortBy === 'itemNumber' ? undefined : limitNum,
+        where: pageIds ? { id: { in: pageIds } } : where,
+        orderBy: pageIds ? undefined : orderBy,
+        skip: pageIds ? undefined : skip,
+        take: pageIds ? undefined : limitNum,
         include: {
           publisher: true,
           category: true,
@@ -202,20 +205,10 @@ router.get('/', async (req: Request, res: Response) => {
       })
     ]);
 
-    let software = softwareRaw;
-    if (sortBy === 'itemNumber') {
-      software = softwareRaw.sort((a, b) => {
-        const numA = parseInt(a.itemNumber.replace(/\D/g, '') || '0', 10);
-        const numB = parseInt(b.itemNumber.replace(/\D/g, '') || '0', 10);
-        if (numA !== numB) {
-          return sortOrder === 'asc' ? numA - numB : numB - numA;
-        }
-        return sortOrder === 'asc'
-          ? a.itemNumber.localeCompare(b.itemNumber)
-          : b.itemNumber.localeCompare(a.itemNumber);
-      });
-      software = software.slice(skip, skip + limitNum);
-    }
+    // Loading by id does not keep the numeric order
+    const software = pageIds
+      ? [...softwareRaw].sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id))
+      : softwareRaw;
 
     res.json({
       data: software,

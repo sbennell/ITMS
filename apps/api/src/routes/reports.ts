@@ -330,16 +330,17 @@ router.get('/value', async (req: Request, res: Response) => {
     };
 
     // byCategory
-    const byCategory = new Map<string, { totalValue: number; count: number }>();
+    const byCategory = new Map<string, { totalValue: number; count: number; pricedCount: number }>();
     allAssets.forEach((asset) => {
       const categoryName = asset.category?.name || 'Uncategorized';
       if (!byCategory.has(categoryName)) {
-        byCategory.set(categoryName, { totalValue: 0, count: 0 });
+        byCategory.set(categoryName, { totalValue: 0, count: 0, pricedCount: 0 });
       }
       const data = byCategory.get(categoryName)!;
       data.count++;
       if (asset.purchasePrice) {
         data.totalValue += asset.purchasePrice;
+        data.pricedCount++;
       }
     });
 
@@ -348,7 +349,7 @@ router.get('/value', async (req: Request, res: Response) => {
         category,
         count: data.count,
         totalValue: Math.round(data.totalValue * 100) / 100,
-        avgValue: Math.round((data.totalValue / data.count) * 100) / 100
+        avgValue: data.pricedCount > 0 ? Math.round((data.totalValue / data.pricedCount) * 100) / 100 : 0
       }))
       .sort((a, b) => b.totalValue - a.totalValue);
 
@@ -375,16 +376,17 @@ router.get('/value', async (req: Request, res: Response) => {
       .sort((a, b) => b.totalValue - a.totalValue);
 
     // byManufacturer
-    const byManufacturer = new Map<string, { totalValue: number; count: number }>();
+    const byManufacturer = new Map<string, { totalValue: number; count: number; pricedCount: number }>();
     allAssets.forEach((asset) => {
       const manufacturerName = asset.manufacturer?.name || 'Unknown';
       if (!byManufacturer.has(manufacturerName)) {
-        byManufacturer.set(manufacturerName, { totalValue: 0, count: 0 });
+        byManufacturer.set(manufacturerName, { totalValue: 0, count: 0, pricedCount: 0 });
       }
       const data = byManufacturer.get(manufacturerName)!;
       data.count++;
       if (asset.purchasePrice) {
         data.totalValue += asset.purchasePrice;
+        data.pricedCount++;
       }
     });
 
@@ -393,7 +395,7 @@ router.get('/value', async (req: Request, res: Response) => {
         manufacturer,
         count: data.count,
         totalValue: Math.round(data.totalValue * 100) / 100,
-        avgValue: Math.round((data.totalValue / data.count) * 100) / 100
+        avgValue: data.pricedCount > 0 ? Math.round((data.totalValue / data.pricedCount) * 100) / 100 : 0
       }))
       .sort((a, b) => b.totalValue - a.totalValue);
 

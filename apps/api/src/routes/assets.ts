@@ -1,12 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { requireAuth, requirePermission } from './auth.js';
-import { canViewDevicePasswords, maskAuditPasswords, redactAssetPassword } from '../lib/redact.js';
+import { itemNumberPageIds } from '../lib/itemSort.js';
+import { maskAuditPasswords, redactAssetPassword } from '../lib/redact.js';
 
 const router = Router();
 
 // Apply auth to all routes
 router.use(requireAuth, requirePermission('canAccessAssets'));
+
+// Only wrong passwords count, so looking up several devices in a row is not limited
+const revealRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many incorrect attempts. Please try again later.' }
+});
 
 // List assets with pagination, filtering, and sorting
 router.get('/', async (req: Request, res: Response) => {
@@ -96,19 +109,20 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy = { category: { name: sortOrder as 'asc' | 'desc' } };
     } else if (sortBy === 'location') {
       orderBy = { location: { name: sortOrder as 'asc' | 'desc' } };
-    } else if (sortBy === 'itemNumber') {
-      // We'll handle this with post-fetch sorting for accurate numeric order
-      orderBy = { itemNumber: 'asc' }; // Placeholder, will be re-sorted
     }
+
+    const pageIds = sortBy === 'itemNumber'
+      ? itemNumberPageIds(await prisma.asset.findMany({ where, select: { id: true, itemNumber: true } }), sortOrder, skip, limitNum)
+      : null;
 
     // Get total count and assets
     const [total, assetsRaw] = await Promise.all([
       prisma.asset.count({ where }),
       prisma.asset.findMany({
-        where,
-        orderBy,
-        skip: sortBy === 'itemNumber' ? 0 : skip, // Fetch all for numeric sort
-        take: sortBy === 'itemNumber' ? undefined : limitNum,
+        where: pageIds ? { id: { in: pageIds } } : where,
+        orderBy: pageIds ? undefined : orderBy,
+        skip: pageIds ? undefined : skip,
+        take: pageIds ? undefined : limitNum,
         include: {
           category: true,
           manufacturer: true,
@@ -126,28 +140,13 @@ router.get('/', async (req: Request, res: Response) => {
       })
     ]);
 
-    // Natural sort for itemNumber
-    let assets = assetsRaw;
-    if (sortBy === 'itemNumber') {
-      assets = assetsRaw.sort((a, b) => {
-        // Extract numeric parts for comparison
-        const numA = parseInt(a.itemNumber.replace(/\D/g, '') || '0', 10);
-        const numB = parseInt(b.itemNumber.replace(/\D/g, '') || '0', 10);
-        if (numA !== numB) {
-          return sortOrder === 'asc' ? numA - numB : numB - numA;
-        }
-        // If numbers are equal, sort alphabetically
-        return sortOrder === 'asc'
-          ? a.itemNumber.localeCompare(b.itemNumber)
-          : b.itemNumber.localeCompare(a.itemNumber);
-      });
-      // Apply pagination after sorting
-      assets = assets.slice(skip, skip + limitNum);
-    }
+    // Loading by id does not keep the numeric order
+    const assets = pageIds
+      ? [...assetsRaw].sort((a, b) => pageIds.indexOf(a.id) - pageIds.indexOf(b.id))
+      : assetsRaw;
 
-    const allowPasswords = canViewDevicePasswords(req);
     res.json({
-      data: assets.map((a) => redactAssetPassword(a, allowPasswords)),
+      data: assets.map((a) => redactAssetPassword(a)),
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -444,7 +443,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    res.json(redactAssetPassword(asset, canViewDevicePasswords(req)));
+    res.json(redactAssetPassword(asset));
   } catch (error) {
     console.error('Error fetching asset:', error);
     res.status(500).json({ error: 'Failed to fetch asset' });
@@ -580,7 +579,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
 
-    res.status(201).json(redactAssetPassword(asset, canViewDevicePasswords(req)));
+    res.status(201).json(redactAssetPassword(asset));
   } catch (error: any) {
     console.error('Error creating asset:', error);
     if (error.code === 'P2002') {
@@ -863,7 +862,7 @@ router.put('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    res.json(updatedAsset ? redactAssetPassword(updatedAsset, canViewDevicePasswords(req)) : updatedAsset);
+    res.json(updatedAsset ? redactAssetPassword(updatedAsset) : updatedAsset);
   } catch (error: any) {
     console.error('Error updating asset:', error);
     if (error.code === 'P2002') {
@@ -894,6 +893,34 @@ router.delete('/:id', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error deleting asset:', error);
     res.status(500).json({ error: 'Failed to delete asset' });
+  }
+});
+
+// Release a device password after confirming the signed-in user's own password
+router.post('/:id/reveal-password', requirePermission('canViewDevicePasswords'), revealRateLimiter, async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+  const id = req.params.id as string;
+  const { password } = req.body;
+
+  if (typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'Password is required' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(403).json({ error: 'Incorrect password' });
+    }
+
+    const asset = await prisma.asset.findUnique({ where: { id }, select: { devicePassword: true } });
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    res.json({ devicePassword: asset.devicePassword });
+  } catch (error) {
+    console.error('Error revealing device password:', error);
+    res.status(500).json({ error: 'Failed to reveal password' });
   }
 });
 
