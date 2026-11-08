@@ -4,12 +4,38 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.13] - 2026-11-09
+
+### Security
+
+- Single asset edits no longer store device passwords in plain text in the audit log. This action was missed in 1.35.12.
+- Deleting a student no longer returns their password to users without permission to view student passwords.
+- Assets and students can no longer be sorted by password, which allowed stored passwords to be inferred from the sort order.
+
+### Fixed
+
+- A malformed request to stocktake quick verify or subnet creation could crash the server. These requests now return an error, and the server no longer exits on an unhandled rejection.
+- Asset history shows device password changes again. They were hidden in 1.35.12 because both masked values were identical.
+
+### Upgrade Notes
+
+- If you ran `scrub-audit-passwords.js` on 1.35.12, run it again after this update using the steps in the 1.35.12 notes. It is safe to run more than once.
+
+### Technical Details
+
+- `apps/api/src/lib/redact.ts`: `maskAuditPasswords` now keeps a changed password distinguishable after masking.
+- `apps/api/src/routes/assets.ts`, `apps/api/src/routes/students.ts`: masked the single asset audit entry, redacted the delete student response and rejected password sort fields.
+- `apps/api/src/routes/stocktake.ts`, `apps/api/src/routes/network.ts`: rejected non string input before it is used.
+- `apps/api/src/index.ts`: added an `unhandledRejection` handler that logs the error.
+
+---
+
 ## [1.35.12] - 2026-11-09
 
 ### Security
 
 - Stocktake responses no longer include device passwords. Previously any user with stocktake access could read them, even without permission to view device passwords.
-- Asset history no longer exposes device passwords. Asset create, bulk create and bulk update stored them in plain text in the audit log, and the history endpoint returned them. New entries are masked, and existing entries are masked when read.
+- Asset history no longer exposes device passwords. Asset create, bulk create and bulk update stored them in plain text in the audit log, and the history endpoint returned them. New entries from those three actions are masked, and existing entries are masked when read. Single asset edits were not covered until 1.35.13.
 - Disabling, deleting or demoting a user, or changing their permissions, now takes effect on their next request instead of when their session expires. A password change or reset ends that user's other sessions.
 
 ### Upgrade Notes

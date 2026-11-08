@@ -119,6 +119,12 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// Express 4 does not catch rejections from async route handlers, and Node exits on
+// an unhandled rejection by default, which would take the server down for everyone
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+
 let studentImportWatcher: any = null;
 
 app.listen(PORT, async () => {

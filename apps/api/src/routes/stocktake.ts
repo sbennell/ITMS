@@ -311,7 +311,7 @@ router.post('/:id/quick-verify', async (req: Request, res: Response) => {
   const id = req.params.id as string;
   const { itemNumber: rawInput, newCondition } = req.body;
 
-  if (!rawInput) {
+  if (!rawInput || typeof rawInput !== 'string') {
     return res.status(400).json({ error: 'Item number is required' });
   }
 

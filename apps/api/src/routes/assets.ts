@@ -26,6 +26,10 @@ router.get('/', async (req: Request, res: Response) => {
       sortOrder = 'asc'
     } = req.query;
 
+    if (String(sortBy) === 'devicePassword') {
+      return res.status(400).json({ error: 'Cannot sort by this field' });
+    }
+
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -834,8 +838,6 @@ router.put('/:id', async (req: Request, res: Response) => {
           beforeData[key] = await resolveLookupValue(key, (current as any)[key]);
           afterData[key] = await resolveLookupValue(key, value);
         } else {
-          // Store actual values (no masking) - masking happens on frontend for display
-          // This ensures the frontend can properly detect password changes
           beforeData[key] = currentValue;
           afterData[key] = newValue;
         }
@@ -850,7 +852,7 @@ router.put('/:id', async (req: Request, res: Response) => {
           assetId: id,
           userId: req.session.userId,
           action: 'UPDATE',
-          changes: JSON.stringify({ before: beforeData, after: afterData }),
+          changes: JSON.stringify(maskAuditPasswords({ before: beforeData, after: afterData })),
           ipAddress: req.ip
         }
       });

@@ -84,6 +84,10 @@ router.get('/', async (req: Request, res: Response) => {
       sortOrder = 'asc'
     } = req.query;
 
+    if (String(sortBy) === 'password') {
+      return res.status(400).json({ error: 'Cannot sort by this field' });
+    }
+
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
     const skip = (pageNum - 1) * limitNum;
@@ -436,6 +440,10 @@ router.get('/export', async (req: Request, res: Response) => {
 
     const where = buildStudentWhere(req.query);
     const { sortBy = 'firstName', sortOrder = 'asc' } = req.query;
+    if (String(sortBy) === 'password') {
+      res.status(400).json({ error: 'Cannot sort by this field' });
+      return;
+    }
     const orderBy: Prisma.StudentOrderByWithRelationInput = {
       [sortBy as string]: sortOrder as 'asc' | 'desc'
     };
@@ -691,7 +699,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       where: { id }
     });
 
-    res.json({ success: true, student: deletedStudent });
+    res.json({ success: true, student: redactStudentPassword(deletedStudent, canViewStudentPasswords(req)) });
   } catch (error: any) {
     console.error('Error deleting student:', error);
     if (error.code === 'P2025') {

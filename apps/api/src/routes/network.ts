@@ -12,6 +12,8 @@ const router = Router();
  * Validates: format, prefix length 20-32, and that host bits are zero
  */
 function parseCidr(cidr: string): { networkInt: number; prefixLen: number; count: number } | null {
+  if (typeof cidr !== 'string') return null;
+
   const match = cidr.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/);
   if (!match) return null;
 
