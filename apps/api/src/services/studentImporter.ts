@@ -70,6 +70,11 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         continue;
       }
 
+      if (!row.firstName || !row.surname) {
+        result.errors.push({ row: rowNum, message: 'First name and surname are required' });
+        continue;
+      }
+
       try {
         // Parse birthdate if provided
         let birthdate: Date | null = null;
@@ -130,6 +135,11 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
           message: e instanceof Error ? e.message : 'Unknown error'
         });
       }
+    }
+
+    // An empty result means the file is unusable, not that every student has left
+    if (importedStudentKeys.size === 0) {
+      throw new Error('No active students found in the import file, so existing students were not changed');
     }
 
     // Handle students removed from CSV or with "Left" status: delete them and unlink their assets

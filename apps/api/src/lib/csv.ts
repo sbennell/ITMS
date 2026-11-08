@@ -5,6 +5,19 @@ export interface CsvRow {
   rowNumber: number;
 }
 
+// Keep only the fields whose column is in the import file, so an update leaves
+// the others unchanged. Records only have keys for columns the file contains.
+// fieldColumns names the column for fields stored under a different key.
+export function onlyImportedColumns<T extends object>(
+  data: T,
+  row: object,
+  fieldColumns: Record<string, string> = {}
+): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([field]) => (fieldColumns[field] ?? field) in row)
+  ) as Partial<T>;
+}
+
 // Parse CSV text into records, each with the spreadsheet row it came from, so
 // import errors stay correct when blank lines are skipped. csv-parse's line count
 // also includes newlines inside quoted cells, which do not start a new row.

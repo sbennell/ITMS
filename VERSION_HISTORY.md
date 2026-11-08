@@ -4,6 +4,21 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.11] - 2026-11-09
+
+### Fixed
+
+- Student import: a file with no usable students (header only, renamed name columns, or every student marked Left) now stops with an error instead of deleting every student and unlinking their assets.
+- Student import: a row missing a first name or surname now reports an error for that row. Previously it could match and overwrite an unrelated student.
+- Asset and software imports: "update existing" now only changes fields whose column is in the file, instead of clearing every field whose column is missing. A blank cell in a column that is in the file still clears that field.
+
+### Technical Details
+
+- `apps/api/src/services/studentImporter.ts`: added the required name check and stopped the import before the removal step when no students were accepted.
+- `apps/api/src/lib/csv.ts`: added `onlyImportedColumns`, used by the update paths in `apps/api/src/routes/import.ts` and `apps/api/src/routes/software.ts`.
+
+---
+
 ## [1.35.10] - 2026-11-09
 
 ### Fixed

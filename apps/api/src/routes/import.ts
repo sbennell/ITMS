@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
-import { parseCsvWithRows } from '../lib/csv.js';
+import { onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
 import ExcelJS from 'exceljs';
 import { requireAuth, requireAdmin } from './auth.js';
 
@@ -772,7 +772,12 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
             // Update the asset
             await prisma.asset.update({
               where: { id: existingAsset.id },
-              data: assetData
+              data: onlyImportedColumns(assetData, row, {
+                manufacturerId: 'manufacturer',
+                categoryId: 'category',
+                supplierId: 'supplier',
+                locationId: 'location'
+              })
             });
 
             // If any IPs are provided, replace all IPs

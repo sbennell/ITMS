@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
-import { parseCsvWithRows } from '../lib/csv.js';
+import { onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
 import { requireAuth, requirePermission, requireAdmin } from './auth.js';
 
 const router = Router();
@@ -627,7 +627,11 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
           if (updateExisting) {
             await prisma.software.update({
               where: { id: existing.id },
-              data: softwareData
+              data: onlyImportedColumns(softwareData, row, {
+                publisherId: 'publisher',
+                categoryId: 'category',
+                supplierId: 'supplier'
+              })
             });
             results.updated++;
           } else if (skipDuplicates) {
