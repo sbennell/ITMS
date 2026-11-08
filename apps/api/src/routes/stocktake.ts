@@ -1,11 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requirePermission } from './auth.js';
+import { redactAssetPassword } from '../lib/redact.js';
 
 const router = Router();
 
 // Apply auth to all routes
 router.use(requireAuth, requirePermission('canAccessStocktake'));
+
+// Stocktake screens never show device passwords, so they are never sent
+const withoutPassword = <T extends { asset: { devicePassword?: string | null } }>(record: T): T => ({
+  ...record,
+  asset: redactAssetPassword(record.asset, false)
+});
 
 // Get all stocktakes
 router.get('/', async (req: Request, res: Response) => {
@@ -70,7 +77,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Stocktake not found' });
     }
 
-    res.json(stocktake);
+    res.json({ ...stocktake, records: stocktake.records.map(withoutPassword) });
   } catch (error) {
     console.error('Error fetching stocktake:', error);
     res.status(500).json({ error: 'Failed to fetch stocktake' });
@@ -250,7 +257,7 @@ router.post('/:id/verify/:assetId', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(record);
+    res.json(withoutPassword(record));
   } catch (error) {
     console.error('Error verifying asset:', error);
     res.status(500).json({ error: 'Failed to verify asset' });
@@ -290,7 +297,7 @@ router.post('/:id/unverify/:assetId', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(record);
+    res.json(withoutPassword(record));
   } catch (error) {
     console.error('Error unverifying asset:', error);
     res.status(500).json({ error: 'Failed to unverify asset' });
@@ -359,7 +366,7 @@ router.post('/:id/quick-verify', async (req: Request, res: Response) => {
     }
 
     if (record.verified) {
-      return res.status(400).json({ error: 'Asset already verified', asset });
+      return res.status(400).json({ error: 'Asset already verified', asset: redactAssetPassword(asset, false) });
     }
 
     // Verify the asset
@@ -388,7 +395,7 @@ router.post('/:id/quick-verify', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(updatedRecord);
+    res.json(withoutPassword(updatedRecord));
   } catch (error) {
     console.error('Error quick verifying asset:', error);
     res.status(500).json({ error: 'Failed to verify asset' });

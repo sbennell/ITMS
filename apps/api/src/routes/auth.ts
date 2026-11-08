@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
@@ -44,6 +45,7 @@ declare module 'express-session' {
     username: string;
     role: 'ADMIN' | 'USER';
     fullName: string;
+    passwordFingerprint: string;
     canAccessAssets: boolean;
     canAccessStudents: boolean;
     canAccessStocktake: boolean;
@@ -53,6 +55,37 @@ declare module 'express-session' {
     canViewStudentPasswords: boolean;
   }
 }
+
+// Changes whenever the password does, without keeping the hash itself in the session
+const passwordFingerprint = (passwordHash: string) =>
+  createHash('sha256').update(passwordHash).digest('hex');
+
+// Re-read the user on every request, so disabling, deleting, demoting or resetting a
+// password takes effect immediately instead of when the session expires
+export const refreshSessionUser = async (req: Request, res: Response, next: Function) => {
+  if (!req.session.authenticated) {
+    return next();
+  }
+
+  try {
+    const prisma = req.app.locals.prisma as PrismaClient;
+    const user = await prisma.user.findUnique({ where: { id: req.session.userId } });
+
+    if (!user || !user.isActive || passwordFingerprint(user.passwordHash) !== req.session.passwordFingerprint) {
+      return req.session.regenerate((err) => next(err));
+    }
+
+    req.session.username = user.username;
+    req.session.role = user.role as 'ADMIN' | 'USER';
+    req.session.fullName = user.fullName;
+    for (const flag of PERMISSION_FLAGS) {
+      req.session[flag] = user[flag];
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Check if authenticated
 export const requireAuth = (req: Request, res: Response, next: Function) => {
@@ -155,6 +188,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       req.session.username = user.username;
       req.session.role = user.role as 'ADMIN' | 'USER';
       req.session.fullName = user.fullName;
+      req.session.passwordFingerprint = passwordFingerprint(user.passwordHash);
       req.session.canAccessAssets = user.canAccessAssets;
       req.session.canAccessStudents = user.canAccessStudents;
       req.session.canAccessStocktake = user.canAccessStocktake;
@@ -213,6 +247,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     req.session.username = user.username;
     req.session.role = user.role as 'ADMIN' | 'USER';
     req.session.fullName = user.fullName;
+    req.session.passwordFingerprint = passwordFingerprint(user.passwordHash);
     req.session.canAccessAssets = user.canAccessAssets;
     req.session.canAccessStudents = user.canAccessStudents;
     req.session.canAccessStocktake = user.canAccessStocktake;
@@ -286,6 +321,7 @@ router.post('/change-password', requireAuth, async (req: Request, res: Response)
       where: { id: userId },
       data: { passwordHash: hash }
     });
+    req.session.passwordFingerprint = passwordFingerprint(hash);
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

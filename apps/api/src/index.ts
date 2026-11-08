@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import session from 'express-session';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import authRoutes from './routes/auth.js';
+import authRoutes, { refreshSessionUser } from './routes/auth.js';
 import assetRoutes from './routes/assets.js';
 import softwareRoutes from './routes/software.js';
 import lookupRoutes from './routes/lookups.js';
@@ -76,6 +76,7 @@ app.use(session({
 app.locals.prisma = prisma;
 
 // Routes
+app.use('/api', refreshSessionUser);
 app.use('/api/auth', authRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/software', softwareRoutes);

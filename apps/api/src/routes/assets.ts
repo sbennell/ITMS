@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuth, requirePermission } from './auth.js';
-import { canViewDevicePasswords, redactAssetPassword } from '../lib/redact.js';
+import { canViewDevicePasswords, maskAuditPasswords, redactAssetPassword } from '../lib/redact.js';
 
 const router = Router();
 
@@ -247,7 +247,7 @@ router.post('/bulk', async (req: Request, res: Response) => {
             assetId: asset.id,
             userId: req.session.userId,
             action: 'CREATE',
-            changes: JSON.stringify({ ...sharedFields, serialNumber, itemNumber, bulkCreate: true }),
+            changes: JSON.stringify(maskAuditPasswords({ ...sharedFields, serialNumber, itemNumber, bulkCreate: true })),
             ipAddress: req.ip
           }
         });
@@ -378,7 +378,7 @@ router.put('/bulk-update', async (req: Request, res: Response) => {
             assetId: id,
             userId: req.session.userId,
             action: 'BULK_UPDATE',
-            changes: JSON.stringify({ before: beforeData, after: afterData, bulkUpdate: true }),
+            changes: JSON.stringify(maskAuditPasswords({ before: beforeData, after: afterData, bulkUpdate: true })),
             ipAddress: req.ip
           }
         });
@@ -566,7 +566,7 @@ router.post('/', async (req: Request, res: Response) => {
         assetId: asset.id,
         userId: req.session.userId,
         action: 'CREATE',
-        changes: JSON.stringify(req.body),
+        changes: JSON.stringify(maskAuditPasswords(req.body)),
         ipAddress: req.ip
       }
     });
@@ -906,7 +906,11 @@ router.get('/:id/history', async (req: Request, res: Response) => {
       }
     });
 
-    res.json(logs);
+    // Older entries may still hold plain text passwords
+    res.json(logs.map((log) => ({
+      ...log,
+      changes: log.changes && JSON.stringify(maskAuditPasswords(JSON.parse(log.changes)))
+    })));
   } catch (error) {
     console.error('Error fetching asset history:', error);
     res.status(500).json({ error: 'Failed to fetch asset history' });

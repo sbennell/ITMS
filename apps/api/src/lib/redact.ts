@@ -15,6 +15,18 @@ export function redactAssetPassword<T extends { devicePassword?: string | null }
   return allowed ? asset : { ...asset, devicePassword: null };
 }
 
+// Audit entries hold the password at the top level (create) or under before/after (update)
+export function maskAuditPasswords(changes: Record<string, any>): Record<string, any> {
+  const mask = (fields: Record<string, any>) =>
+    fields.devicePassword ? { ...fields, devicePassword: '••••••••••' } : fields;
+
+  return {
+    ...mask(changes),
+    ...(changes.before && { before: mask(changes.before) }),
+    ...(changes.after && { after: mask(changes.after) })
+  };
+}
+
 export function redactStudentPassword<T extends { password?: string | null }>(
   student: T,
   allowed: boolean

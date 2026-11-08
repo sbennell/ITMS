@@ -4,6 +4,28 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.12] - 2026-11-09
+
+### Security
+
+- Stocktake responses no longer include device passwords. Previously any user with stocktake access could read them, even without permission to view device passwords.
+- Asset history no longer exposes device passwords. Asset create, bulk create and bulk update stored them in plain text in the audit log, and the history endpoint returned them. New entries are masked, and existing entries are masked when read.
+- Disabling, deleting or demoting a user, or changing their permissions, now takes effect on their next request instead of when their session expires. A password change or reset ends that user's other sessions.
+
+### Upgrade Notes
+
+- All users must log in again after this update.
+- To remove plain text passwords already stored in the audit log: stop the ITMS service, back up the database, run `node dist\scripts\scrub-audit-passwords.js` from `app\apps\api`, then start the service. This rewrites audit history and cannot be undone. Existing database backups still contain the old entries.
+
+### Technical Details
+
+- `apps/api/src/routes/auth.ts`, `apps/api/src/index.ts`: added `refreshSessionUser`, which reloads the user on each API request and compares a fingerprint of the password hash.
+- `apps/api/src/lib/redact.ts`: added `maskAuditPasswords`, used by `apps/api/src/routes/assets.ts`.
+- `apps/api/src/routes/stocktake.ts`: removed `devicePassword` from all responses that return assets.
+- `apps/api/src/scripts/scrub-audit-passwords.ts`: added the one off audit log scrub.
+
+---
+
 ## [1.35.11] - 2026-11-09
 
 ### Fixed
