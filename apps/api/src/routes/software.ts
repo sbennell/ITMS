@@ -363,6 +363,38 @@ router.get('/export', requireAdmin, async (req: Request, res: Response) => {
   }
 });
 
+// Map a raw column header (Excel cell text or CSV header) to its internal field
+// key, or null if unrecognized - shared by both import paths.
+function mapSoftwareHeaderToKey(rawHeader: string): string | null {
+  const header = rawHeader.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (header.includes('itemnumber')) return 'itemNumber';
+  if (header.includes('name')) return 'name';
+  if (header.includes('publisher')) return 'publisher';
+  if (header.includes('category')) return 'category';
+  if (header.includes('description')) return 'description';
+  if (header.includes('version')) return 'version';
+  if (header.includes('url')) return 'url';
+  if (header.includes('appstore')) return 'appStore';
+  if (header.includes('deploymentmechanism')) return 'deploymentMechanism';
+  if (header.includes('status')) return 'status';
+  if (header.includes('businesspurpose')) return 'businessPurpose';
+  if (header.includes('businessowner')) return 'businessOwner';
+  if (header.includes('technicalowner')) return 'technicalOwner';
+  if (header.includes('initialinstalldate')) return 'initialInstallDate';
+  if (header.includes('licenseexpiration')) return 'licenseExpiration';
+  if (header.includes('licensecount')) return 'licenseCount';
+  if (header.includes('supplier')) return 'supplier';
+  if (header.includes('lastreviewdate')) return 'lastReviewDate';
+  if (header.includes('decommissiondate')) return 'decommissionDate';
+  if (header.includes('criticality')) return 'criticalityTier';
+  if (header.includes('dataclassification')) return 'dataClassification';
+  if (header.includes('hosting')) return 'hostingType';
+  if (header.includes('supporttype')) return 'supportType';
+  if (header.includes('internetfacing')) return 'internetFacing';
+  if (header.includes('comments') || header.includes('notes')) return 'comments';
+  return null;
+}
+
 // Import software from Excel or CSV (admin only) - accepts the same column headers
 // as the /export sheet, so a downloaded export can be edited and re-uploaded directly
 router.post('/import', requireAdmin, importUpload.single('file'), async (req: Request, res: Response) => {
@@ -392,32 +424,8 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       const headerRow = worksheet.getRow(1);
       const columnMap: { [key: string]: number } = {};
       headerRow.eachCell((cell, colNumber) => {
-        const header = getCellString(cell).toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (header.includes('itemnumber')) columnMap['itemNumber'] = colNumber;
-        else if (header.includes('name')) columnMap['name'] = colNumber;
-        else if (header.includes('publisher')) columnMap['publisher'] = colNumber;
-        else if (header.includes('category')) columnMap['category'] = colNumber;
-        else if (header.includes('description')) columnMap['description'] = colNumber;
-        else if (header.includes('version')) columnMap['version'] = colNumber;
-        else if (header.includes('url')) columnMap['url'] = colNumber;
-        else if (header.includes('appstore')) columnMap['appStore'] = colNumber;
-        else if (header.includes('deploymentmechanism')) columnMap['deploymentMechanism'] = colNumber;
-        else if (header.includes('status')) columnMap['status'] = colNumber;
-        else if (header.includes('businesspurpose')) columnMap['businessPurpose'] = colNumber;
-        else if (header.includes('businessowner')) columnMap['businessOwner'] = colNumber;
-        else if (header.includes('technicalowner')) columnMap['technicalOwner'] = colNumber;
-        else if (header.includes('initialinstalldate')) columnMap['initialInstallDate'] = colNumber;
-        else if (header.includes('licenseexpiration')) columnMap['licenseExpiration'] = colNumber;
-        else if (header.includes('licensecount')) columnMap['licenseCount'] = colNumber;
-        else if (header.includes('supplier')) columnMap['supplier'] = colNumber;
-        else if (header.includes('lastreviewdate')) columnMap['lastReviewDate'] = colNumber;
-        else if (header.includes('decommissiondate')) columnMap['decommissionDate'] = colNumber;
-        else if (header.includes('criticality')) columnMap['criticalityTier'] = colNumber;
-        else if (header.includes('dataclassification')) columnMap['dataClassification'] = colNumber;
-        else if (header.includes('hosting')) columnMap['hostingType'] = colNumber;
-        else if (header.includes('supporttype')) columnMap['supportType'] = colNumber;
-        else if (header.includes('internetfacing')) columnMap['internetFacing'] = colNumber;
-        else if (header.includes('comments') || header.includes('notes')) columnMap['comments'] = colNumber;
+        const key = mapSoftwareHeaderToKey(getCellString(cell));
+        if (key) columnMap[key] = colNumber;
       });
 
       worksheet.eachRow((row, rowNumber) => {
@@ -435,10 +443,19 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       });
     } else {
       const csvContent = req.file.buffer.toString('utf-8');
-      records = parse(csvContent, {
+      const rawRecords: Record<string, string>[] = parse(csvContent, {
+        bom: true,
         columns: true,
         skip_empty_lines: true,
         trim: true
+      });
+      records = rawRecords.map((rawRecord) => {
+        const record: any = {};
+        for (const [rawHeader, value] of Object.entries(rawRecord)) {
+          const key = mapSoftwareHeaderToKey(rawHeader);
+          if (key) record[key] = value;
+        }
+        return record;
       });
     }
 

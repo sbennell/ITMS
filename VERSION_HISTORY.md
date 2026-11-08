@@ -4,23 +4,38 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.9] - 2026-11-09
+
+### Fixed
+
+- Software CSV import: column headers are now mapped to field names the same way as the Excel import, so an exported register saved from Excel as "CSV UTF-8" can be imported.
+- CSV imports: asset, software and student imports now all remove a byte order mark using the `csv-parse` `bom` option, instead of each handling it differently.
+
+### Technical Details
+
+- `apps/api/src/routes/software.ts`: added `mapSoftwareHeaderToKey`, shared by the Excel and CSV import paths, and enabled `bom`.
+- `apps/api/src/routes/import.ts`: enabled `bom`.
+- `apps/api/src/services/studentImporter.ts`: enabled `bom` and removed the manual byte order mark regex.
+
+---
+
 ## [1.35.8] - 2026-11-04
 
 ### Changed
 
-- Upgraded `csv-parse` from 5.6.0 to 7.0.3 in the API. CSV import behaviour is unchanged for asset, software and student imports.
+- Upgraded `csv-parse` from 5.6.0 to 7.0.3 in the API. Asset and software imports enable `trim`, so their parsing changes in these ways: leading and trailing non breaking spaces and other Unicode whitespace are now stripped from values, a line containing only such whitespace is now skipped instead of rejecting the file, and such whitespace or a byte order mark before a quoted field no longer causes a parse error. In all imports, including student imports, a column headed `__proto__` is now kept instead of being dropped.
 
 ### Fixed
 
-- Software CSV import: files saved by Excel as "CSV UTF-8" (with a byte order mark) no longer have the first column header misread. The new `csv-parse` version strips the byte order mark when `trim` is enabled.
+- Software CSV import: the byte order mark in files saved by Excel as "CSV UTF-8" no longer attaches to the first column header, because the new `csv-parse` version strips it when `trim` is enabled. This alone does not make those files importable, since this version does not map export column headers such as "Item Number" to field names.
 
 ### Security
 
-- Clears the moderate `csv-parse` audit finding. 8 moderate findings remain (uuid and minimatch via exceljs).
+- Clears the moderate `csv-parse` audit finding. `npm audit` on 2026-11-09 reports 2 moderate findings (uuid, and exceljs through its uuid dependency).
 
 ### Technical Details
 
-- `apps/api/package.json`: `csv-parse` range changed from `^5.6.0` to `^7.0.3`. `package-lock.json` updated to match. No source changes, since `csv-parse/sync` still provides a CommonJS build.
+- `apps/api/package.json`: `csv-parse` range changed from `^5.5.6` to `^7.0.3`. `package-lock.json` updated to match. No source changes, since `csv-parse/sync` still provides a CommonJS build.
 
 ---
 

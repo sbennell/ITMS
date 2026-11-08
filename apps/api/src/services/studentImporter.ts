@@ -242,9 +242,9 @@ function parseCsvFile(
   filePath: string,
   columnMapping: Record<string, string>
 ): Record<string, any>[] {
-  // Remove UTF-8 BOM if present (some Excel exports include this)
-  const content = readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
+  const content = readFileSync(filePath, 'utf-8');
   const records = parseCsv(content, {
+    bom: true,
     columns: true,
     skip_empty_lines: true
   }) as Record<string, string>[];

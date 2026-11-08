@@ -538,6 +538,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       // header text verbatim.
       const csvContent = req.file.buffer.toString('utf-8');
       const rawRecords: Record<string, string>[] = parse(csvContent, {
+        bom: true,
         columns: true,
         skip_empty_lines: true,
         trim: true
