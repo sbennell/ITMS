@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
-import { parse as parseCsv } from 'csv-parse/sync';
+import { parseCsvWithRows, CsvRow } from '../lib/csv.js';
 import { Workbook } from 'exceljs';
 import path from 'path';
 
@@ -63,7 +63,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     // Upsert students
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowNum = i + 2; // +2 because headers are row 1, data starts at row 2
+      const rowNum = row.rowNumber;
 
       // Skip students with "Left" status (case-insensitive)
       if (row.status?.toLowerCase() === 'left') {
@@ -243,13 +243,7 @@ function parseCsvFile(
   columnMapping: Record<string, string>
 ): Record<string, any>[] {
   const content = readFileSync(filePath, 'utf-8');
-  const records = parseCsv(content, {
-    bom: true,
-    columns: true,
-    skip_empty_lines: true
-  }) as Record<string, string>[];
-
-  return mapRecords(records, columnMapping);
+  return mapRecords(parseCsvWithRows(content), columnMapping);
 }
 
 /**
@@ -267,7 +261,7 @@ async function parseExcelFile(
     throw new Error('No worksheet found in Excel file');
   }
 
-  const records: Record<string, string>[] = [];
+  const records: CsvRow[] = [];
   const headerRow = worksheet.getRow(1);
   const headers: string[] = [];
 
@@ -288,7 +282,7 @@ async function parseExcelFile(
 
     // Skip empty rows
     if (Object.values(record).some(v => v !== '')) {
-      records.push(record);
+      records.push({ record, rowNumber: rowNum });
     }
   }
 
@@ -300,7 +294,7 @@ async function parseExcelFile(
  * Transforms CSV headers (keys) to internal field names.
  */
 function mapRecords(
-  records: Record<string, string>[],
+  records: CsvRow[],
   columnMapping: Record<string, string>
 ): Record<string, any>[] {
   // Reverse the mapping: CSV header -> internal field name
@@ -309,8 +303,8 @@ function mapRecords(
     reverseMapping[csvHeader] = internalField;
   }
 
-  return records.map(record => {
-    const mapped: Record<string, any> = {};
+  return records.map(({ record, rowNumber }) => {
+    const mapped: Record<string, any> = { rowNumber };
 
     for (const [csvHeader, value] of Object.entries(record)) {
       const internalField = reverseMapping[csvHeader];

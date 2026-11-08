@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
-import { parse } from 'csv-parse/sync';
+import { parseCsvWithRows } from '../lib/csv.js';
 import ExcelJS from 'exceljs';
 import { requireAuth, requireAdmin } from './auth.js';
 
@@ -513,7 +513,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header
 
-        const record: any = {};
+        const record: any = { rowNumber };
         for (const [key, colNum] of Object.entries(columnMap)) {
           const cell = row.getCell(colNum);
           if (key === 'acquiredDate' || key === 'warrantyExpiration' || key === 'endOfLifeDate' || key === 'lastReviewDate' || key === 'decommissionDate') {
@@ -537,14 +537,8 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       // the Excel path does, since csv-parse otherwise keys records by the raw
       // header text verbatim.
       const csvContent = req.file.buffer.toString('utf-8');
-      const rawRecords: Record<string, string>[] = parse(csvContent, {
-        bom: true,
-        columns: true,
-        skip_empty_lines: true,
-        trim: true
-      });
-      records = rawRecords.map((rawRecord) => {
-        const record: any = {};
+      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber }) => {
+        const record: any = { rowNumber };
         for (const [rawHeader, value] of Object.entries(rawRecord)) {
           const key = mapHeaderToKey(normalizeHeader(rawHeader));
           if (key) record[key] = value;
@@ -604,7 +598,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
     // Process each row
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
-      const rowNum = i + 2; // +2 for 1-indexed and header row
+      const rowNum = row.rowNumber;
 
       try {
         const itemNumber = String(row.itemNumber || '').trim();

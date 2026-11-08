@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.10] - 2026-11-09
+
+### Fixed
+
+- Import errors: asset, software and student imports now report the spreadsheet row the problem is on. Row numbers were previously based on a record's position after blank lines and empty rows were skipped, so errors could point to the wrong row.
+
+### Technical Details
+
+- `apps/api/src/lib/csv.ts`: added `parseCsvWithRows`, which returns each CSV record with its spreadsheet row and does not count newlines inside quoted cells as new rows.
+- `apps/api/src/routes/software.ts`, `apps/api/src/routes/import.ts`, `apps/api/src/services/studentImporter.ts`: CSV and Excel records now carry their row number, which is used in import errors.
+
+---
+
 ## [1.35.9] - 2026-11-09
 
 ### Fixed

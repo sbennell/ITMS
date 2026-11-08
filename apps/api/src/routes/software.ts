@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
-import { parse } from 'csv-parse/sync';
+import { parseCsvWithRows } from '../lib/csv.js';
 import { requireAuth, requirePermission, requireAdmin } from './auth.js';
 
 const router = Router();
@@ -431,7 +431,7 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header
 
-        const record: any = {};
+        const record: any = { rowNumber };
         for (const [key, colNum] of Object.entries(columnMap)) {
           const cell = row.getCell(colNum);
           record[key] = getCellString(cell);
@@ -443,14 +443,8 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       });
     } else {
       const csvContent = req.file.buffer.toString('utf-8');
-      const rawRecords: Record<string, string>[] = parse(csvContent, {
-        bom: true,
-        columns: true,
-        skip_empty_lines: true,
-        trim: true
-      });
-      records = rawRecords.map((rawRecord) => {
-        const record: any = {};
+      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber }) => {
+        const record: any = { rowNumber };
         for (const [rawHeader, value] of Object.entries(rawRecord)) {
           const key = mapSoftwareHeaderToKey(rawHeader);
           if (key) record[key] = value;
@@ -503,7 +497,7 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
 
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
-      const rowNum = i + 2;
+      const rowNum = row.rowNumber;
 
       try {
         const itemNumber = String(row.itemNumber || '').trim();
