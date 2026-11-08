@@ -468,6 +468,15 @@ router.put('/users/:id', requireAuth, requireAdmin, async (req: Request, res: Re
   }
 
   try {
+    // The UI has no way to recover if the last active admin is lost
+    if ((role !== undefined && role !== 'ADMIN') || isActive === false) {
+      const target = await prisma.user.findUnique({ where: { id }, select: { role: true, isActive: true } });
+      const otherAdmins = await prisma.user.count({ where: { role: 'ADMIN', isActive: true, id: { not: id } } });
+      if (target?.role === 'ADMIN' && target.isActive && otherAdmins === 0) {
+        return res.status(400).json({ error: 'At least one active administrator is required' });
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id },
       data: {

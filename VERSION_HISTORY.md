@@ -4,6 +4,28 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.15] - 2026-11-09
+
+### Security
+
+- Software attachment uploads now confirm the software item exists before writing anything. Previously a crafted item ID could create folders outside the upload directory.
+
+### Fixed
+
+- The last active administrator can no longer be demoted or disabled, which would have left no way to manage users from the app.
+
+### Added
+
+- Automated API tests, run with `npm test`. Each server test file starts the real API against its own temporary database.
+
+### Technical Details
+
+- `apps/api/src/routes/software.ts`: the software lookup now runs before the upload.
+- `apps/api/src/routes/auth.ts`: `PUT /users/:id` rejects changes that would leave no active administrator.
+- `apps/api/tests`: added the test suite, using the Node test runner through `tsx`. `package.json`, `apps/api/package.json`: added `test` scripts.
+
+---
+
 ## [1.35.14] - 2026-11-09
 
 ### Fixed

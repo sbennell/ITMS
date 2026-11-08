@@ -997,9 +997,20 @@ router.get('/:id/history', async (req: Request, res: Response) => {
 });
 
 // Upload an attachment
-router.post('/:id/attachments', (req: Request, res: Response) => {
+router.post('/:id/attachments', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const id = req.params.id as string;
+
+  // Must happen before the upload, because multer builds the destination folder from this id
+  try {
+    const software = await prisma.software.findUnique({ where: { id }, select: { id: true } });
+    if (!software) {
+      return res.status(404).json({ error: 'Software not found' });
+    }
+  } catch (error) {
+    console.error('Error checking software for attachment:', error);
+    return res.status(500).json({ error: 'Failed to save attachment' });
+  }
 
   upload.single('file')(req, res, async (err: any) => {
     if (err) {
@@ -1010,12 +1021,6 @@ router.post('/:id/attachments', (req: Request, res: Response) => {
     }
 
     try {
-      const software = await prisma.software.findUnique({ where: { id } });
-      if (!software) {
-        fs.unlink(req.file.path, () => {});
-        return res.status(404).json({ error: 'Software not found' });
-      }
-
       const storagePath = path.join('software', id, req.file.filename);
       const attachment = await prisma.softwareAttachment.create({
         data: {

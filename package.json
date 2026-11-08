@@ -1,6 +1,6 @@
 {
   "name": "ITMS",
-  "version": "1.35.14",
+  "version": "1.35.15",
   "private": true,
   "description": "IT Management System - Web Interface",
   "workspaces": [
@@ -11,7 +11,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
     "build": "npm run build --workspaces",
-    "start": "npm run start --workspace=apps/api"
+    "start": "npm run start --workspace=apps/api",
+    "test": "npm run test --workspace=apps/api"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
