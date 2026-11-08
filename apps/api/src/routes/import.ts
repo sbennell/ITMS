@@ -35,7 +35,7 @@ const VALID_STATUS = [
   'Decommissioned - Unreturned'
 ];
 
-const VALID_CONDITION = ['NEW', 'GOOD', 'FAIR', 'POOR', 'DAMAGED'];
+const VALID_CONDITION = ['NEW', 'EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NON_FUNCTIONAL'];
 
 // Compliance/governance fields are export-only for now (see COLUMNS/rowData below) -
 // bulk import of these fields is not yet supported, so no VALID_* arrays are needed here.
@@ -201,7 +201,7 @@ router.get('/template', async (req: Request, res: Response) => {
       [''],
       ['DROPDOWN FIELDS (click cell to see options)'],
       ['- Status: ACTIVE, INACTIVE, DISPOSED, IN_REPAIR'],
-      ['- Condition: NEW, GOOD, FAIR, POOR, DAMAGED'],
+      [`- Condition: ${VALID_CONDITION.join(', ')}`],
       ['- Manufacturer: Select from existing or type new (will be created)'],
       ['- Category: Select from existing or type new (will be created)'],
       ['- Supplier: Select from existing or type new (will be created)'],

@@ -310,6 +310,11 @@ export default function AssetList() {
     queryFn: () => api.getAssets({ page, limit, search, status, category, manufacturer, location, stocktakeStatus, sortBy, sortOrder })
   });
 
+  // Bulk actions apply to the selection, so it must only hold assets currently on screen
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page, limit, search, status, category, manufacturer, location, stocktakeStatus, sortBy, sortOrder]);
+
   const handleSort = (column: string) => {
     const newParams = new URLSearchParams(searchParams);
     if (sortBy === column) {

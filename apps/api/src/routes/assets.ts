@@ -324,7 +324,15 @@ router.put('/bulk-update', async (req: Request, res: Response) => {
     for (const id of ids) {
       try {
         // Get current asset for audit log
-        const current = await prisma.asset.findUnique({ where: { id } });
+        const current = await prisma.asset.findUnique({
+          where: { id },
+          include: {
+            category: true,
+            manufacturer: true,
+            location: true,
+            supplier: true
+          }
+        });
         if (!current) {
           results.errors.push({ id, message: 'Asset not found' });
           results.failed++;
@@ -335,17 +343,6 @@ router.put('/bulk-update', async (req: Request, res: Response) => {
         const asset = await prisma.asset.update({
           where: { id },
           data: cleanedFields,
-          include: {
-            category: true,
-            manufacturer: true,
-            location: true,
-            supplier: true
-          }
-        });
-
-        // Fetch previous asset with relationships for better audit log display
-        const previousAsset = await prisma.asset.findUnique({
-          where: { id },
           include: {
             category: true,
             manufacturer: true,
@@ -365,10 +362,10 @@ router.put('/bulk-update', async (req: Request, res: Response) => {
           if (!excludeFields.includes(key)) {
             beforeData[key] = current[key as keyof typeof current];
             // Replace IDs with friendly names for display
-            if (key === 'categoryId' && current.categoryId) beforeData[key] = previousAsset?.category?.name || current.categoryId;
-            if (key === 'manufacturerId' && current.manufacturerId) beforeData[key] = previousAsset?.manufacturer?.name || current.manufacturerId;
-            if (key === 'locationId' && current.locationId) beforeData[key] = previousAsset?.location?.name || current.locationId;
-            if (key === 'supplierId' && current.supplierId) beforeData[key] = previousAsset?.supplier?.name || current.supplierId;
+            if (key === 'categoryId' && current.categoryId) beforeData[key] = current.category?.name || current.categoryId;
+            if (key === 'manufacturerId' && current.manufacturerId) beforeData[key] = current.manufacturer?.name || current.manufacturerId;
+            if (key === 'locationId' && current.locationId) beforeData[key] = current.location?.name || current.locationId;
+            if (key === 'supplierId' && current.supplierId) beforeData[key] = current.supplier?.name || current.supplierId;
           }
         });
 

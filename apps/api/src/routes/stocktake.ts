@@ -14,6 +14,16 @@ const withoutPassword = <T extends { asset: { devicePassword?: string | null } }
   asset: redactAssetPassword(record.asset, false)
 });
 
+const STOCKTAKE_STATUSES = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+const CONDITIONS = ['NEW', 'EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NON_FUNCTIONAL'];
+const NOT_IN_PROGRESS = 'This stocktake is not in progress';
+
+const isInProgress = async (prisma: PrismaClient, id: string) =>
+  (await prisma.stocktake.findUnique({ where: { id }, select: { status: true } }))?.status === 'IN_PROGRESS';
+
+const isInvalidCondition = (condition: unknown) =>
+  condition !== undefined && condition !== null && !CONDITIONS.includes(condition as string);
+
 // Get all stocktakes
 router.get('/', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
@@ -161,23 +171,38 @@ router.put('/:id', async (req: Request, res: Response) => {
   const { name, notes, status } = req.body;
 
   try {
+    const current = await prisma.stocktake.findUnique({ where: { id }, select: { status: true } });
+    if (!current) {
+      return res.status(404).json({ error: 'Stocktake not found' });
+    }
+    if (status !== undefined) {
+      if (!STOCKTAKE_STATUSES.includes(status)) {
+        return res.status(400).json({ error: `Status must be one of: ${STOCKTAKE_STATUSES.join(', ')}` });
+      }
+      if (current.status !== 'IN_PROGRESS') {
+        return res.status(400).json({ error: NOT_IN_PROGRESS });
+      }
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (notes !== undefined) updateData.notes = notes;
-    if (status !== undefined) {
-      updateData.status = status;
+    if (status !== undefined) updateData.status = status;
+
+    // All or nothing, so a failure cannot leave an open stocktake with some assets updated
+    const stocktake = await prisma.$transaction(async (tx) => {
       if (status === 'COMPLETED') {
         updateData.endDate = new Date();
 
         // Get all verified records with their condition updates
-        const verifiedRecords = await prisma.stocktakeRecord.findMany({
+        const verifiedRecords = await tx.stocktakeRecord.findMany({
           where: { stocktakeId: id as string, verified: true },
           select: { assetId: true, newCondition: true }
         });
 
         if (verifiedRecords.length > 0) {
           // Update lastReviewDate on all verified assets
-          await prisma.asset.updateMany({
+          await tx.asset.updateMany({
             where: {
               id: { in: verifiedRecords.map(r => r.assetId) }
             },
@@ -189,19 +214,19 @@ router.put('/:id', async (req: Request, res: Response) => {
           // Update condition for assets where newCondition was specified
           const conditionUpdates = verifiedRecords.filter(r => r.newCondition);
           for (const record of conditionUpdates) {
-            await prisma.asset.update({
+            await tx.asset.update({
               where: { id: record.assetId },
               data: { condition: record.newCondition! }
             });
           }
         }
       }
-    }
 
-    const stocktake = await prisma.stocktake.update({
-      where: { id },
-      data: updateData
-    });
+      return tx.stocktake.update({
+        where: { id },
+        data: updateData
+      });
+    }, { timeout: 30000 });
 
     res.json(stocktake);
   } catch (error) {
@@ -232,6 +257,13 @@ router.post('/:id/verify/:assetId', async (req: Request, res: Response) => {
   const { locationMatch, conditionMatch, newCondition, notes } = req.body;
 
   try {
+    if (isInvalidCondition(newCondition)) {
+      return res.status(400).json({ error: 'Invalid condition' });
+    }
+    if (!(await isInProgress(prisma, id))) {
+      return res.status(400).json({ error: NOT_IN_PROGRESS });
+    }
+
     const record = await prisma.stocktakeRecord.update({
       where: {
         stocktakeId_assetId: {
@@ -272,6 +304,10 @@ router.post('/:id/unverify/:assetId', async (req: Request, res: Response) => {
   const assetId = req.params.assetId as string;
 
   try {
+    if (!(await isInProgress(prisma, id))) {
+      return res.status(400).json({ error: NOT_IN_PROGRESS });
+    }
+
     const record = await prisma.stocktakeRecord.update({
       where: {
         stocktakeId_assetId: {
@@ -343,6 +379,13 @@ router.post('/:id/quick-verify', async (req: Request, res: Response) => {
   }
 
   try {
+    if (isInvalidCondition(newCondition)) {
+      return res.status(400).json({ error: 'Invalid condition' });
+    }
+    if (!(await isInProgress(prisma, id))) {
+      return res.status(400).json({ error: NOT_IN_PROGRESS });
+    }
+
     // Find the asset
     const asset = await prisma.asset.findUnique({
       where: { itemNumber }

@@ -4,6 +4,25 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.16] - 2026-11-09
+
+### Fixed
+
+- Asset list: the selection now clears when the page, page size, search, filter or sort changes, so bulk actions can only affect assets on screen.
+- Bulk update history now shows the previous category, location, manufacturer and supplier. They previously showed the new value on both sides, which hid the change. Existing history entries are unchanged.
+- Stocktake: assets can no longer be verified or unverified once a stocktake has finished, and a finished stocktake can no longer be completed again, cancelled or reopened. Status and condition values are validated, and completing a stocktake now applies all its changes or none.
+- Asset import: accepted conditions now match the rest of the app (New, Excellent, Good, Fair, Poor, Non Functional), so exported files can be imported again. `DAMAGED` is no longer accepted, as nothing else in the app recognises it.
+
+### Technical Details
+
+- `apps/web/src/pages/AssetList.tsx`: clears `selectedIds` when the query changes.
+- `apps/api/src/routes/assets.ts`: bulk update reads the previous relations before updating.
+- `apps/api/src/routes/stocktake.ts`: added status and condition checks, and wrapped completion in a transaction.
+- `apps/api/src/routes/import.ts`: updated `VALID_CONDITION`, which also drives the import template.
+- `apps/api/tests`: added stocktake, bulk history and import condition tests.
+
+---
+
 ## [1.35.15] - 2026-11-09
 
 ### Security

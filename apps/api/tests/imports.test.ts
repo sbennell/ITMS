@@ -117,3 +117,21 @@ test('import errors report the real spreadsheet row', async () => {
   const response = await server.upload('/software/import', admin, 's.csv', csv, CSV);
   assert.equal(response.json().errors[0].row, 4, response.text);
 });
+
+test('imports accept every condition the app uses', async () => {
+  const conditions = ['NEW', 'EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'NON_FUNCTIONAL'];
+  const rows = conditions.map((condition, i) => `C${i},${condition.toLowerCase()}`).join('\n');
+
+  const response = await server.upload('/import/assets', admin, 'a.csv', `Item Number,Condition\n${rows}\n`, CSV);
+  assert.equal(response.json().created, conditions.length, response.text);
+  assert.deepEqual(response.json().errors, []);
+
+  const saved = await server.prisma.asset.findMany({ where: { itemNumber: { startsWith: 'C' } }, orderBy: { itemNumber: 'asc' } });
+  assert.deepEqual(saved.map((asset) => asset.condition), conditions);
+});
+
+test('imports reject a condition the app does not use', async () => {
+  const response = await server.upload('/import/assets', admin, 'a.csv', 'Item Number,Condition\nD1,DAMAGED\n', CSV);
+  assert.equal(response.json().created, 0, response.text);
+  assert.match(response.json().errors[0].message, /Invalid condition/);
+});
