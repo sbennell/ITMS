@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, requireAdmin } from './auth.js';
+import { restartStudentImportWatcher } from '../services/studentImportWatcher.js';
 
 const router = Router();
 
@@ -539,6 +540,11 @@ router.put('/settings/:key', requireAdmin, async (req: Request, res: Response) =
       update: { value },
       create: { key, value }
     });
+
+    if (key === 'studentImportFile') {
+      await restartStudentImportWatcher(prisma);
+    }
+
     res.json({ key: setting.key, value: setting.value });
   } catch (error) {
     console.error('Error updating setting:', error);

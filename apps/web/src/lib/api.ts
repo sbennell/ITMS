@@ -18,6 +18,11 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     }
   });
 
+  // The session has ended (auth routes use 401 for wrong passwords, so they are excluded)
+  if (response.status === 401 && !url.startsWith('/auth/')) {
+    window.location.assign('/login');
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || 'Request failed');

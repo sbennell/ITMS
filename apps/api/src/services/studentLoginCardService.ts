@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, LineCapStyle } from 'pdf-lib';
+import { embedTextFont } from '../lib/pdfText.js';
 
 export interface LoginCardStudent {
   firstName: string;
@@ -32,7 +33,11 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
 
   const doc = await PDFDocument.create();
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const regularText = await embedTextFont(
+    doc,
+    'regular',
+    students.flatMap((s) => [s.firstName, s.surname, s.schoolYear, s.homeGroup, s.username, s.email, s.password])
+  );
 
   // Page dimensions (A4 portrait)
   const PAGE_W = 595;
@@ -98,9 +103,9 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
 
     // Helper to draw credential line: "Label: value" (centered)
     const drawLine = (label: string, value: string | null) => {
-      const displayValue = value || '-';
+      const { text: displayValue, font: valueFont } = regularText(value || '-');
       const labelWidth = bold.widthOfTextAtSize(label + ' ', FONT_SIZE_MAIN);
-      const valueWidth = regular.widthOfTextAtSize(displayValue, FONT_SIZE_MAIN);
+      const valueWidth = valueFont.widthOfTextAtSize(displayValue, FONT_SIZE_MAIN);
       const totalWidth = labelWidth + valueWidth;
       const lineX = x + (CARD_W - totalWidth) / 2;
 
@@ -116,7 +121,7 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
         x: lineX + labelWidth,
         y: textY,
         size: FONT_SIZE_MAIN,
-        font: regular,
+        font: valueFont,
         color: rgb(0, 0, 0),
       });
 
@@ -138,22 +143,24 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
 
     // Footer positioned below separator with breathing room
     textY -= 10; // Larger gap after separator for footer spacing
-    const footerText = [
-      `${student.firstName} ${student.surname}`,
-      student.schoolYear,
-      student.homeGroup,
-    ]
-      .filter(Boolean)
-      .join(' - ');
+    const { text: footerText, font: footerFont } = regularText(
+      [
+        `${student.firstName} ${student.surname}`,
+        student.schoolYear,
+        student.homeGroup,
+      ]
+        .filter(Boolean)
+        .join(' - ')
+    );
 
-    const footerWidth = regular.widthOfTextAtSize(footerText, FONT_SIZE_FOOTER);
+    const footerWidth = footerFont.widthOfTextAtSize(footerText, FONT_SIZE_FOOTER);
     const footerX = x + (CARD_W - footerWidth) / 2;
 
     currentPage.drawText(footerText, {
       x: footerX,
       y: textY,
       size: FONT_SIZE_FOOTER,
-      font: regular,
+      font: footerFont,
       color: rgb(0.5, 0.5, 0.5),
     });
 

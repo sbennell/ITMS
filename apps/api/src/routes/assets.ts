@@ -38,13 +38,21 @@ router.get('/', async (req: Request, res: Response) => {
     const where: Prisma.AssetWhereInput = {};
 
     if (search) {
+      const [firstName, ...surnameParts] = (search as string).trim().split(/\s+/);
+
       where.OR = [
         { itemNumber: { contains: search as string } },
         { serialNumber: { contains: search as string } },
         { model: { contains: search as string } },
         { hostname: { contains: search as string } },
         { assignedTo: { contains: search as string } },
-        { description: { contains: search as string } }
+        { description: { contains: search as string } },
+        // Assets linked to a student have no assignedTo, so match the student's name too
+        { student: { firstName: { contains: search as string } } },
+        { student: { surname: { contains: search as string } } },
+        ...(surnameParts.length > 0
+          ? [{ student: { firstName: { contains: firstName }, surname: { contains: surnameParts.join(' ') } } }]
+          : [])
       ];
     }
 

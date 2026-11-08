@@ -4,6 +4,28 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.14] - 2026-11-09
+
+### Fixed
+
+- Asset labels and student login cards no longer fail for names Helvetica cannot print. Such text now uses Noto Sans, which covers accented and Vietnamese names. Characters Noto Sans does not include, such as Arabic and Chinese, print as "?". Existing labels and cards are unchanged.
+- Asset edit form: leaving the device password blank now keeps the existing password, as the form states. Previously it deleted the password.
+- Assets linked to a student can now be found by the student's name in the asset list, and stocktake now shows and searches those names.
+- Changing the student import file in Settings now takes effect without restarting the service. Saving a new path does not run an import, the next change to that file does.
+- The decommission date filled in automatically now uses the local date. Previously it could be a day early in the morning in Australian time zones.
+- When a session ends, pages now return to the login screen instead of showing errors.
+
+### Technical Details
+
+- `apps/api/src/lib/pdfText.ts`: added `embedTextFont`, used by `apps/api/src/services/labelService.ts` and `apps/api/src/services/studentLoginCardService.ts`.
+- `apps/api/assets/fonts`: added Noto Sans Regular and Bold (SIL Open Font License). `apps/api/package.json`: added `@pdf-lib/fontkit`.
+- `apps/api/src/routes/assets.ts`: asset search also matches linked student names.
+- `apps/api/src/routes/stocktake.ts`: stocktake detail includes the linked student.
+- `apps/api/src/routes/lookups.ts`, `apps/api/src/services/studentImportWatcher.ts`: the watcher restarts when `studentImportFile` changes.
+- `apps/web/src/lib/api.ts`, `apps/web/src/lib/utils.ts`, `apps/web/src/pages/AssetForm.tsx`, `apps/web/src/pages/Stocktake.tsx`, `apps/web/src/components/BulkEditModal.tsx`: client side changes for the fixes above.
+
+---
+
 ## [1.35.13] - 2026-11-09
 
 ### Security

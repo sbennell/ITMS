@@ -10,7 +10,7 @@ let debounceTimer: NodeJS.Timeout | null = null;
  * Returns a watcher instance that can be stopped.
  * Returns null if the import file is not configured.
  */
-export async function startStudentImportWatcher(prisma: PrismaClient): Promise<FSWatcher | null> {
+export async function startStudentImportWatcher(prisma: PrismaClient, ignoreInitial = false): Promise<FSWatcher | null> {
   try {
     const fileSetting = await prisma.settings.findUnique({ where: { key: 'studentImportFile' } });
     const importFile = fileSetting?.value;
@@ -26,6 +26,7 @@ export async function startStudentImportWatcher(prisma: PrismaClient): Promise<F
 
     watcher = chokidar.watch(normalizedPath, {
       persistent: true,
+      ignoreInitial,
       awaitWriteFinish: {
         stabilityThreshold: 2000,
         pollInterval: 100
@@ -46,7 +47,8 @@ export async function startStudentImportWatcher(prisma: PrismaClient): Promise<F
 }
 
 /**
- * Restarts the watcher when the import path is changed.
+ * Restarts the watcher when the import path is changed. The existing file is not
+ * imported straight away, so saving a new path cannot by itself remove students.
  */
 export async function restartStudentImportWatcher(prisma: PrismaClient): Promise<FSWatcher | null> {
   if (watcher) {
@@ -54,7 +56,7 @@ export async function restartStudentImportWatcher(prisma: PrismaClient): Promise
     watcher = null;
   }
 
-  return startStudentImportWatcher(prisma);
+  return startStudentImportWatcher(prisma, true);
 }
 
 /**

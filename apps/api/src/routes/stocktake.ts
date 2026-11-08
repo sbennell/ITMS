@@ -64,7 +64,8 @@ router.get('/:id', async (req: Request, res: Response) => {
               include: {
                 category: true,
                 location: true,
-                manufacturer: true
+                manufacturer: true,
+                student: { select: { id: true, firstName: true, surname: true } }
               }
             }
           },

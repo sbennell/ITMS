@@ -10,7 +10,8 @@ import {
   CRITICALITY_LABELS,
   DATA_CLASSIFICATION_LABELS,
   HOSTING_LABELS,
-  SUPPORT_LABELS
+  SUPPORT_LABELS,
+  todayLocal
 } from '../lib/utils';
 import StudentSearchCombobox from '../components/StudentSearchCombobox';
 import FieldLabel from '../components/FieldLabel';
@@ -235,8 +236,7 @@ export default function AssetForm() {
   // Auto-set decommission date when status changes to Decommissioned
   useEffect(() => {
     if (status && status.startsWith('Decommissioned')) {
-      const today = new Date().toISOString().split('T')[0];
-      setValue('decommissionDate', today);
+      setValue('decommissionDate', todayLocal());
     }
   }, [status, setValue]);
 
@@ -304,6 +304,11 @@ export default function AssetForm() {
     // (the API redacts it to null) - omit it entirely so an unrelated save doesn't
     // wipe the actual stored password.
     if (!hasPermission('canViewDevicePasswords')) {
+      delete cleanData.devicePassword;
+    }
+
+    // The form promises that leaving this blank keeps the existing password
+    if (isEditing && !data.devicePassword) {
       delete cleanData.devicePassword;
     }
 

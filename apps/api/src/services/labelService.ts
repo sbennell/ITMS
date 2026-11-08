@@ -4,6 +4,7 @@ import { getPrinters, print } from 'pdf-to-printer';
 import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { embedTextFont } from '../lib/pdfText.js';
 
 // DK-22211 label dimensions for Brother QL label printers
 // For continuous 29mm tape, create landscape PDF and let printer driver rotate
@@ -149,7 +150,16 @@ export async function createLabelPDF(
   }
 
   // Embed bold font for all text
-  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
+  const boldText = await embedTextFont(doc, 'bold', [
+    asset.assignedTo,
+    asset.itemNumber,
+    asset.manufacturer?.name,
+    asset.model,
+    asset.serialNumber,
+    asset.hostname,
+    asset.ipAddress,
+    asset.organizationName
+  ]);
 
   // Embed QR code image
   const qrImage = await doc.embedPng(qrBuffer);
@@ -193,18 +203,18 @@ export async function createLabelPDF(
   // matching Item/Model/etc below it. Auto-fit to fill the column width.
   const topMargin = 12; // Space from top for assigned to name
   if (opts.showAssignedTo && asset.assignedTo) {
-    const assignedText = asset.assignedTo;
+    const { text: assignedText, font: assignedFont } = boldText(asset.assignedTo);
     const maxAssignedFontSize = 14;
     const minAssignedFontSize = 7;
 
     // Calculate font size to fit text within available width
     let assignedFontSize = maxAssignedFontSize;
-    let assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
+    let assignedWidth = assignedFont.widthOfTextAtSize(assignedText, assignedFontSize);
 
     // Scale down if text is too wide
     if (assignedWidth > textAreaWidth) {
       assignedFontSize = Math.max(minAssignedFontSize, (textAreaWidth / assignedWidth) * maxAssignedFontSize);
-      assignedWidth = boldFont.widthOfTextAtSize(assignedText, assignedFontSize);
+      assignedWidth = assignedFont.widthOfTextAtSize(assignedText, assignedFontSize);
     }
 
     // Bordered variant nudges the Assigned To text down 1mm total - it was still
@@ -213,7 +223,7 @@ export async function createLabelPDF(
       x: textX,
       y: LABEL_HEIGHT_PT - topMargin - (isBordered ? MM_TO_PT : 0),
       size: assignedFontSize,
-      font: boldFont,
+      font: assignedFont,
       color: rgb(0, 0, 0),
     });
   }
@@ -239,26 +249,27 @@ export async function createLabelPDF(
     : 10;
 
   // Item Number with prefix - bold and larger
-  page.drawText(truncateText(`Item: ${asset.itemNumber}`, 28), {
+  const itemLine = boldText(truncateText(`Item: ${asset.itemNumber}`, 28));
+  page.drawText(itemLine.text, {
     x: textX,
     y: textY,
     size: boldFontSize,
-    font: boldFont,
+    font: itemLine.font,
     color: rgb(0, 0, 0),
   });
   textY -= lineHeight;
 
   // Model (always shown) - auto-fit to available width
   if (asset.model) {
-    const modelText = asset.manufacturer?.name
-      ? `${asset.manufacturer.name} ${asset.model}`
-      : asset.model;
+    const { text: modelText, font: modelFont } = boldText(
+      asset.manufacturer?.name ? `${asset.manufacturer.name} ${asset.model}` : asset.model
+    );
     const maxModelFontSize = 8;
     const minModelFontSize = 5;
 
     // Calculate font size to fit text within available width
     let modelFontSize = maxModelFontSize;
-    let modelWidth = boldFont.widthOfTextAtSize(modelText, modelFontSize);
+    let modelWidth = modelFont.widthOfTextAtSize(modelText, modelFontSize);
 
     // Scale down if text is too wide
     if (modelWidth > textAreaWidth) {
@@ -269,7 +280,7 @@ export async function createLabelPDF(
       x: textX,
       y: textY,
       size: modelFontSize,
-      font: boldFont,
+      font: modelFont,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -277,11 +288,12 @@ export async function createLabelPDF(
 
   // Serial Number (always shown, under Model)
   if (asset.serialNumber) {
-    page.drawText(truncateText(`S/N: ${asset.serialNumber}`, 30), {
+    const serialLine = boldText(truncateText(`S/N: ${asset.serialNumber}`, 30));
+    page.drawText(serialLine.text, {
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: serialLine.font,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -289,11 +301,12 @@ export async function createLabelPDF(
 
   // Hostname on its own line
   if (opts.showHostname && asset.hostname) {
-    page.drawText(truncateText(asset.hostname, 30), {
+    const hostnameLine = boldText(truncateText(asset.hostname, 30));
+    page.drawText(hostnameLine.text, {
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: hostnameLine.font,
       color: rgb(0, 0, 0),
     });
     textY -= lineHeight;
@@ -301,18 +314,19 @@ export async function createLabelPDF(
 
   // IP Address on its own line
   if (opts.showIpAddress && asset.ipAddress) {
-    page.drawText(truncateText(asset.ipAddress, 30), {
+    const ipLine = boldText(truncateText(asset.ipAddress, 30));
+    page.drawText(ipLine.text, {
       x: textX,
       y: textY,
       size: fontSize,
-      font: boldFont,
+      font: ipLine.font,
       color: rgb(0, 0, 0),
     });
   }
 
   // Organization Name - centered at bottom, auto-fit to fill width
   if (asset.organizationName) {
-    const orgText = asset.organizationName;
+    const { text: orgText, font: orgFont } = boldText(asset.organizationName);
     // Bordered variant keeps the org text at least 0.5mm clear of the border. The border
     // itself is a stroked rectangle centred on the borderInset line, so its ink extends a
     // further borderWidth/2 inward - that half-stroke has to be added to borderInset before
@@ -341,12 +355,12 @@ export async function createLabelPDF(
 
     // Calculate font size to fit text within available width
     let orgFontSize = maxFontSize;
-    let orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
+    let orgWidth = orgFont.widthOfTextAtSize(orgText, orgFontSize);
 
     // Scale down if text is too wide
     if (orgWidth > availableWidth) {
       orgFontSize = Math.max(minFontSize, (availableWidth / orgWidth) * maxFontSize);
-      orgWidth = boldFont.widthOfTextAtSize(orgText, orgFontSize);
+      orgWidth = orgFont.widthOfTextAtSize(orgText, orgFontSize);
     }
 
     // Advance-width centering is symmetric on paper, but on real prints the gap reads
@@ -359,7 +373,7 @@ export async function createLabelPDF(
       x: (LABEL_WIDTH_PT - orgWidth) / 2 - orgOpticalOffsetPt,
       y: orgY,
       size: orgFontSize,
-      font: boldFont,
+      font: orgFont,
       color: rgb(0, 0, 0),
     });
   }

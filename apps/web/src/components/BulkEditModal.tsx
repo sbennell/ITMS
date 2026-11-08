@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { X, Edit2, Loader2 } from 'lucide-react';
 import { api, Asset } from '../lib/api';
-import { STATUS_LABELS, CONDITION_LABELS } from '../lib/utils';
+import { STATUS_LABELS, CONDITION_LABELS, todayLocal } from '../lib/utils';
 
 interface BulkEditModalProps {
   assetIds: string[];
@@ -33,8 +33,7 @@ export default function BulkEditModal({ assetIds, onClose, onSuccess }: BulkEdit
   // Auto-set decommission date when status changes to Decommissioned
   useEffect(() => {
     if (status && status.startsWith('Decommissioned')) {
-      const today = new Date().toISOString().split('T')[0];
-      setDecommissionDate(today);
+      setDecommissionDate(todayLocal());
     }
   }, [status]);
 

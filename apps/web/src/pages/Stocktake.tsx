@@ -15,7 +15,7 @@ import {
   AlertCircle,
   Trash2
 } from 'lucide-react';
-import { api, Stocktake as StocktakeType } from '../lib/api';
+import { api, Asset, Stocktake as StocktakeType } from '../lib/api';
 import { cn, formatDate, CONDITION_LABELS } from '../lib/utils';
 import { playBeep } from '../lib/audio';
 
@@ -57,6 +57,11 @@ const CONDITION_BANNER_COLORS: Record<string, string> = {
   POOR: 'bg-red-100 border-red-300 text-red-900',
   NON_FUNCTIONAL: 'bg-gray-100 border-gray-300 text-gray-900'
 };
+
+function assignedName(asset?: Asset): string | null {
+  if (asset?.student) return `${asset.student.firstName} ${asset.student.surname}`;
+  return asset?.assignedTo || null;
+}
 
 export default function Stocktake() {
   const [selectedStocktake, setSelectedStocktake] = useState<string | null>(null);
@@ -449,7 +454,7 @@ function StocktakeDetail({
       record.asset?.itemNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.asset?.serialNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.asset?.model?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.asset?.assignedTo?.toLowerCase().includes(searchQuery.toLowerCase());
+      assignedName(record.asset)?.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesFilter = filterVerified === 'all' ||
       (filterVerified === 'verified' && record.verified) ||
@@ -764,7 +769,7 @@ function StocktakeDetail({
                       {record.asset?.location?.name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {record.asset?.assignedTo || '-'}
+                      {assignedName(record.asset) || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {record.verifiedAt ? formatDate(record.verifiedAt) : '-'}
