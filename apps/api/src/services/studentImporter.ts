@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
-import { parseCsvWithRows, CsvRow } from '../lib/csv.js';
+import { parseCsvHeaders, parseCsvWithRows, CsvRow } from '../lib/csv.js';
 import { Cell, Workbook } from 'exceljs';
 import path from 'path';
 
@@ -61,8 +61,7 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     const importedStudentKeys = new Set<string>();
 
     // Upsert students
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (const row of rows) {
       const rowNum = row.rowNumber;
 
       // Skip students with "Left" status (case-insensitive)
@@ -143,16 +142,17 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
     // Handle students removed from CSV or with "Left" status: delete them and unlink their assets
     try {
       const allStudents = await prisma.student.findMany({
-        select: { id: true, firstName: true, surname: true, status: true }
+        select: { id: true, firstName: true, surname: true, status: true, birthdate: true }
       });
 
       let deleted = 0;
       for (const student of allStudents) {
-        // Check if this student is in the current import
-        const isInThisImport = Array.from(importedStudentKeys).some(key => {
-          // Key format: "firstName|surname|ISO-date-or-empty"
-          return key.startsWith(`${student.firstName}|${student.surname}|`);
-        });
+        // Key format: "firstName|surname|ISO-date-or-empty". A row with no birthdate
+        // cannot tell same-named students apart, so it keeps all of them.
+        const nameKey = `${student.firstName}|${student.surname}|`;
+        const isInThisImport =
+          importedStudentKeys.has(`${nameKey}${student.birthdate?.toISOString() || ''}`) ||
+          importedStudentKeys.has(nameKey);
 
         // Delete if: not in current import OR has "Left" status (case-insensitive)
         if (!isInThisImport || student.status?.toLowerCase() === 'left') {
@@ -236,7 +236,7 @@ async function parseFile(
 
   if (ext === '.csv') {
     return parseCsvFile(filePath, columnMapping);
-  } else if (['.xlsx', '.xls'].includes(ext)) {
+  } else if (ext === '.xlsx') {
     return parseExcelFile(filePath, columnMapping);
   }
 
@@ -262,6 +262,23 @@ function cellText(cell: Cell): string {
   const value = cell.value as any;
   const date = value instanceof Date ? value : value?.result;
   return date instanceof Date ? date.toISOString().split('T')[0] : cell.text;
+}
+
+/**
+ * Reads the column headers from a CSV or Excel import file.
+ */
+export async function readImportHeaders(filePath: string): Promise<string[]> {
+  const content = readFileSync(filePath);
+
+  if (path.extname(filePath).toLowerCase() === '.xlsx') {
+    const workbook = new Workbook();
+    await workbook.xlsx.load(content as any);
+    const headers: string[] = [];
+    workbook.getWorksheet(1)?.getRow(1).eachCell((cell) => headers.push(cellText(cell)));
+    return headers;
+  }
+
+  return parseCsvHeaders(content.toString('utf-8'));
 }
 
 /**

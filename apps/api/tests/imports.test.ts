@@ -143,7 +143,10 @@ test('students sharing a name with different birthdates stay separate', async ()
   await server.prisma.student.deleteMany();
   await server.prisma.student.create({ data: { firstName: 'John', surname: 'Smith', birthdate: new Date('2010-01-15') } });
 
-  await runStudentWorkbookImport([['John', 'Smith', '7A', 'Active', new Date(Date.UTC(2011, 5, 20)), null]]);
+  await runStudentWorkbookImport([
+    ['John', 'Smith', '7A', 'Active', new Date(Date.UTC(2010, 0, 15)), null],
+    ['John', 'Smith', '8B', 'Active', new Date(Date.UTC(2011, 5, 20)), null]
+  ]);
 
   assert.deepEqual((await students()).map(birthdate).sort(), ['2010-01-15', '2011-06-20']);
 });

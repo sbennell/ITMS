@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { requireAuth, requirePermission } from './auth.js';
+import { parseLimit, parseSkip } from '../lib/pagination.js';
 
 const router = Router();
 
@@ -38,8 +39,8 @@ router.get('/warranty', async (req: Request, res: Response) => {
     } = req.query;
 
     const daysNum = parseInt(days as string, 10);
-    const skipNum = parseInt(skip as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const skipNum = parseSkip(skip);
+    const limitNum = parseLimit(limit);
     const now = new Date();
     const thresholdDate = new Date(now.getTime() + daysNum * 24 * 60 * 60 * 1000);
 
@@ -149,8 +150,8 @@ router.get('/condition', async (req: Request, res: Response) => {
   try {
     const { category, location, skip = '0', limit = '50' } = req.query;
 
-    const skipNum = parseInt(skip as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const skipNum = parseSkip(skip);
+    const limitNum = parseLimit(limit);
 
     const where = buildBaseWhere(category as string, location as string);
 
@@ -263,8 +264,8 @@ router.get('/value', async (req: Request, res: Response) => {
   try {
     const { category, location, manufacturer, skip = '0', limit = '50' } = req.query;
 
-    const skipNum = parseInt(skip as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const skipNum = parseSkip(skip);
+    const limitNum = parseLimit(limit);
 
     const where = buildBaseWhere(category as string, location as string);
 
@@ -429,8 +430,8 @@ router.get('/lifecycle', async (req: Request, res: Response) => {
     const { category, location, eolDays = '365', skip = '0', limit = '50' } = req.query;
 
     const eolDaysNum = parseInt(eolDays as string, 10);
-    const skipNum = parseInt(skip as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const skipNum = parseSkip(skip);
+    const limitNum = parseLimit(limit);
     const now = new Date();
 
     const where = buildBaseWhere(category as string, location as string);
@@ -580,8 +581,8 @@ router.get('/stocktake-review', async (req: Request, res: Response) => {
     const { year, status, category, location, overdueMonths = '12', skip = '0', limit = '50' } = req.query;
 
     const overdueMonthsNum = parseInt(overdueMonths as string, 10);
-    const skipNum = parseInt(skip as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const skipNum = parseSkip(skip);
+    const limitNum = parseLimit(limit);
     const now = new Date();
     const overdueDate = new Date(now.getFullYear(), now.getMonth() - overdueMonthsNum, now.getDate());
 

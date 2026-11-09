@@ -7,6 +7,14 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 
 const MIN_PASSWORD_LENGTH = 8;
+
+// Compared against for unknown usernames, so they take as long to reject as real ones
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
+// A new session id at login stops a session id planted beforehand from being reused
+const regenerateSession = (req: Request) =>
+  new Promise<void>((resolve, reject) => req.session.regenerate((err) => (err ? reject(err) : resolve())));
+
 const USER_ROLES = ['ADMIN', 'USER'] as const;
 
 const loginRateLimiter = rateLimit({
@@ -183,6 +191,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
         }
       });
 
+      await regenerateSession(req);
       req.session.authenticated = true;
       req.session.userId = user.id;
       req.session.username = user.username;
@@ -221,18 +230,14 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
       where: { username: username.toLowerCase() }
     });
 
-    if (!user) {
+    // Verify password
+    const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !valid) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     if (!user.isActive) {
       return res.status(401).json({ error: 'Account is disabled' });
-    }
-
-    // Verify password
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     // Update last login
@@ -242,6 +247,7 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     });
 
     // Set session
+    await regenerateSession(req);
     req.session.authenticated = true;
     req.session.userId = user.id;
     req.session.username = user.username;
@@ -380,11 +386,10 @@ router.post('/users', requireAuth, requireAdmin, async (req: Request, res: Respo
     return res.status(400).json({ error: `Role must be one of: ${USER_ROLES.join(', ')}` });
   }
 
+  // Anything not granted is denied, because the database defaults allow most areas
   const permissionData: Partial<Record<PermissionFlag, boolean>> = {};
   for (const flag of PERMISSION_FLAGS) {
-    if (permissions[flag] !== undefined) {
-      permissionData[flag] = !!permissions[flag];
-    }
+    permissionData[flag] = !!permissions[flag];
   }
 
   try {

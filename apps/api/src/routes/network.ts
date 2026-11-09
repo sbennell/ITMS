@@ -34,8 +34,9 @@ function parseCidr(cidr: string): { networkInt: number; prefixLen: number; count
   // Check that host bits are zero (valid network address)
   if ((networkInt & ~mask) !== 0) return null;
 
-  // Calculate number of usable host IPs (total - network - broadcast)
-  const count = prefixLen === 32 ? 1 : (1 << (32 - prefixLen)) - 2;
+  // Calculate number of usable host IPs (total - network - broadcast). A /31 is a
+  // point-to-point link with no network or broadcast address, so both are usable.
+  const count = prefixLen >= 31 ? 1 << (32 - prefixLen) : (1 << (32 - prefixLen)) - 2;
 
   return { networkInt: maskedNetwork, prefixLen, count };
 }
@@ -50,9 +51,9 @@ function expandCidr(cidr: string): string[] {
   const { networkInt, prefixLen, count } = parsed;
   const ips: string[] = [];
 
-  // For /32, return the single IP; otherwise start at .1 and end at .254 (skip network and broadcast)
-  const start = prefixLen === 32 ? 0 : 1;
-  const end = prefixLen === 32 ? 1 : count + 1;
+  // For /31 and /32, return every IP; otherwise start at .1 and end at .254 (skip network and broadcast)
+  const start = prefixLen >= 31 ? 0 : 1;
+  const end = prefixLen >= 31 ? count : count + 1;
 
   for (let i = start; i < end; i++) {
     const n = (networkInt + i) >>> 0;

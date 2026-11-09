@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
-import { readFileSync } from 'fs';
 import ExcelJS from 'exceljs';
-import { requireAuth, requirePermission } from './auth.js';
-import { runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
+import { requireAdmin, requireAuth, requirePermission } from './auth.js';
+import { parseLimit, parsePage } from '../lib/pagination.js';
+import { readImportHeaders, runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
 import { canViewStudentPasswords, redactStudentPassword } from '../lib/redact.js';
 
@@ -88,8 +88,8 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cannot sort by this field' });
     }
 
-    const pageNum = parseInt(page as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const pageNum = parsePage(page);
+    const limitNum = parseLimit(limit);
     const skip = (pageNum - 1) * limitNum;
 
     const where = buildStudentWhere(req.query);
@@ -256,7 +256,7 @@ router.get('/home-groups', async (req: Request, res: Response) => {
 });
 
 // Get import file headers
-router.get('/import/headers', async (req: Request, res: Response) => {
+router.get('/import/headers', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
@@ -266,14 +266,7 @@ router.get('/import/headers', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Import file not configured' });
     }
 
-    const filePath = fileSetting.value.replace(/\\/g, '/');
-    const content = readFileSync(filePath, 'utf8');
-    const firstLine = content.split(/\r?\n/)[0];
-    const headers = firstLine
-      .split(',')
-      .map(h => h.trim().replace(/^"|"$/g, ''));
-
-    res.json(headers);
+    res.json(await readImportHeaders(fileSetting.value.replace(/\\/g, '/')));
   } catch (error: any) {
     if (error.code === 'ENOENT') {
       return res.status(404).json({ error: 'Import file not found' });
@@ -710,7 +703,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Manual import trigger
-router.post('/import/run', async (req: Request, res: Response) => {
+router.post('/import/run', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
@@ -723,7 +716,7 @@ router.post('/import/run', async (req: Request, res: Response) => {
 });
 
 // Reconcile assets by student name
-router.post('/reconcile-assets', async (req: Request, res: Response) => {
+router.post('/reconcile-assets', requireAdmin, async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {

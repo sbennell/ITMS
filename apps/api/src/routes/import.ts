@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
-import { onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
+import { hasImportedValues, onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
 import ExcelJS from 'exceljs';
 import { requireAuth, requireAdmin } from './auth.js';
 
@@ -526,7 +526,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
         }
 
         // Only add non-empty rows
-        if (record.itemNumber) {
+        if (hasImportedValues(record)) {
           records.push(record);
         }
       });
@@ -596,8 +596,7 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
     };
 
     // Process each row
-    for (let i = 0; i < records.length; i++) {
-      const row = records[i];
+    for (const row of records) {
       const rowNum = row.rowNumber;
 
       try {
@@ -772,12 +771,16 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
             // Update the asset
             await prisma.asset.update({
               where: { id: existingAsset.id },
-              data: onlyImportedColumns(assetData, row, {
-                manufacturerId: 'manufacturer',
-                categoryId: 'category',
-                supplierId: 'supplier',
-                locationId: 'location'
-              })
+              data: {
+                ...onlyImportedColumns(assetData, row, {
+                  manufacturerId: 'manufacturer',
+                  categoryId: 'category',
+                  supplierId: 'supplier',
+                  locationId: 'location'
+                }),
+                // Exports write a linked student's name here, which must not unlink them
+                ...(existingAsset.studentId && { assignedTo: undefined })
+              }
             });
 
             // If any IPs are provided, replace all IPs

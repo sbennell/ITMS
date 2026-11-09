@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, requirePermission } from './auth.js';
 import { itemNumberPageIds } from '../lib/itemSort.js';
+import { parseLimit, parsePage } from '../lib/pagination.js';
 import { maskAuditPasswords, redactAssetPassword } from '../lib/redact.js';
 
 const router = Router();
@@ -43,8 +44,8 @@ router.get('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cannot sort by this field' });
     }
 
-    const pageNum = parseInt(page as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const pageNum = parsePage(page);
+    const limitNum = parseLimit(limit);
     const skip = (pageNum - 1) * limitNum;
 
     // Build where clause
@@ -814,16 +815,6 @@ router.put('/:id', async (req: Request, res: Response) => {
       return fieldValue;
     };
 
-    // Mask sensitive fields for audit log
-    const maskSensitiveValue = (fieldName: string, value: any): any => {
-      if (!value) return value;
-      // Mask password fields
-      if (['devicePassword'].includes(fieldName)) {
-        return typeof value === 'string' ? '••••••••••' : value;
-      }
-      return value;
-    };
-
     // Build before/after objects with only changed fields
     const beforeData: Record<string, any> = {};
     const afterData: Record<string, any> = {};
@@ -888,6 +879,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     // Now delete the asset (auditLogs and attachments have cascade delete)
     await prisma.asset.delete({ where: { id } });
+
+    // The asset's audit history is deleted with it, so record who removed it in the service log
+    console.log(`[Audit] Asset ${asset.itemNumber} deleted by ${req.session.username}`);
 
     res.json({ success: true, message: 'Asset deleted' });
   } catch (error) {

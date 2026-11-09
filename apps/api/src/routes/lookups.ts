@@ -8,6 +8,9 @@ const router = Router();
 // Apply auth to all routes
 router.use(requireAuth);
 
+// The only settings read by screens non-admins can reach
+const NON_ADMIN_SETTINGS = ['organization', 'schoolType'];
+
 // ============ CATEGORIES ============
 
 router.get('/categories', async (req: Request, res: Response) => {
@@ -513,6 +516,10 @@ router.delete('/filters/:id', requireAdmin, async (req: Request, res: Response) 
 router.get('/settings/:key', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
   const key = req.params.key as string;
+
+  if (req.session.role !== 'ADMIN' && !NON_ADMIN_SETTINGS.includes(key)) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
 
   try {
     const setting = await prisma.settings.findUnique({

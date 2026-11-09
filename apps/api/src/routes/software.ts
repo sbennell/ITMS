@@ -5,8 +5,9 @@ import fs from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import ExcelJS from 'exceljs';
-import { onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
+import { hasImportedValues, onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
 import { itemNumberPageIds } from '../lib/itemSort.js';
+import { parseLimit, parsePage } from '../lib/pagination.js';
 import { requireAuth, requirePermission, requireAdmin } from './auth.js';
 
 const router = Router();
@@ -145,8 +146,8 @@ router.get('/', async (req: Request, res: Response) => {
       sortOrder = 'asc'
     } = req.query;
 
-    const pageNum = parseInt(page as string, 10);
-    const limitNum = parseInt(limit as string, 10);
+    const pageNum = parsePage(page);
+    const limitNum = parseLimit(limit);
     const skip = (pageNum - 1) * limitNum;
 
     const where: Prisma.SoftwareWhereInput = {};
@@ -430,7 +431,7 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
           record[key] = getCellString(cell);
         }
 
-        if (record.itemNumber) {
+        if (hasImportedValues(record)) {
           records.push(record);
         }
       });
@@ -488,8 +489,7 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       errors: [] as { row: number; message: string }[]
     };
 
-    for (let i = 0; i < records.length; i++) {
-      const row = records[i];
+    for (const row of records) {
       const rowNum = row.rowNumber;
 
       try {
@@ -1069,7 +1069,7 @@ router.get('/:id/attachments/:attachmentId', async (req: Request, res: Response)
 
   try {
     const attachment = await prisma.softwareAttachment.findUnique({ where: { id: attachmentId } });
-    if (!attachment) {
+    if (!attachment || attachment.softwareId !== req.params.id) {
       return res.status(404).json({ error: 'Attachment not found' });
     }
 
@@ -1096,7 +1096,7 @@ router.delete('/:id/attachments/:attachmentId', async (req: Request, res: Respon
 
   try {
     const attachment = await prisma.softwareAttachment.findUnique({ where: { id: attachmentId } });
-    if (!attachment) {
+    if (!attachment || attachment.softwareId !== id) {
       return res.status(404).json({ error: 'Attachment not found' });
     }
 

@@ -81,7 +81,7 @@ export async function closeStudentImportWatcher(): Promise<void> {
 function handleFileChange(filePath: string, prisma: PrismaClient): void {
   // Only watch CSV and Excel files
   const ext = filePath.split('.').pop()?.toLowerCase();
-  if (!['csv', 'xlsx', 'xls'].includes(ext || '')) {
+  if (!['csv', 'xlsx'].includes(ext || '')) {
     return;
   }
 

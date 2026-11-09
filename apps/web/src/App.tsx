@@ -50,9 +50,11 @@ export function firstAccessibleArea(hasPermission: AuthContextType['hasPermissio
   return AREA_ROUTES.find((r) => hasPermission(r.flag))?.path ?? null;
 }
 
-class ErrorBoundary extends Component<{ children: ReactNode }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -60,6 +62,17 @@ class ErrorBoundary extends Component<{ children: ReactNode }> {
   }
 
   render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+          <p className="text-gray-700">Something went wrong displaying this page.</p>
+          <button onClick={() => window.location.reload()} className="btn btn-primary">
+            Reload
+          </button>
+        </div>
+      );
+    }
+
     return this.props.children;
   }
 }
@@ -104,8 +117,6 @@ function AreaRedirect() {
 }
 
 export default function App() {
-  console.log('App component rendering');
-
   return (
     <ErrorBoundary>
       <Routes>

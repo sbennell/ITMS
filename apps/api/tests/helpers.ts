@@ -91,7 +91,7 @@ export async function startServer() {
       body: body === undefined ? undefined : JSON.stringify(body)
     });
 
-  const upload = (urlPath: string, cookie: string, filename: string, content: string, type: string) => {
+  const upload = (urlPath: string, cookie: string, filename: string, content: string | Buffer, type: string) => {
     const form = new FormData();
     form.append('file', new Blob([content], { type }), filename);
     return send('POST', urlPath, cookie, { body: form });

@@ -404,6 +404,8 @@ function StocktakeDetail({
     }
   });
 
+  const actionError = verifyMutation.error || unverifyMutation.error || updateStatusMutation.error || deleteMutation.error;
+
   const handleQuickVerify = (e: React.FormEvent) => {
     e.preventDefault();
     const input = quickVerifyInput.trim();
@@ -492,7 +494,11 @@ function StocktakeDetail({
         <div className="flex gap-2">
           {stocktake.status === 'IN_PROGRESS' && (
             <button
-              onClick={() => updateStatusMutation.mutate('COMPLETED')}
+              onClick={() => {
+                if (window.confirm('Complete this stocktake? Review dates and condition changes will be applied to verified assets, and this cannot be undone.')) {
+                  updateStatusMutation.mutate('COMPLETED');
+                }
+              }}
               disabled={updateStatusMutation.isPending}
               className="btn btn-primary"
             >
@@ -510,6 +516,12 @@ function StocktakeDetail({
           </button>
         </div>
       </div>
+
+      {actionError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          {(actionError as Error).message}
+        </div>
+      )}
 
       {/* Progress */}
       <div className="card p-4">

@@ -40,14 +40,22 @@ export default function BulkEditModal({ assetIds, onClose, onSuccess }: BulkEdit
   const updateMutation = useMutation({
     mutationFn: (fields: Partial<Asset>) =>
       api.bulkUpdateAssets({ ids: assetIds, fields }),
-    onSuccess: () => {
-      // Auto-close after 1.5s on success
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1500);
+    onSuccess: (data) => {
+      // Auto-close after 1.5s on full success; stay open so any failures can be read
+      if (data.failed === 0) {
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1500);
+      }
     }
   });
+
+  // After an update the list needs refreshing, even if the dialog was kept open
+  const handleClose = () => {
+    if (updateMutation.isSuccess) onSuccess();
+    onClose();
+  };
 
   const handleSubmit = () => {
     setSubmitError('');
@@ -77,7 +85,7 @@ export default function BulkEditModal({ assetIds, onClose, onSuccess }: BulkEdit
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold">Edit {assetIds.length} Assets</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 hover:bg-gray-100 rounded"
           >
             <X className="w-5 h-5" />
@@ -211,10 +219,10 @@ export default function BulkEditModal({ assetIds, onClose, onSuccess }: BulkEdit
         {/* Footer */}
         <div className="flex justify-end gap-2 p-4 border-t bg-gray-50">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="btn btn-secondary"
           >
-            Cancel
+            {updateMutation.isSuccess ? 'Close' : 'Cancel'}
           </button>
           <button
             onClick={handleSubmit}

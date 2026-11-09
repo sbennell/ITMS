@@ -22,6 +22,10 @@ import {
 const DYMO_LABEL_TYPES = new Set(['dymo-1933081', 'dymo-1933081-bordered', 'dymo-labelmanager']);
 const DYMO_ONLY_VIA_CONNECT_MESSAGE = 'DYMO labels can only be printed via DYMO Connect in the browser - use the print dialog\'s DYMO print option instead of server printing or PDF download.';
 
+const MAX_COPIES = 50;
+const INVALID_COPIES_MESSAGE = `Copies must be a whole number from 1 to ${MAX_COPIES}`;
+const isValidCopies = (copies: unknown) => Number.isInteger(copies) && (copies as number) >= 1 && (copies as number) <= MAX_COPIES;
+
 const router = Router();
 
 // Get label preview as PNG image
@@ -81,6 +85,10 @@ router.post('/print/:assetId', requireAuth, requirePermission('canAccessAssets')
     const prisma = req.app.locals.prisma as PrismaClient;
     const assetId = req.params.assetId as string;
     const { copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent, labelType } = req.body;
+
+    if (!isValidCopies(copies)) {
+      return res.status(400).json({ error: INVALID_COPIES_MESSAGE });
+    }
 
     const asset = await prisma.asset.findUnique({
       where: { id: assetId },
@@ -153,6 +161,10 @@ router.post('/print-batch', requireAuth, requirePermission('canAccessAssets'), a
   try {
     const prisma = req.app.locals.prisma as PrismaClient;
     const { assetIds, copies = 1, showAssignedTo, showHostname, showIpAddress, qrCodeContent, labelType } = req.body;
+
+    if (!isValidCopies(copies)) {
+      return res.status(400).json({ error: INVALID_COPIES_MESSAGE });
+    }
 
     if (!Array.isArray(assetIds) || assetIds.length === 0) {
       return res.status(400).json({ error: 'assetIds array is required' });

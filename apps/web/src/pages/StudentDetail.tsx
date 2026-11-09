@@ -64,13 +64,15 @@ export default function StudentDetail() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleDownloadLoginCard}
-          className="btn btn-secondary flex items-center gap-2"
-        >
-          <Download size={18} />
-          Login Card
-        </button>
+        {hasPermission('canViewStudentPasswords') && (
+          <button
+            onClick={handleDownloadLoginCard}
+            className="btn btn-secondary flex items-center gap-2"
+          >
+            <Download size={18} />
+            Login Card
+          </button>
+        )}
       </div>
 
       {/* Info Cards */}

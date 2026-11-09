@@ -4,6 +4,45 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.20] - 2026-11-09
+
+### Security
+
+- Running the student sync, asset reconciliation and reading import headers now require an administrator, matching the Settings screens.
+- Non administrators can only read the `organization` and `schoolType` settings.
+- Users created through the API no longer receive access that was not explicitly granted.
+- Login now issues a new session ID, and no longer reveals whether a username exists or an account is disabled unless the correct password is given.
+- Software attachments can only be downloaded or deleted through the software item they belong to.
+
+### Changed
+
+- Student sync: a student no longer in the file is now removed even if another student shares their name. A file row with no birthdate still keeps every student of that name.
+- Importing over an asset linked to a student no longer changes its assignment. Change it on the asset instead.
+- List and report page sizes are limited to 500, and label printing to 50 copies.
+- Deleting an asset now records who deleted it in the service log.
+
+### Fixed
+
+- CSV imports: row numbers stay correct with newlines in header cells or duplicate columns, and a row with the wrong number of columns now reports its spreadsheet row.
+- Excel imports: rows with data but no Item Number now report an error instead of being skipped.
+- Student import: `.xls` files now get a clear error, and column headers are read correctly from `.xlsx` files and from CSV headers containing commas.
+- `/31` subnets now list their two addresses.
+- Asset and software lists no longer fail on invalid page values.
+- A display error now shows a page with a Reload button instead of a blank screen.
+- Stocktake: completing now asks for confirmation, and failed actions show an error.
+- Bulk edit stays open when some assets fail, so the errors can be read.
+- The Login Card button on a student's page is hidden from users who cannot use it.
+
+### Technical Details
+
+- `apps/api/src/lib/csv.ts`: headers are now matched in `parseCsvWithRows`. Added `parseCsvHeaders` and `hasImportedValues`.
+- `apps/api/src/lib/pagination.ts`: added shared page, skip and limit parsing.
+- `apps/api/src/routes/auth.ts`, `apps/api/src/routes/lookups.ts`, `apps/api/src/routes/students.ts`, `apps/api/src/routes/software.ts`, `apps/api/src/routes/assets.ts`, `apps/api/src/routes/import.ts`, `apps/api/src/routes/labels.ts`, `apps/api/src/routes/network.ts`, `apps/api/src/routes/reports.ts`, `apps/api/src/services/studentImporter.ts`, `apps/api/src/services/studentImportWatcher.ts`: changes for the items above.
+- `apps/web/src/App.tsx`, `apps/web/src/components/BulkEditModal.tsx`, `apps/web/src/pages/Stocktake.tsx`, `apps/web/src/pages/StudentDetail.tsx`: client side changes for the items above.
+- `apps/api/tests/cleanup.test.ts`: added tests for the items above.
+
+---
+
 ## [1.35.19] - 2026-11-09
 
 ### Changed
