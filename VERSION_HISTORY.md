@@ -4,6 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.19] - 2026-11-09
+
+### Changed
+
+- The automatic student sync now runs only when the import file changes. It no longer runs every time the service starts. A change made while the service is stopped is picked up the next time the file changes, or with the manual import in Settings.
+
+### Technical Details
+
+- `apps/api/src/services/studentImportWatcher.ts`: the watcher always ignores a file that already exists when it starts.
+- `apps/api/tests/watcher.test.ts`: added a startup test.
+
+---
+
 ## [1.35.18] - 2026-11-09
 
 ### Fixed
