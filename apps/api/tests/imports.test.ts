@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { appendFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
+import { Workbook } from 'exceljs';
 import { startServer, TestServer, waitFor } from './helpers';
 
 const CSV = 'text/csv';
@@ -14,7 +15,7 @@ before(async () => {
   server = await startServer();
   admin = await server.login('admin');
   await server.call('PUT', '/lookups/settings/studentCsvMapping', admin, {
-    value: JSON.stringify({ firstName: 'First', surname: 'Last', homeGroup: 'Group', status: 'Status' })
+    value: JSON.stringify({ firstName: 'First', surname: 'Last', homeGroup: 'Group', status: 'Status', birthdate: 'DOB', email: 'Email' })
   });
 });
 after(() => server.stop());
@@ -38,7 +39,20 @@ async function runStudentImport(csv: string) {
   return (await server.call('POST', '/students/import/run', admin)).json();
 }
 
+async function runStudentWorkbookImport(rows: unknown[][]) {
+  const workbook = new Workbook();
+  const sheet = workbook.addWorksheet('Students');
+  sheet.addRow(['First', 'Last', 'Group', 'Status', 'DOB', 'Email']);
+  rows.forEach((row) => sheet.addRow(row));
+
+  const file = path.join(server.dir, `students-${fileCount++}.xlsx`);
+  await workbook.xlsx.writeFile(file);
+  await server.call('PUT', '/lookups/settings/studentImportFile', admin, { value: file });
+  return (await server.call('POST', '/students/import/run', admin)).json();
+}
+
 const students = () => server.prisma.student.findMany({ orderBy: { firstName: 'asc' } });
+const birthdate = (student: { birthdate: Date | null }) => student.birthdate?.toISOString().split('T')[0];
 
 test('a header only file changes nothing', async () => {
   const result = await runStudentImport('First,Last,Group,Status\n');
@@ -70,6 +84,68 @@ test('a normal sync updates students and removes those no longer in the file', a
   const remaining = await students();
   assert.equal(remaining.length, 1);
   assert.equal(remaining[0].homeGroup, '9Z');
+});
+
+test('student workbooks read dates, links, rich text and formulas as their values', async () => {
+  await server.prisma.student.deleteMany();
+
+  const result = await runStudentWorkbookImport([
+    ['Anna', 'Lee', 7, 'Active', new Date(Date.UTC(2010, 0, 15)), { text: 'anna@example.com', hyperlink: 'mailto:anna@example.com' }],
+    [
+      { richText: [{ text: 'Bo' }, { text: 'b' }] },
+      'Ng',
+      { formula: '"8"&"B"', result: '8B' },
+      'Active',
+      { formula: 'DATE(2011,2,3)', result: new Date(Date.UTC(2011, 1, 3)) },
+      null
+    ],
+    ['Cara', 'Tan', '9C', 'Active', '25/12/2012', 'cara@example.com']
+  ]);
+  assert.deepEqual(result.errors.filter((error: any) => error.row !== 0), []);
+
+  const [anna, bob, cara] = await students();
+  assert.equal(birthdate(anna), '2010-01-15');
+  assert.equal(anna.email, 'anna@example.com');
+  assert.equal(anna.homeGroup, '7');
+  assert.equal(bob.firstName, 'Bob');
+  assert.equal(bob.homeGroup, '8B');
+  assert.equal(birthdate(bob), '2011-02-03');
+  assert.equal(bob.email, null);
+  assert.equal(birthdate(cara), '2012-12-25');
+});
+
+test('the same student in a CSV and a workbook is not duplicated', async () => {
+  await server.prisma.student.deleteMany();
+  await runStudentImport('First,Last,Group,Status,DOB,Email\nAnna,Lee,7A,Active,15/01/2010,\n');
+
+  await runStudentWorkbookImport([['Anna', 'Lee', '8B', 'Active', new Date(Date.UTC(2010, 0, 15)), null]]);
+
+  const all = await students();
+  assert.equal(all.length, 1);
+  assert.equal(all[0].homeGroup, '8B');
+});
+
+test('a student saved without a birthdate gains it instead of being duplicated', async () => {
+  const before = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Anna' } });
+
+  await runStudentWorkbookImport([
+    ['Anna', 'Lee', '7A', 'Active', new Date(Date.UTC(2010, 0, 15)), null],
+    ['Bob', 'Ng', '8B', 'Active', null, null]
+  ]);
+
+  const all = await students();
+  assert.equal(all.length, 2);
+  assert.equal(all[0].id, before.id);
+  assert.equal(birthdate(all[0]), '2010-01-15');
+});
+
+test('students sharing a name with different birthdates stay separate', async () => {
+  await server.prisma.student.deleteMany();
+  await server.prisma.student.create({ data: { firstName: 'John', surname: 'Smith', birthdate: new Date('2010-01-15') } });
+
+  await runStudentWorkbookImport([['John', 'Smith', '7A', 'Active', new Date(Date.UTC(2011, 5, 20)), null]]);
+
+  assert.deepEqual((await students()).map(birthdate).sort(), ['2010-01-15', '2011-06-20']);
 });
 
 test('a new import path takes effect without a restart, but does not import until the file changes', async () => {

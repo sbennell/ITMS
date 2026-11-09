@@ -4,6 +4,20 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.18] - 2026-11-09
+
+### Fixed
+
+- Student import from Excel: dates, links, rich text and formulas are now read as their values. Previously date cells lost the birthdate and link cells saved "[object Object]" as the email.
+- Student import: a student saved without a birthdate is now updated with it when a file provides one, instead of being created a second time.
+
+### Technical Details
+
+- `apps/api/src/services/studentImporter.ts`: added `cellText` and a fallback lookup for records with no birthdate.
+- `apps/api/tests/imports.test.ts`: added student workbook tests.
+
+---
+
 ## [1.35.17] - 2026-11-09
 
 ### Security

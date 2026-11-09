@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { parseCsvWithRows, CsvRow } from '../lib/csv.js';
-import { Workbook } from 'exceljs';
+import { Cell, Workbook } from 'exceljs';
 import path from 'path';
 
 export interface ImportResult {
@@ -88,19 +88,17 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         importedStudentKeys.add(studentKey);
 
         // Upsert by firstName + surname + birthdate combination
-        const existing = await prisma.student.findFirst({
-          where: {
-            firstName: row.firstName,
-            surname: row.surname,
-            birthdate: birthdate
-          }
-        });
+        // A record saved without a birthdate is the same student once the date is known
+        const nameMatch = { firstName: row.firstName, surname: row.surname };
+        const existing = await prisma.student.findFirst({ where: { ...nameMatch, birthdate } })
+          ?? (birthdate ? await prisma.student.findFirst({ where: { ...nameMatch, birthdate: null } }) : null);
 
         if (existing) {
           // Update existing students with new data from CSV
           await prisma.student.update({
             where: { id: existing.id },
             data: {
+              ...(birthdate && { birthdate }),
               homeGroup: row.homeGroup || null,
               schoolYear: row.schoolYear || null,
               status: (row.status ? normalizeStatus(row.status) : 'Active'),
@@ -257,6 +255,16 @@ function parseCsvFile(
 }
 
 /**
+ * Reads a cell as text. Dates become YYYY-MM-DD, which parseDate turns into the same
+ * value as a CSV date, so a student's lookup matches whichever file type is imported.
+ */
+function cellText(cell: Cell): string {
+  const value = cell.value as any;
+  const date = value instanceof Date ? value : value?.result;
+  return date instanceof Date ? date.toISOString().split('T')[0] : cell.text;
+}
+
+/**
  * Parses an Excel file.
  */
 async function parseExcelFile(
@@ -277,7 +285,7 @@ async function parseExcelFile(
 
   // Extract headers
   headerRow.eachCell((cell, colNum) => {
-    headers[colNum - 1] = cell.value?.toString() || '';
+    headers[colNum - 1] = cellText(cell);
   });
 
   // Extract data rows
@@ -287,7 +295,7 @@ async function parseExcelFile(
 
     headers.forEach((header, idx) => {
       const cell = row.getCell(idx + 1);
-      record[header] = cell.value?.toString() || '';
+      record[header] = cellText(cell);
     });
 
     // Skip empty rows
