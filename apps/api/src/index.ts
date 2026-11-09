@@ -17,7 +17,7 @@ import networkRoutes from './routes/network.js';
 import reportRoutes from './routes/reports.js';
 import studentRoutes from './routes/students.js';
 import publicRoutes from './routes/public.js';
-import { startStudentImportWatcher, closeStudentImportWatcher } from './services/studentImportWatcher.js';
+import { startStudentImportWatcher, closeStudentImportWatcher, importIfChangedWhileStopped } from './services/studentImportWatcher.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -132,6 +132,7 @@ app.listen(PORT, async () => {
 
   // Initialize student import watcher
   studentImportWatcher = await startStudentImportWatcher(prisma);
+  await importIfChangedWhileStopped(prisma);
 });
 
 export { prisma };

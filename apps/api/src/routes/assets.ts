@@ -877,11 +877,18 @@ router.delete('/:id', async (req: Request, res: Response) => {
     // Delete related records that don't have cascade delete
     await prisma.stocktakeRecord.deleteMany({ where: { assetId: id } });
 
-    // Now delete the asset (auditLogs and attachments have cascade delete)
-    await prisma.asset.delete({ where: { id } });
+    // Audit entries outlive the asset, so this one names what was deleted
+    await prisma.auditLog.create({
+      data: {
+        assetId: id,
+        userId: req.session.userId,
+        action: 'DELETE',
+        changes: JSON.stringify({ itemNumber: asset.itemNumber, serialNumber: asset.serialNumber, model: asset.model }),
+        ipAddress: req.ip
+      }
+    });
 
-    // The asset's audit history is deleted with it, so record who removed it in the service log
-    console.log(`[Audit] Asset ${asset.itemNumber} deleted by ${req.session.username}`);
+    await prisma.asset.delete({ where: { id } });
 
     res.json({ success: true, message: 'Asset deleted' });
   } catch (error) {

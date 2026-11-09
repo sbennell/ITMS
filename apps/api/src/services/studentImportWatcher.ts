@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import chokidar, { FSWatcher } from 'chokidar';
+import { statSync } from 'fs';
 import { runStudentImport } from './studentImporter';
 
 let watcher: FSWatcher | null = null;
@@ -90,22 +91,44 @@ function handleFileChange(filePath: string, prisma: PrismaClient): void {
     clearTimeout(debounceTimer);
   }
 
-  debounceTimer = setTimeout(async () => {
-    try {
-      console.log(`[StudentImportWatcher] Importing file: ${filePath}`);
-      const result = await runStudentImport(prisma);
-      console.log(
-        `[StudentImportWatcher] Import complete: ${result.created} created, ${result.updated} updated, ${result.errors.length} errors`
-      );
+  debounceTimer = setTimeout(() => runAutomaticImport(filePath, prisma), 2000);
+}
 
-      if (result.errors.length > 0) {
-        console.warn('[StudentImportWatcher] Import errors:');
-        result.errors.forEach(err => {
-          console.warn(`  Row ${err.row}: ${err.message}`);
-        });
-      }
-    } catch (error) {
-      console.error('[StudentImportWatcher] Import failed:', error);
+async function runAutomaticImport(filePath: string, prisma: PrismaClient): Promise<void> {
+  try {
+    console.log(`[StudentImportWatcher] Importing file: ${filePath}`);
+    const result = await runStudentImport(prisma, { limitRemovals: true });
+    console.log(
+      `[StudentImportWatcher] Import complete: ${result.created} created, ${result.updated} updated, ${result.errors.length} errors`
+    );
+
+    if (result.errors.length > 0) {
+      console.warn('[StudentImportWatcher] Import errors:');
+      result.errors.forEach(err => {
+        console.warn(`  Row ${err.row}: ${err.message}`);
+      });
     }
-  }, 2000);
+  } catch (error) {
+    console.error('[StudentImportWatcher] Import failed:', error);
+  }
+}
+
+/**
+ * Runs at service start: the watcher cannot see a change made while the service was stopped.
+ */
+export async function importIfChangedWhileStopped(prisma: PrismaClient): Promise<void> {
+  try {
+    const [fileSetting, lastImport] = await Promise.all([
+      prisma.settings.findUnique({ where: { key: 'studentImportFile' } }),
+      prisma.settings.findUnique({ where: { key: 'studentLastImport' } })
+    ]);
+    if (!fileSetting?.value || !lastImport?.value) return;
+
+    const filePath = fileSetting.value.replace(/\\/g, '/');
+    if (statSync(filePath).mtime > new Date(lastImport.value)) {
+      await runAutomaticImport(filePath, prisma);
+    }
+  } catch (error) {
+    console.error('[StudentImportWatcher] Could not check for missed changes:', error);
+  }
 }

@@ -367,8 +367,8 @@ model StocktakeRecord {
 
 model AuditLog {
   id          String   @id @default(cuid())
-  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  assetId     String   @map("asset_id")
+  asset       Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  assetId     String?  @map("asset_id")
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId      String?  @map("user_id")
   action      String

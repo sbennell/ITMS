@@ -3,6 +3,7 @@ import { parse } from 'csv-parse/sync';
 export interface CsvRow {
   record: Record<string, string>;
   rowNumber: number;
+  error?: string;
 }
 
 // Keep only the fields whose column is in the import file, so an update leaves
@@ -47,7 +48,7 @@ export function parseCsvWithRows(content: string, options: { trim?: boolean } = 
 
   return rows.map(({ cells, rowNumber }) => {
     if (cells.length !== header.cells.length) {
-      throw new Error(`Row ${rowNumber} has ${cells.length} columns, expected ${header.cells.length}`);
+      return { record: {}, rowNumber, error: `Row has ${cells.length} columns, expected ${header.cells.length}` };
     }
     return { record: Object.fromEntries(header.cells.map((name, i) => [name, cells[i]])), rowNumber };
   });

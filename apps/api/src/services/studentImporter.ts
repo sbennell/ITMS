@@ -4,6 +4,11 @@ import { parseCsvHeaders, parseCsvWithRows, CsvRow } from '../lib/csv.js';
 import { Cell, Workbook } from 'exceljs';
 import path from 'path';
 
+// An automatic sync refuses to remove more than this, in case the file is incomplete.
+// Both must be exceeded, so normal leavers and small schools are not affected.
+const MAX_AUTOMATIC_REMOVALS = 10;
+const MAX_AUTOMATIC_REMOVAL_SHARE = 0.25;
+
 export interface ImportResult {
   created: number;
   updated: number;
@@ -15,7 +20,10 @@ export interface ImportResult {
  * Parses a CSV or Excel file from the configured import path and upserts students.
  * Uses column mapping from settings to transform raw headers to internal field names.
  */
-export async function runStudentImport(prisma: PrismaClient): Promise<ImportResult> {
+export async function runStudentImport(
+  prisma: PrismaClient,
+  options: { limitRemovals?: boolean } = {}
+): Promise<ImportResult> {
   const result: ImportResult = {
     created: 0,
     updated: 0,
@@ -59,10 +67,17 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
 
     // Track which students are in this import (by firstName + surname + birthdate)
     const importedStudentKeys = new Set<string>();
+    let unreadableRows = 0;
 
     // Upsert students
     for (const row of rows) {
       const rowNum = row.rowNumber;
+
+      if (row.rowError) {
+        unreadableRows++;
+        result.errors.push({ row: rowNum, message: row.rowError });
+        continue;
+      }
 
       // Skip students with "Left" status (case-insensitive)
       if (row.status?.toLowerCase() === 'left') {
@@ -86,11 +101,21 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         const studentKey = `${row.firstName}|${row.surname}|${birthdate?.toISOString() || ''}`;
         importedStudentKeys.add(studentKey);
 
-        // Upsert by firstName + surname + birthdate combination
-        // A record saved without a birthdate is the same student once the date is known
-        const nameMatch = { firstName: row.firstName, surname: row.surname };
-        const existing = await prisma.student.findFirst({ where: { ...nameMatch, birthdate } })
-          ?? (birthdate ? await prisma.student.findFirst({ where: { ...nameMatch, birthdate: null } }) : null);
+        // Upsert by firstName + surname + birthdate combination. A record with no birthdate
+        // is the same student once the date is known, and a row with no birthdate matches
+        // a dated record only when there is exactly one to choose from.
+        const sameName = await prisma.student.findMany({ where: { firstName: row.firstName, surname: row.surname } });
+        const undated = sameName.filter((s) => !s.birthdate);
+        const dated = sameName.filter((s) => s.birthdate);
+        const existing = birthdate
+          ? dated.find((s) => s.birthdate!.getTime() === birthdate!.getTime()) ?? undated[0]
+          : undated[0] ?? (dated.length === 1 ? dated[0] : undefined);
+
+        // An undated duplicate of the only dated record is the same student, so merge it
+        if (existing?.birthdate && dated.length === 1 && undated.length === 1) {
+          await prisma.asset.updateMany({ where: { studentId: undated[0].id }, data: { studentId: existing.id } });
+          await prisma.student.delete({ where: { id: undated[0].id } });
+        }
 
         if (existing) {
           // Update existing students with new data from CSV
@@ -145,17 +170,35 @@ export async function runStudentImport(prisma: PrismaClient): Promise<ImportResu
         select: { id: true, firstName: true, surname: true, status: true, birthdate: true }
       });
 
-      let deleted = 0;
-      for (const student of allStudents) {
+      // Delete if: not in current import OR has "Left" status (case-insensitive)
+      const toRemove = allStudents.filter((student) => {
         // Key format: "firstName|surname|ISO-date-or-empty". A row with no birthdate
         // cannot tell same-named students apart, so it keeps all of them.
         const nameKey = `${student.firstName}|${student.surname}|`;
         const isInThisImport =
           importedStudentKeys.has(`${nameKey}${student.birthdate?.toISOString() || ''}`) ||
           importedStudentKeys.has(nameKey);
+        return !isInThisImport || student.status?.toLowerCase() === 'left';
+      });
 
-        // Delete if: not in current import OR has "Left" status (case-insensitive)
-        if (!isInThisImport || student.status?.toLowerCase() === 'left') {
+      const tooManyForAutomaticSync =
+        options.limitRemovals &&
+        toRemove.length > MAX_AUTOMATIC_REMOVALS &&
+        toRemove.length / allStudents.length > MAX_AUTOMATIC_REMOVAL_SHARE;
+
+      let deleted = 0;
+      if (unreadableRows > 0) {
+        result.errors.push({
+          row: 0,
+          message: `Removals were skipped because ${unreadableRows} row(s) could not be read`
+        });
+      } else if (tooManyForAutomaticSync) {
+        result.errors.push({
+          row: 0,
+          message: `Removals were skipped because ${toRemove.length} of ${allStudents.length} students would be removed. If the file is correct, use Run Import in Settings to apply them.`
+        });
+      } else {
+        for (const student of toRemove) {
           // Student not in this import or has "Left" status: unlink assets (preserve name) and delete student
           const studentName = `${student.firstName} ${student.surname}`;
 
@@ -338,8 +381,8 @@ function mapRecords(
     reverseMapping[csvHeader] = internalField;
   }
 
-  return records.map(({ record, rowNumber }) => {
-    const mapped: Record<string, any> = { rowNumber };
+  return records.map(({ record, rowNumber, error }) => {
+    const mapped: Record<string, any> = { rowNumber, rowError: error };
 
     for (const [csvHeader, value] of Object.entries(record)) {
       const internalField = reverseMapping[csvHeader];

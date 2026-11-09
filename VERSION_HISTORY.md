@@ -4,6 +4,41 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.21] - 2026-11-09
+
+### Added
+
+- Student sync safeguard: an automatic sync will not remove more than 10 students when that is also more than 25% of all students. Run Import in Settings still applies the removals if the file is correct.
+- Asset edit form: a checkbox to remove a saved device password.
+- Asset list: a Clear link for the current selection.
+- Browser tests for the main screens, run as part of `npm test` once the web app is built.
+
+### Changed
+
+- A student file changed while the service was stopped is now imported when the service starts.
+- Deleting an asset now keeps its history and adds an entry recording who deleted it.
+- Asset list selections now carry across pages and clear when the search or filters change.
+- CSV imports: a row with the wrong number of columns is now reported and the other rows still import. A student import skips removals if any row could not be read.
+
+### Fixed
+
+- Student import: a row with no birthdate now updates the student if only one has that name, instead of creating a second record.
+- Student import: an existing duplicate with no birthdate is merged into the matching dated student, and its assets move across.
+
+### Upgrade Notes
+
+- This release changes the database so audit history can outlive its asset. `update.ps1` applies this automatically, but back up the database first.
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: `AuditLog.assetId` is now optional and set to null when its asset is deleted.
+- `apps/api/src/services/studentImporter.ts`, `apps/api/src/services/studentImportWatcher.ts`, `apps/api/src/index.ts`: student import and startup changes.
+- `apps/api/src/lib/csv.ts`, `apps/api/src/routes/import.ts`, `apps/api/src/routes/software.ts`, `apps/api/src/routes/assets.ts`: row errors and the delete audit entry.
+- `apps/web/src/pages/AssetForm.tsx`, `apps/web/src/pages/AssetList.tsx`: client side changes for the items above.
+- `apps/api/tests`: added `limits.test.ts` and `browser.test.ts`. `apps/api/package.json`: added `puppeteer-core` as a development dependency.
+
+---
+
 ## [1.35.20] - 2026-11-09
 
 ### Security

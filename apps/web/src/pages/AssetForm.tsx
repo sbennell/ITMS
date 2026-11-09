@@ -290,6 +290,8 @@ export default function AssetForm() {
     });
   };
 
+  const [removePassword, setRemovePassword] = useState(false);
+
   const onSubmit = (data: AssetFormData) => {
     // Clean up empty strings to null
     const cleanData: Record<string, any> = {};
@@ -308,7 +310,7 @@ export default function AssetForm() {
     }
 
     // The form promises that leaving this blank keeps the existing password
-    if (isEditing && !data.devicePassword) {
+    if (isEditing && !data.devicePassword && !removePassword) {
       delete cleanData.devicePassword;
     }
 
@@ -592,9 +594,20 @@ export default function AssetForm() {
                     autoComplete={isEditing ? 'off' : 'new-password'}
                   />
                   {isEditing && asset?.hasDevicePassword && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
-                    </p>
+                    <>
+                      <p className="mt-1 text-xs text-gray-500">
+                        ✓ Password is set. Enter a new password to change it, or leave blank to keep existing.
+                      </p>
+                      <label className="mt-1 flex items-center gap-2 text-xs text-gray-600">
+                        <input
+                          id="removeDevicePassword"
+                          type="checkbox"
+                          checked={removePassword}
+                          onChange={(e) => setRemovePassword(e.target.checked)}
+                        />
+                        Remove the saved password
+                      </label>
+                    </>
                   )}
                 </>
               ) : (

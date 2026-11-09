@@ -310,10 +310,10 @@ export default function AssetList() {
     queryFn: () => api.getAssets({ page, limit, search, status, category, manufacturer, location, stocktakeStatus, sortBy, sortOrder })
   });
 
-  // Bulk actions apply to the selection, so it must only hold assets currently on screen
+  // A selection can span pages, but never includes assets the current filters exclude
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [page, limit, search, status, category, manufacturer, location, stocktakeStatus, sortBy, sortOrder]);
+  }, [search, status, category, manufacturer, location, stocktakeStatus]);
 
   const handleSort = (column: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -442,13 +442,11 @@ export default function AssetList() {
 
   const toggleSelectAll = () => {
     if (!data?.data) return;
-    const allIds = data.data.map(a => a.id);
-    const allSelected = allIds.every(id => selectedIds.has(id));
-    if (allSelected) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(allIds));
-    }
+    const pageIds = data.data.map(a => a.id);
+    const allSelected = pageIds.every(id => selectedIds.has(id));
+    const newSet = new Set(selectedIds);
+    pageIds.forEach(id => (allSelected ? newSet.delete(id) : newSet.add(id)));
+    setSelectedIds(newSet);
   };
 
   const toggleSelect = (id: string) => {
@@ -475,6 +473,14 @@ export default function AssetList() {
           <p className="mt-1 text-sm text-gray-500">
             {data?.pagination.total || 0} total assets
             {selectedIds.size > 0 && ` (${selectedIds.size} selected)`}
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-2 text-primary-600 hover:text-primary-800 underline"
+              >
+                Clear
+              </button>
+            )}
           </p>
         </div>
         <div className="flex gap-2">

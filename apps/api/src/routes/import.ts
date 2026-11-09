@@ -537,8 +537,8 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
       // the Excel path does, since csv-parse otherwise keys records by the raw
       // header text verbatim.
       const csvContent = req.file.buffer.toString('utf-8');
-      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber }) => {
-        const record: any = { rowNumber };
+      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber, error }) => {
+        const record: any = { rowNumber, rowError: error };
         for (const [rawHeader, value] of Object.entries(rawRecord)) {
           const key = mapHeaderToKey(normalizeHeader(rawHeader));
           if (key) record[key] = value;
@@ -598,6 +598,11 @@ router.post('/assets', upload.single('file'), async (req: Request, res: Response
     // Process each row
     for (const row of records) {
       const rowNum = row.rowNumber;
+
+      if (row.rowError) {
+        results.errors.push({ row: rowNum, message: row.rowError });
+        continue;
+      }
 
       try {
         const itemNumber = String(row.itemNumber || '').trim();

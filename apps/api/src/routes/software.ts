@@ -437,8 +437,8 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
       });
     } else {
       const csvContent = req.file.buffer.toString('utf-8');
-      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber }) => {
-        const record: any = { rowNumber };
+      records = parseCsvWithRows(csvContent, { trim: true }).map(({ record: rawRecord, rowNumber, error }) => {
+        const record: any = { rowNumber, rowError: error };
         for (const [rawHeader, value] of Object.entries(rawRecord)) {
           const key = mapSoftwareHeaderToKey(rawHeader);
           if (key) record[key] = value;
@@ -491,6 +491,11 @@ router.post('/import', requireAdmin, importUpload.single('file'), async (req: Re
 
     for (const row of records) {
       const rowNum = row.rowNumber;
+
+      if (row.rowError) {
+        results.errors.push({ row: rowNum, message: row.rowError });
+        continue;
+      }
 
       try {
         const itemNumber = String(row.itemNumber || '').trim();

@@ -39,7 +39,7 @@ export async function waitFor(condition: () => Promise<boolean>, timeoutMs: numb
 }
 
 // Starts the real API on a free port, against its own temporary database
-export async function startServer() {
+export async function startServer(options: { production?: boolean } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'itms-test-'));
   const uploadDir = path.join(dir, 'uploads');
   const url = `file:${path.join(dir, 'test.db')}`;
@@ -48,7 +48,8 @@ export async function startServer() {
     ...process.env,
     DATABASE_URL: url,
     PORT: String(port),
-    NODE_ENV: 'test',
+    // Production mode is what serves the built web app
+    NODE_ENV: options.production ? 'production' : 'test',
     SESSION_SECRET: 'test-secret',
     UPLOAD_DIR: uploadDir
   };
@@ -66,7 +67,8 @@ export async function startServer() {
   });
 
   const prisma = new PrismaClient({ datasources: { db: { url } } });
-  const base = `http://127.0.0.1:${port}/api`;
+  const origin = `http://127.0.0.1:${port}`;
+  const base = `${origin}/api`;
 
   const send = async (method: string, urlPath: string, cookie: string | undefined, init: RequestInit) => {
     const response = await fetch(base + urlPath, {
@@ -137,7 +139,7 @@ export async function startServer() {
     rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   };
 
-  return { prisma, dir, uploadDir, call, upload, login, createUser, isAlive, stop };
+  return { prisma, dir, uploadDir, origin, call, upload, login, createUser, isAlive, stop };
 }
 
 export type TestServer = Awaited<ReturnType<typeof startServer>>;

@@ -60,7 +60,12 @@ test('a header only or empty file has no rows', () => {
 });
 
 test('a row with the wrong number of columns is reported by its spreadsheet row', () => {
-  assert.throws(() => parseCsvWithRows('a,b\n"x\ny",2\n1,2,3\n'), /Row 3 has 3 columns, expected 2/);
+  const rows = parseCsvWithRows('a,b\n"x\ny",2\n1,2,3\n4,5\n');
+  assert.deepEqual(rows.map((r) => [r.rowNumber, r.error]), [
+    [2, undefined],
+    [3, 'Row has 3 columns, expected 2'],
+    [4, undefined]
+  ]);
 });
 
 // Imports
