@@ -4,6 +4,7 @@ import multer from 'multer';
 import { hasImportedValues, onlyImportedColumns, parseCsvWithRows } from '../lib/csv.js';
 import ExcelJS from 'exceljs';
 import { requireAuth, requireAdmin } from './auth.js';
+import { maskAuditPasswords } from '../lib/redact.js';
 
 const router = Router();
 const upload = multer({
@@ -1082,6 +1083,65 @@ router.get('/export-macs', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('MACS export error:', error);
     res.status(500).json({ error: 'Failed to export MACS asset register' });
+  }
+});
+
+interface DeletedLog {
+  deletedId: string;
+  action: string;
+  changes: string | null;
+  timestamp: Date;
+  user: { fullName: string } | null;
+}
+
+// One entry per deleted item, built from the audit log entries it left behind
+function groupDeletedItems(type: 'Asset' | 'Software', logs: DeletedLog[]) {
+  const groups = new Map<string, DeletedLog[]>();
+  for (const log of logs) {
+    groups.set(log.deletedId, [...(groups.get(log.deletedId) ?? []), log]);
+  }
+
+  return Array.from(groups, ([id, entries]) => {
+    const history = entries.map((entry) => ({
+      action: entry.action,
+      timestamp: entry.timestamp,
+      user: entry.user?.fullName ?? 'Unknown',
+      changes: entry.changes ? maskAuditPasswords(JSON.parse(entry.changes)) : null
+    }));
+    const deletion = history.find((entry) => entry.action === 'DELETE')!;
+
+    return {
+      id,
+      type,
+      itemNumber: deletion.changes!.itemNumber as string,
+      description: (deletion.changes!.model ?? deletion.changes!.name ?? null) as string | null,
+      deletedAt: deletion.timestamp,
+      deletedBy: deletion.user,
+      history
+    };
+  });
+}
+
+// GET /api/import/deleted-items - Deleted assets and software, with their history
+router.get('/deleted-items', async (req: Request, res: Response) => {
+  const prisma = req.app.locals.prisma as PrismaClient;
+
+  try {
+    const query = { orderBy: { timestamp: 'desc' as const }, include: { user: { select: { fullName: true } } } };
+    const [assetLogs, softwareLogs] = await Promise.all([
+      prisma.auditLog.findMany({ ...query, where: { deletedAssetId: { not: null } } }),
+      prisma.softwareAuditLog.findMany({ ...query, where: { deletedSoftwareId: { not: null } } })
+    ]);
+
+    const items = [
+      ...groupDeletedItems('Asset', assetLogs.map((log) => ({ ...log, deletedId: log.deletedAssetId! }))),
+      ...groupDeletedItems('Software', softwareLogs.map((log) => ({ ...log, deletedId: log.deletedSoftwareId! })))
+    ];
+
+    res.json(items.sort((a, b) => b.deletedAt.getTime() - a.deletedAt.getTime()));
+  } catch (error) {
+    console.error('Error fetching deleted items:', error);
+    res.status(500).json({ error: 'Failed to fetch deleted items' });
   }
 });
 

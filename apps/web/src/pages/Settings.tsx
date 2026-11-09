@@ -6,9 +6,10 @@ import LookupsTab from './settings/LookupsTab';
 import DataTab from './settings/DataTab';
 import AccountTab from './settings/AccountTab';
 import StudentsTab from './settings/StudentsTab';
+import DeletedItemsTab from './settings/DeletedItemsTab';
 import { useAuth } from '../App';
 
-type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'account' | 'students';
+type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'deleted' | 'account' | 'students';
 
 const ALL_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general', label: 'General' },
@@ -17,6 +18,7 @@ const ALL_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'networking', label: 'Networking' },
   { id: 'lookups', label: 'Lookups' },
   { id: 'data', label: 'Data' },
+  { id: 'deleted', label: 'Deleted Items' },
   { id: 'account', label: 'Account' }
 ];
 
@@ -35,6 +37,7 @@ const TabComponents: Record<TabId, React.ComponentType> = {
   networking: NetworkingTab,
   lookups: LookupsTab,
   data: DataTab,
+  deleted: DeletedItemsTab,
   account: AccountTab
 };
 

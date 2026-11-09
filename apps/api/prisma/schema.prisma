@@ -182,8 +182,10 @@ model SoftwareAttachment {
 
 model SoftwareAuditLog {
   id         String   @id @default(cuid())
-  software   Software @relation(fields: [softwareId], references: [id], onDelete: Cascade)
-  softwareId String   @map("software_id")
+  software   Software? @relation(fields: [softwareId], references: [id], onDelete: SetNull)
+  softwareId String?  @map("software_id")
+  // Keeps a deleted item's entries together once softwareId is cleared
+  deletedSoftwareId String? @map("deleted_software_id")
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId     String?  @map("user_id")
   action     String
@@ -369,6 +371,8 @@ model AuditLog {
   id          String   @id @default(cuid())
   asset       Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   assetId     String?  @map("asset_id")
+  // Keeps a deleted asset's entries together once assetId is cleared
+  deletedAssetId String? @map("deleted_asset_id")
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId      String?  @map("user_id")
   action      String

@@ -141,6 +141,18 @@ describe('browser screens', { skip }, () => {
     await page.close();
   });
 
+  test('the Deleted Items tab shows a deleted asset and its history', async () => {
+    const asset = await createAsset('B-GONE', { model: 'Retired Model' });
+    await server.call('DELETE', `/assets/${asset.id}`, admin);
+
+    const page = await open('/settings');
+    await page.locator('button::-p-text(Deleted Items)').click();
+    await seeText(page, 'B-GONE');
+    await page.locator('button::-p-text(B-GONE)').click();
+    await seeText(page, 'CREATE');
+    await page.close();
+  });
+
   test('an ended session returns to the login page', async () => {
     const user = await server.createUser(admin, 'browser-user');
     const page = await open('/assets', await server.login('browser-user'));

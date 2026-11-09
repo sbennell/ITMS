@@ -961,7 +961,19 @@ router.delete('/:id', async (req: Request, res: Response) => {
       fs.unlink(path.join(UPLOAD_DIR, attachment.storagePath), () => {});
     }
 
-    // auditLogs and attachments have cascade delete
+    // Audit entries outlive the software item, so this one names what was deleted
+    await prisma.softwareAuditLog.create({
+      data: {
+        softwareId: id,
+        userId: req.session.userId,
+        action: 'DELETE',
+        changes: JSON.stringify({ itemNumber: software.itemNumber, name: software.name }),
+        ipAddress: req.ip
+      }
+    });
+    await prisma.softwareAuditLog.updateMany({ where: { softwareId: id }, data: { deletedSoftwareId: id } });
+
+    // attachments have cascade delete
     await prisma.software.delete({ where: { id } });
 
     res.json({ success: true, message: 'Software deleted' });

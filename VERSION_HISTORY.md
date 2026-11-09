@@ -4,6 +4,30 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.22] - 2026-11-09
+
+### Added
+
+- Settings: a Deleted Items tab for administrators, listing deleted assets and software with who deleted them, when, and their full history. Items deleted before this version are not listed.
+
+### Changed
+
+- Deleting a software item now keeps its history and adds an entry recording who deleted it.
+
+### Upgrade Notes
+
+- This release changes the database. `update.ps1` applies this automatically, but back up the database first.
+
+### Technical Details
+
+- `apps/api/prisma/schema.prisma`: `SoftwareAuditLog.softwareId` is now optional, and both audit tables have a column that keeps a deleted item's entries together.
+- `apps/api/src/routes/import.ts`: added `GET /api/import/deleted-items`.
+- `apps/api/src/routes/assets.ts`, `apps/api/src/routes/software.ts`: deleting now groups the item's audit entries.
+- `apps/web/src/pages/settings/DeletedItemsTab.tsx`, `apps/web/src/pages/Settings.tsx`, `apps/web/src/lib/api.ts`: added the tab.
+- `apps/api/tests`: added `deleted.test.ts` and a browser test for the tab.
+
+---
+
 ## [1.35.21] - 2026-11-09
 
 ### Added

@@ -887,6 +887,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
         ipAddress: req.ip
       }
     });
+    await prisma.auditLog.updateMany({ where: { assetId: id }, data: { deletedAssetId: id } });
 
     await prisma.asset.delete({ where: { id } });
 

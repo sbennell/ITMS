@@ -1,5 +1,15 @@
 const API_BASE = '/api';
 
+export interface DeletedItem {
+  id: string;
+  type: 'Asset' | 'Software';
+  itemNumber: string;
+  description: string | null;
+  deletedAt: string;
+  deletedBy: string;
+  history: { action: string; timestamp: string; user: string; changes: Record<string, any> | null }[];
+}
+
 // ============ IP Address Types ============
 
 export interface AssetIPEntry {
@@ -761,6 +771,8 @@ export const api = {
     fetchJson<{ success: boolean }>(`/lookups/software-categories/${id}`, { method: 'DELETE' }),
 
   getSavedFilters: () => fetchJson<any[]>('/lookups/filters'),
+
+  getDeletedItems: () => fetchJson<DeletedItem[]>('/import/deleted-items'),
 
   // Settings
   getSetting: (key: string) => fetchJson<{ key: string; value: string }>(`/lookups/settings/${key}`),
