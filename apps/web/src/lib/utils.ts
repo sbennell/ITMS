@@ -109,15 +109,15 @@ export const CRITICALITY_COLORS: Record<string, string> = {
 
 export const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
   PUBLIC: 'Public',
-  INTERNAL: 'Business Use',
-  SENSITIVE: 'Confidential',
+  CONFIDENTIAL: 'Confidential',
+  HIGHLY_CONFIDENTIAL: 'Highly Confidential',
   RESTRICTED: 'Restricted'
 };
 
 export const DATA_CLASSIFICATION_COLORS: Record<string, string> = {
   PUBLIC: 'bg-gray-100 text-gray-800',
-  INTERNAL: 'bg-blue-100 text-blue-800',
-  SENSITIVE: 'bg-orange-100 text-orange-800',
+  CONFIDENTIAL: 'bg-blue-100 text-blue-800',
+  HIGHLY_CONFIDENTIAL: 'bg-orange-100 text-orange-800',
   RESTRICTED: 'bg-red-100 text-red-800'
 };
 

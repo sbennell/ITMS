@@ -58,8 +58,8 @@ const CRITICALITY_LABELS: Record<string, string> = {
 };
 const DATA_CLASSIFICATION_LABELS: Record<string, string> = {
   PUBLIC: 'Public',
-  INTERNAL: 'Business Use',
-  SENSITIVE: 'Confidential',
+  CONFIDENTIAL: 'Confidential',
+  HIGHLY_CONFIDENTIAL: 'Highly Confidential',
   RESTRICTED: 'Restricted'
 };
 const HOSTING_LABELS: Record<string, string> = {
@@ -142,6 +142,7 @@ router.get('/', async (req: Request, res: Response) => {
       category,
       publisher,
       supplier,
+      classification,
       sortBy = 'itemNumber',
       sortOrder = 'asc'
     } = req.query;
@@ -175,6 +176,10 @@ router.get('/', async (req: Request, res: Response) => {
 
     if (supplier) {
       where.supplierId = supplier as string;
+    }
+
+    if (classification) {
+      where.dataClassification = classification === '_none' ? null : classification as string;
     }
 
     let orderBy: Prisma.SoftwareOrderByWithRelationInput = {

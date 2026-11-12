@@ -592,6 +592,7 @@ export const api = {
     category?: string;
     publisher?: string;
     supplier?: string;
+    classification?: string;
     sortBy?: string;
     sortOrder?: string;
   }) => {

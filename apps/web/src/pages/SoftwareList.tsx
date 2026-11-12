@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-table';
 import { Plus, Search, ChevronLeft, ChevronRight, Filter, X, ArrowUp, ArrowDown } from 'lucide-react';
 import { api, Software } from '../lib/api';
-import { cn, SOFTWARE_STATUS_LABELS, SOFTWARE_STATUS_COLORS, CRITICALITY_LABELS, CRITICALITY_COLORS, formatDate } from '../lib/utils';
+import { cn, SOFTWARE_STATUS_LABELS, SOFTWARE_STATUS_COLORS, CRITICALITY_LABELS, CRITICALITY_COLORS, DATA_CLASSIFICATION_LABELS, DATA_CLASSIFICATION_COLORS, formatDate } from '../lib/utils';
 
 const columnHelper = createColumnHelper<Software>();
 
@@ -64,6 +64,18 @@ const columns = [
       );
     }
   }),
+  columnHelper.accessor('dataClassification', {
+    header: 'Classification',
+    cell: (info) => {
+      const level = info.getValue();
+      if (!level) return '-';
+      return (
+        <span className={cn('px-2 py-1 text-xs font-medium rounded-full', DATA_CLASSIFICATION_COLORS[level])}>
+          {DATA_CLASSIFICATION_LABELS[level] || level}
+        </span>
+      );
+    }
+  }),
   columnHelper.accessor('licenseExpiration', {
     header: 'License Expiration',
     cell: (info) => formatDate(info.getValue())
@@ -85,12 +97,13 @@ export default function SoftwareList() {
   const status = searchParams.get('status') || '_all';
   const category = searchParams.get('category') || '';
   const publisher = searchParams.get('publisher') || '';
+  const classification = searchParams.get('classification') || '';
   const sortBy = searchParams.get('sortBy') || '';
   const sortOrder = searchParams.get('sortOrder') || '';
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['software', { page, limit, search, status, category, publisher, sortBy, sortOrder }],
-    queryFn: () => api.getSoftwareList({ page, limit, search, status, category, publisher, sortBy, sortOrder })
+    queryKey: ['software', { page, limit, search, status, category, publisher, classification, sortBy, sortOrder }],
+    queryFn: () => api.getSoftwareList({ page, limit, search, status, category, publisher, classification, sortBy, sortOrder })
   });
 
   const handleSort = (column: string) => {
@@ -151,7 +164,7 @@ export default function SoftwareList() {
     setSearchParams({});
   };
 
-  const hasFilters = search || (status && status !== '_all') || category || publisher;
+  const hasFilters = search || (status && status !== '_all') || category || publisher || classification;
 
   return (
     <div className="space-y-6">
@@ -245,6 +258,21 @@ export default function SoftwareList() {
                 {publishers?.map((pub) => (
                   <option key={pub.id} value={pub.id}>{pub.name}</option>
                 ))}
+              </select>
+            </div>
+
+            <div className="w-48">
+              <label className="label">Data Classification</label>
+              <select
+                value={classification}
+                onChange={(e) => updateParams({ classification: e.target.value || undefined })}
+                className="input"
+              >
+                <option value="">All Classifications</option>
+                {Object.entries(DATA_CLASSIFICATION_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+                <option value="_none">Not set</option>
               </select>
             </div>
 

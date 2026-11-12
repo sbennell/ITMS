@@ -4,6 +4,32 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.35.23] - 2026-11-13
+
+### Added
+
+- Software list: a Data Classification filter and column. Filter by Highly Confidential or Restricted to get the application names and count for the Set #8 attestation, or by Not set to find applications that still need classifying.
+
+### Changed
+
+- Data classification now uses the MACS levels from Prioritised Security Actions Set #8: Public, Confidential, Highly Confidential and Restricted. This applies to assets and software, including the edit forms, Excel import and export.
+- Existing values are moved once, on the first start after updating: Business Use becomes Confidential, and both Confidential and Restricted become Highly Confidential.
+
+### Upgrade Notes
+
+- After updating, review any item that should be Restricted. Under the MACS definition this only covers information the law prevents from being released, such as legally privileged material or whistleblower disclosures. Student, health, HR and financial data is Highly Confidential.
+- Do not import an Excel file exported before this update without first fixing its Data Classification column. Business Use is rejected, and the old Confidential and Restricted values would be imported as the new Confidential and Restricted levels.
+
+### Technical Details
+
+- `apps/web/src/lib/utils.ts`, `apps/api/src/routes/software.ts`, `apps/api/src/routes/import.ts`: stored values are now `PUBLIC`, `CONFIDENTIAL`, `HIGHLY_CONFIDENTIAL` and `RESTRICTED`.
+- `apps/api/src/services/dataClassificationMigration.ts`: moves the old values at startup and records the `dataClassificationLevels2026` setting so it only runs once.
+- `apps/api/tests/classification.test.ts`: covers the move and that it does not run again.
+- `apps/api/src/routes/software.ts`: `GET /api/software` accepts `classification` (a level, or `_none` for not set).
+- `apps/web/src/pages/SoftwareList.tsx`, `apps/web/src/lib/api.ts`: added the filter and column.
+
+---
+
 ## [1.35.22] - 2026-11-09
 
 ### Added

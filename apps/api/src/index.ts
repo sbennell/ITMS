@@ -18,6 +18,7 @@ import reportRoutes from './routes/reports.js';
 import studentRoutes from './routes/students.js';
 import publicRoutes from './routes/public.js';
 import { startStudentImportWatcher, closeStudentImportWatcher, importIfChangedWhileStopped } from './services/studentImportWatcher.js';
+import { migrateDataClassifications } from './services/dataClassificationMigration.js';
 
 const app = express();
 const prisma = new PrismaClient();
@@ -129,6 +130,8 @@ let studentImportWatcher: any = null;
 
 app.listen(PORT, async () => {
   console.log(`IT Management System (ITMS) API running on http://localhost:${PORT}`);
+
+  await migrateDataClassifications(prisma).catch((err) => console.error('Failed to update data classifications:', err));
 
   // Initialize student import watcher
   studentImportWatcher = await startStudentImportWatcher(prisma);

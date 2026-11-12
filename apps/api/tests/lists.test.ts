@@ -90,3 +90,14 @@ test('a category with no prices averages zero', async () => {
   const report = (await server.call('GET', `/reports/value?category=${category.id}`, admin)).json();
   assert.equal(report.byCategory[0].avgValue, 0);
 });
+
+// Runs last: it adds software that the sort tests above do not expect
+test('software: filter by data classification', async () => {
+  await server.call('POST', '/software', admin, { itemNumber: 'HC-1', name: 'Student records', dataClassification: 'HIGHLY_CONFIDENTIAL' });
+  await server.call('POST', '/software', admin, { itemNumber: 'PUB-1', name: 'Website', dataClassification: 'PUBLIC' });
+
+  assert.deepEqual((await items('/software?classification=HIGHLY_CONFIDENTIAL')).numbers, ['HC-1']);
+  const unset = await items('/software?classification=_none&limit=50');
+  assert.equal(unset.pagination.total, 7);
+  assert.ok(!unset.numbers.includes('HC-1') && !unset.numbers.includes('PUB-1'));
+});
