@@ -208,6 +208,9 @@ model Student {
   schoolYear      String?   @map("school_year")
   status          String    @default("Active")
   birthdate       DateTime? @map("birthdate")
+  studentNumber   String?   @map("student_number")
+  governmentNumber String?  @map("government_number")
+  gender          String?
 
   // Credentials
   username        String?
@@ -223,6 +226,19 @@ model Student {
   assets          Asset[]
 
   @@map("students")
+}
+
+// AD accounts waiting to be disabled by the AD sync, kept after the student record is deleted
+model AdLeaver {
+  id         String   @id @default(cuid())
+  username   String   @unique
+  firstName  String   @map("first_name")
+  surname    String
+  homeGroup  String?  @map("home_group")
+  schoolYear String?  @map("school_year")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("ad_leavers")
 }
 
 // ============ LOOKUP TABLES ============

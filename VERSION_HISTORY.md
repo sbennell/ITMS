@@ -4,6 +4,41 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.36.0] - 2026-11-18
+
+### Added
+
+- Settings: an AD Sync tab for administrators. It creates, updates and disables student Active Directory accounts and manages their home folders, replacing `Student_AD_Account_Management.ps1` and `Student_Drive_Management.ps1`. Preview lists every change first, and Apply makes them.
+- Accounts are placed in an OU named after the home group inside the Students OU, added to the Students, Year Level and Home Group groups, and given the same attributes as before. Missing OUs and groups are created.
+- Students who leave (marked Left in the import file, or no longer in it) are recorded when the import runs, so Apply can disable their account, move it to the Inactive OU and move their home folder to Inactive.
+- Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
+
+### Changed
+
+- A leaver whose account is already disabled and in the Inactive OU is shown as unchanged, instead of having its Left date updated on every run.
+- Group membership is changed only where it differs, instead of removing every group and adding them back.
+
+### Upgrade Notes
+
+- This release changes the database. `update.ps1` applies this automatically, but back up the database first.
+- The ITMS server needs the ActiveDirectory PowerShell module (RSAT). The account the ITMS service runs as needs rights to create, change and move users, OUs and groups in the student OUs, and Full Control of the student folder root.
+- Map the new Student ID, Government Student Number and Gender columns in Settings, Students, then run an import before the first AD sync.
+- Every Apply resets each student's AD password to the one in ITMS, as the old script did.
+- Test against a test OU and folder before pointing the settings at the live ones.
+
+### Technical Details
+
+- `apps/api/scripts/ad-sync.ps1`: the ported script, run with `-Mode Preview` or `-Mode Apply`. ITMS passes the students in a temporary JSON file that is deleted after each run.
+- `apps/api/src/services/adSync.ts`: builds the input, runs the script and reads its result. Only one run can happen at a time. Applied changes are written to the service log.
+- `apps/api/src/services/studentImporter.ts`: imports the new fields and records leavers in the new `ad_leavers` table while AD sync is enabled.
+- `apps/api/prisma/schema.prisma`: added `Student.studentNumber`, `governmentNumber` and `gender`, and the `AdLeaver` model.
+- `apps/api/src/routes/students.ts`: added `POST /api/students/ad-sync/preview` and `/apply` (administrators only).
+- `apps/web/src/pages/settings/AdSyncTab.tsx`, `apps/web/src/pages/Settings.tsx`, `apps/web/src/pages/settings/StudentsTab.tsx`, `apps/web/src/lib/api.ts`: added the tab and the mapping fields.
+- `apps/api/tests/adSync.test.ts`: covers the leaver queue, the route checks and the script input and output.
+- Settings keys: `adSyncConfig` (JSON) and `adSyncLastRun`.
+
+---
+
 ## [1.35.23] - 2026-11-13
 
 ### Added

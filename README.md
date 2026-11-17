@@ -1,6 +1,6 @@
 # IT Management System (ITMS)
 
-**Version 1.35.22**
+**Version 1.36.0**
 
 A web-based IT Management System for tracking hardware and equipment inventory, plus a separate software/license register. Built with React, Express, and SQLite.
 
@@ -61,6 +61,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **Asset Assignment**: Link assets to students with automatic reconciliation by name
 - **School Customization**: Conditional fields based on school type (Standard or Department of Education)
 - **Import Automation**: File watcher for automatic imports when student data changes
+- **AD Sync**: Create, update and disable student Active Directory accounts and manage their home folders, with a preview before any change is made
 - **Quick View**: Student detail pages with assigned assets and account information
 
 ### Data Management
@@ -195,6 +196,8 @@ Asset_System/
 - `GET /api/students/home-groups` - Get home groups
 - `POST /api/students/import/run` - Trigger manual student import
 - `POST /api/students/reconcile-assets` - Link assets to students by name matching
+- `POST /api/students/ad-sync/preview` - List the AD account and home folder changes without making them
+- `POST /api/students/ad-sync/apply` - Make the AD account and home folder changes
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories

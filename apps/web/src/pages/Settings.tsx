@@ -7,14 +7,16 @@ import DataTab from './settings/DataTab';
 import AccountTab from './settings/AccountTab';
 import StudentsTab from './settings/StudentsTab';
 import DeletedItemsTab from './settings/DeletedItemsTab';
+import AdSyncTab from './settings/AdSyncTab';
 import { useAuth } from '../App';
 
-type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'deleted' | 'account' | 'students';
+type TabId = 'general' | 'users' | 'networking' | 'lookups' | 'data' | 'deleted' | 'account' | 'students' | 'adSync';
 
 const ALL_TABS: Array<{ id: TabId; label: string }> = [
   { id: 'general', label: 'General' },
   { id: 'users', label: 'Users' },
   { id: 'students', label: 'Students' },
+  { id: 'adSync', label: 'AD Sync' },
   { id: 'networking', label: 'Networking' },
   { id: 'lookups', label: 'Lookups' },
   { id: 'data', label: 'Data' },
@@ -34,6 +36,7 @@ const TabComponents: Record<TabId, React.ComponentType> = {
   general: GeneralTab,
   users: UsersTab,
   students: StudentsTab,
+  adSync: AdSyncTab,
   networking: NetworkingTab,
   lookups: LookupsTab,
   data: DataTab,

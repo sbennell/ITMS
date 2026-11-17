@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { parseCsvHeaders, parseCsvWithRows, CsvRow } from '../lib/csv.js';
 import { Cell, Workbook } from 'exceljs';
 import path from 'path';
+import { isAdSyncEnabled } from './adSync.js';
 
 // An automatic sync refuses to remove more than this, in case the file is incomplete.
 // Both must be exceeded, so normal leavers and small schools are not affected.
@@ -69,6 +70,10 @@ export async function runStudentImport(
     const importedStudentKeys = new Set<string>();
     let unreadableRows = 0;
 
+    // With AD sync on, departing accounts are queued so the sync can disable them
+    const adSyncEnabled = await isAdSyncEnabled(prisma);
+    const leftRows: Record<string, any>[] = [];
+
     // Upsert students
     for (const row of rows) {
       const rowNum = row.rowNumber;
@@ -81,6 +86,7 @@ export async function runStudentImport(
 
       // Skip students with "Left" status (case-insensitive)
       if (row.status?.toLowerCase() === 'left') {
+        if (adSyncEnabled && row.username && row.firstName && row.surname) leftRows.push(row);
         continue;
       }
 
@@ -126,6 +132,9 @@ export async function runStudentImport(
               homeGroup: row.homeGroup || null,
               schoolYear: row.schoolYear || null,
               status: (row.status ? normalizeStatus(row.status) : 'Active'),
+              studentNumber: row.studentNumber || null,
+              governmentNumber: row.governmentNumber || null,
+              gender: row.gender || null,
               username: row.username || null,
               edupassUsername: row.edupassUsername || null,
               email: row.email || null,
@@ -143,6 +152,9 @@ export async function runStudentImport(
               homeGroup: row.homeGroup || null,
               schoolYear: row.schoolYear || null,
               status: (row.status ? normalizeStatus(row.status) : 'Active'),
+              studentNumber: row.studentNumber || null,
+              governmentNumber: row.governmentNumber || null,
+              gender: row.gender || null,
               username: row.username || null,
               edupassUsername: row.edupassUsername || null,
               email: row.email || null,
@@ -150,6 +162,11 @@ export async function runStudentImport(
             }
           });
           result.created++;
+        }
+
+        // A returning student's account must not be disabled
+        if (adSyncEnabled && row.username) {
+          await prisma.adLeaver.deleteMany({ where: { username: row.username } });
         }
       } catch (e) {
         result.errors.push({
@@ -164,10 +181,20 @@ export async function runStudentImport(
       throw new Error('No active students found in the import file, so existing students were not changed');
     }
 
+    for (const row of leftRows) {
+      await queueAdLeaver(prisma, {
+        username: row.username,
+        firstName: row.firstName,
+        surname: row.surname,
+        homeGroup: row.homeGroup,
+        schoolYear: row.schoolYear
+      });
+    }
+
     // Handle students removed from CSV or with "Left" status: delete them and unlink their assets
     try {
       const allStudents = await prisma.student.findMany({
-        select: { id: true, firstName: true, surname: true, status: true, birthdate: true }
+        select: { id: true, firstName: true, surname: true, status: true, birthdate: true, username: true, homeGroup: true, schoolYear: true }
       });
 
       // Delete if: not in current import OR has "Left" status (case-insensitive)
@@ -201,6 +228,11 @@ export async function runStudentImport(
         for (const student of toRemove) {
           // Student not in this import or has "Left" status: unlink assets (preserve name) and delete student
           const studentName = `${student.firstName} ${student.surname}`;
+
+          // Queue the AD account before the record that holds its username is gone
+          if (adSyncEnabled && student.username) {
+            await queueAdLeaver(prisma, { ...student, username: student.username });
+          }
 
           // Update assets first (before cascading delete)
           await prisma.asset.updateMany({
@@ -427,6 +459,23 @@ function parseDate(dateStr: string): Date | null {
   }
 
   return null;
+}
+
+async function queueAdLeaver(
+  prisma: PrismaClient,
+  student: { username: string; firstName: string; surname: string; homeGroup?: string | null; schoolYear?: string | null }
+) {
+  const data = {
+    firstName: student.firstName,
+    surname: student.surname,
+    homeGroup: student.homeGroup || null,
+    schoolYear: student.schoolYear || null
+  };
+  await prisma.adLeaver.upsert({
+    where: { username: student.username },
+    create: { username: student.username, ...data },
+    update: data
+  });
 }
 
 /**

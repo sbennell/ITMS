@@ -1,0 +1,212 @@
+import { PrismaClient } from '@prisma/client';
+import { execFile } from 'child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
+
+const SCRIPT = path.join(__dirname, '../../scripts/ad-sync.ps1');
+const TIMEOUT_MS = 10 * 60 * 1000;
+
+export type AdSyncMode = 'Preview' | 'Apply';
+
+export interface AdSyncConfig {
+  enabled: boolean;
+  studentsOU: string;
+  inactiveOU: string;
+  yearGroupsOU: string;
+  studentsGroupDN: string;
+  staffGroupDN: string;
+  logonScript: string;
+  driveRootPath: string;
+  driveInactiveFolder: string;
+  organizeBy: 'Form' | 'YearLevel';
+  folderNameFormat: 'FirstnameLastname' | 'LastnameFirstname';
+}
+
+export interface AdSyncStudent {
+  action: 'upsert' | 'disable';
+  username: string;
+  firstName: string;
+  surname: string;
+  email: string | null;
+  yearLevel: string | null;
+  form: string | null;
+  gender: string | null;
+  studentNumber: string | null;
+  governmentNumber: string | null;
+  password: string | null;
+}
+
+export interface AdSyncResult {
+  username: string;
+  name: string;
+  action: 'create' | 'update' | 'disable' | 'none' | 'setup';
+  ok: boolean;
+  error: string | null;
+  steps: string[];
+}
+
+export interface AdSyncRun {
+  mode: AdSyncMode;
+  results: AdSyncResult[];
+}
+
+// Runs the script with these files and returns its stderr.
+// Tests replace it, as PowerShell and AD are not available there.
+export type AdSyncRunner = (mode: AdSyncMode, inputFile: string, outputFile: string) => Promise<string>;
+
+export class AdSyncError extends Error {
+  constructor(message: string, public status = 400) {
+    super(message);
+  }
+}
+
+const REQUIRED_FIELDS: Array<keyof AdSyncConfig> = ['studentsOU', 'inactiveOU', 'yearGroupsOU', 'studentsGroupDN'];
+const FOLDER_FIELDS: Array<keyof AdSyncConfig> = ['driveInactiveFolder', 'staffGroupDN'];
+
+// Statuses the import gives students who should have an AD account (from Master_List.csv)
+const SYNCED_STATUSES = ['active', 'new'];
+
+export async function getAdSyncConfig(prisma: PrismaClient): Promise<AdSyncConfig | null> {
+  const setting = await prisma.settings.findUnique({ where: { key: 'adSyncConfig' } });
+  if (!setting?.value) return null;
+  try {
+    return JSON.parse(setting.value) as AdSyncConfig;
+  } catch {
+    return null;
+  }
+}
+
+export async function isAdSyncEnabled(prisma: PrismaClient): Promise<boolean> {
+  return (await getAdSyncConfig(prisma))?.enabled === true;
+}
+
+export async function buildAdSyncStudents(prisma: PrismaClient): Promise<AdSyncStudent[]> {
+  const students = await prisma.student.findMany({
+    where: { username: { not: null } },
+    orderBy: [{ surname: 'asc' }, { firstName: 'asc' }]
+  });
+  const leavers = await prisma.adLeaver.findMany({ orderBy: [{ surname: 'asc' }, { firstName: 'asc' }] });
+
+  const upserts: AdSyncStudent[] = students
+    .filter((s) => s.username && SYNCED_STATUSES.includes(s.status.toLowerCase()))
+    .map((s) => ({
+      action: 'upsert',
+      username: s.username!,
+      firstName: s.firstName,
+      surname: s.surname,
+      email: s.email,
+      yearLevel: s.schoolYear,
+      form: s.homeGroup,
+      gender: s.gender,
+      studentNumber: s.studentNumber,
+      governmentNumber: s.governmentNumber,
+      password: s.password
+    }));
+
+  const disables: AdSyncStudent[] = leavers.map((l) => ({
+    action: 'disable',
+    username: l.username,
+    firstName: l.firstName,
+    surname: l.surname,
+    email: null,
+    yearLevel: l.schoolYear,
+    form: l.homeGroup,
+    gender: null,
+    studentNumber: null,
+    governmentNumber: null,
+    password: null
+  }));
+
+  return [...upserts, ...disables];
+}
+
+const runPowerShell: AdSyncRunner = (mode, inputFile, outputFile) =>
+  new Promise((resolve, reject) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', SCRIPT,
+        '-Mode', mode, '-InputFile', inputFile, '-OutputFile', outputFile],
+      { windowsHide: true, timeout: TIMEOUT_MS },
+      (error, _stdout, stderr) => {
+        if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+          reject(new AdSyncError('PowerShell was not found on this server', 500));
+        } else {
+          // A non-zero exit still writes its error to the output file, which is read next
+          resolve(stderr);
+        }
+      }
+    );
+  });
+
+let running = false;
+
+export async function runAdSync(
+  prisma: PrismaClient,
+  mode: AdSyncMode,
+  runner: AdSyncRunner = runPowerShell
+): Promise<AdSyncRun> {
+  const config = await getAdSyncConfig(prisma);
+  if (!config?.enabled) throw new AdSyncError('AD sync is not enabled');
+
+  const required = config.driveRootPath ? [...REQUIRED_FIELDS, ...FOLDER_FIELDS] : REQUIRED_FIELDS;
+  const missing = required.filter((field) => !config[field]);
+  if (missing.length > 0) throw new AdSyncError(`AD sync settings are missing: ${missing.join(', ')}`);
+
+  if (running) throw new AdSyncError('An AD sync is already running', 409);
+  running = true;
+
+  // The input holds student passwords, so it lives in a private temp folder that is always removed
+  let dir: string | undefined;
+  try {
+    dir = await mkdtemp(path.join(tmpdir(), 'itms-ad-sync-'));
+    const students = await buildAdSyncStudents(prisma);
+    const inputFile = path.join(dir, 'input.json');
+    const outputFile = path.join(dir, 'output.json');
+    await writeFile(inputFile, JSON.stringify({ config, students }), { encoding: 'utf8', mode: 0o600 });
+
+    const stderr = await runner(mode, inputFile, outputFile);
+
+    let output: { ok: boolean; error: string | null; results: AdSyncResult[] | AdSyncResult | null };
+    try {
+      output = JSON.parse((await readFile(outputFile, 'utf8')).replace(/^﻿/, ''));
+    } catch {
+      throw new AdSyncError(`The AD sync script did not return a result. ${stderr.trim()}`.trim(), 500);
+    }
+    if (!output.ok) throw new AdSyncError(output.error || 'The AD sync script failed', 500);
+
+    // PowerShell 5.1 writes a one item list as a single object
+    const list = Array.isArray(output.results) ? output.results : output.results ? [output.results] : [];
+    const results = list.map((r) => ({
+      ...r,
+      steps: Array.isArray(r.steps) ? r.steps : r.steps ? [String(r.steps)] : []
+    }));
+
+    if (mode === 'Apply') {
+      const leavers = new Set(students.filter((s) => s.action === 'disable').map((s) => s.username));
+      const done = results.filter((r) => r.ok && leavers.has(r.username)).map((r) => r.username);
+      await prisma.adLeaver.deleteMany({ where: { username: { in: done } } });
+      await prisma.settings.upsert({
+        where: { key: 'adSyncLastRun' },
+        create: { key: 'adSyncLastRun', value: new Date().toISOString() },
+        update: { value: new Date().toISOString() }
+      });
+      logResults(results);
+    }
+
+    return { mode, results };
+  } finally {
+    running = false;
+    if (dir) await rm(dir, { recursive: true, force: true });
+  }
+}
+
+// Goes to the service's stdout log. Results never contain passwords.
+function logResults(results: AdSyncResult[]) {
+  const stamp = new Date().toISOString();
+  for (const r of results) {
+    if (r.action === 'none' && r.ok) continue;
+    console.log(`[AD sync ${stamp}] ${r.name} (${r.username}) ${r.action}${r.ok ? '' : ` FAILED: ${r.error}`}`);
+    for (const step of r.steps) console.log(`[AD sync ${stamp}]   ${step}`);
+  }
+}

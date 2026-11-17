@@ -5,6 +5,7 @@ import { requireAdmin, requireAuth, requirePermission } from './auth.js';
 import { parseLimit, parsePage } from '../lib/pagination.js';
 import { readImportHeaders, runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
+import { AdSyncError, runAdSync } from '../services/adSync.js';
 import { canViewStudentPasswords, redactStudentPassword } from '../lib/redact.js';
 
 const router = Router();
@@ -714,6 +715,23 @@ router.post('/import/run', requireAdmin, async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Failed to run import' });
   }
 });
+
+// AD account and home folder sync: Preview lists the changes, Apply makes them
+for (const mode of ['Preview', 'Apply'] as const) {
+  router.post(`/ad-sync/${mode.toLowerCase()}`, requireAdmin, async (req: Request, res: Response) => {
+    const prisma = req.app.locals.prisma as PrismaClient;
+
+    try {
+      res.json(await runAdSync(prisma, mode));
+    } catch (error) {
+      if (error instanceof AdSyncError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      console.error(`Error running AD sync ${mode}:`, error);
+      res.status(500).json({ error: 'Failed to run AD sync' });
+    }
+  });
+}
 
 // Reconcile assets by student name
 router.post('/reconcile-assets', requireAdmin, async (req: Request, res: Response) => {

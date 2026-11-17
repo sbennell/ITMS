@@ -74,6 +74,20 @@ export interface StudentSummary {
   homeGroup: string | null;
 }
 
+export interface AdSyncResult {
+  username: string;
+  name: string;
+  action: 'create' | 'update' | 'disable' | 'none' | 'setup';
+  ok: boolean;
+  error: string | null;
+  steps: string[];
+}
+
+export interface AdSyncRun {
+  mode: 'Preview' | 'Apply';
+  results: AdSyncResult[];
+}
+
 export interface StudentImportResult {
   created: number;
   updated: number;
@@ -701,6 +715,7 @@ export const api = {
   }),
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
+  runAdSync: (mode: 'preview' | 'apply') => fetchJson<AdSyncRun>(`/students/ad-sync/${mode}`, { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),
   getStudentHomeGroups: () => fetchJson<string[]>('/students/home-groups'),
