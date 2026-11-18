@@ -127,6 +127,17 @@ irm "https://raw.githubusercontent.com/sbennell/ITMS/refs/heads/main/install.ps1
 
 The script handles everything: directory setup, dependencies, build, database, Windows service, firewall, scheduled tasks, and backups.
 
+### Install a Branch for Testing
+
+To install another branch, such as `AD-Account`, pass it to the script. Replace the branch name in both places:
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/sbennell/ITMS/refs/heads/AD-Account/install.ps1"))) -Branch AD-Account
+Disable-ScheduledTask -TaskName ITMSWebUpdate
+```
+
+The second command stops the nightly automatic update, which would otherwise reset the install to `main`. To update the test install later, run `C:\ITMS\app\update.ps1 -Branch AD-Account`.
+
 ### Manual Installation
 
 For step-by-step manual installation instructions, see [Manual Installation Guide](doc/MANUAL_INSTALL.md).
