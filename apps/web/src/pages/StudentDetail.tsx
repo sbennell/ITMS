@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Download } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Download, RefreshCw, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../App';
 
@@ -107,6 +107,8 @@ export default function StudentDetail() {
         </div>
       </div>
 
+      <HomeFolderCard studentId={student.id} />
+
       {/* Assigned Assets */}
       {student.assets && student.assets.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
@@ -156,6 +158,70 @@ export default function StudentDetail() {
           No assets assigned to this student
         </div>
       )}
+    </div>
+  );
+}
+
+// Shown only when AD Sync manages home folders. The check runs PowerShell, so it takes a few seconds.
+function HomeFolderCard({ studentId }: { studentId: string }) {
+  const { data, error, isFetching, refetch } = useQuery({
+    queryKey: ['studentHomeFolder', studentId],
+    queryFn: () => api.getStudentHomeFolder(studentId),
+    staleTime: 1000 * 60 * 5,
+    retry: false
+  });
+
+  if (data && !data.enabled) return null;
+
+  const problems = data?.problems ?? [];
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6 space-y-4">
+      <div className="flex items-center justify-between border-b pb-3">
+        <h2 className="text-lg font-bold text-gray-900">Home Folder</h2>
+        <button onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary flex items-center gap-2">
+          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+          {isFetching ? 'Checking...' : 'Check Again'}
+        </button>
+      </div>
+
+      {isFetching && !data && <p className="text-sm text-gray-500">Checking the folder...</p>}
+
+      {error && !isFetching && (
+        <p className="text-sm text-red-700 flex gap-2">
+          <AlertCircle size={18} className="shrink-0" />
+          {(error as Error).message}
+        </p>
+      )}
+
+      {data?.enabled && (
+        <>
+          <DetailRow label="Folder" value={data.path || data.expectedPath} />
+          <StatusRow label="Folder exists" ok={!!data.exists} />
+          {data.exists && <StatusRow label="In the right place" ok={!!data.inRightPlace} />}
+          {data.exists && <StatusRow label="Permissions correct" ok={!!data.permissionsOk} />}
+          {problems.length > 0 && (
+            <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+              {problems.map((problem, i) => <li key={i}>{problem}</li>)}
+            </ul>
+          )}
+          {problems.length > 0 && (
+            <p className="text-sm text-gray-500">An administrator can fix these with Apply in Settings, AD Sync.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatusRow({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <dt className="text-sm font-medium text-gray-600">{label}</dt>
+      <dd className={`text-sm font-medium flex items-center gap-1 ${ok ? 'text-green-700' : 'text-red-700'}`}>
+        {ok ? <CheckCircle size={16} /> : <XCircle size={16} />}
+        {ok ? 'Yes' : 'No'}
+      </dd>
     </div>
   );
 }

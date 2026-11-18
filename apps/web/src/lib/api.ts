@@ -88,6 +88,16 @@ export interface AdSyncRun {
   results: AdSyncResult[];
 }
 
+export interface HomeFolderStatus {
+  enabled: boolean;
+  expectedPath?: string;
+  path?: string | null;
+  exists?: boolean;
+  inRightPlace?: boolean;
+  permissionsOk?: boolean;
+  problems?: string[];
+}
+
 export interface StudentImportResult {
   created: number;
   updated: number;
@@ -715,6 +725,7 @@ export const api = {
   }),
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
+  getStudentHomeFolder: (id: string) => fetchJson<HomeFolderStatus>(`/students/${id}/home-folder`),
   runAdSync: (mode: 'preview' | 'apply') => fetchJson<AdSyncRun>(`/students/ad-sync/${mode}`, { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),

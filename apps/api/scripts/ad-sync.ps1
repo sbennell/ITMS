@@ -9,12 +9,14 @@
 
     Preview only reads AD and the file system and lists the changes it would make.
     Apply makes them. Passwords are reset for every student on Apply.
+    Check only reads, and reports whether each student's home folder exists, is in the
+    right place and has the permissions Apply would set.
 
     Requires the ActiveDirectory module (RSAT). The account running ITMS needs rights
     to manage the student OUs and Full Control of the student folder root.
 #>
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Apply')][string]$Mode,
+    [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Apply', 'Check')][string]$Mode,
     [Parameter(Mandatory = $true)][string]$InputFile,
     [Parameter(Mandatory = $true)][string]$OutputFile
 )
@@ -199,12 +201,15 @@ function Find-StudentFolder([string]$First, [string]$Last) {
     return $null
 }
 
-function Sync-StudentFolder($Student, $User, $Steps) {
+function Get-TargetFolder($Student) {
     $orgName = if ($config.organizeBy -eq 'YearLevel') { $Student.yearLevel } else { $Student.form }
     if (-not $orgName) { throw "No $($config.organizeBy) to place the home folder in" }
+    return Join-Path (Join-Path $config.driveRootPath $orgName) (Get-FolderName $Student.firstName $Student.surname)
+}
 
-    $parent = Join-Path $config.driveRootPath $orgName
-    $target = Join-Path $parent (Get-FolderName $Student.firstName $Student.surname)
+function Sync-StudentFolder($Student, $User, $Steps) {
+    $target = Get-TargetFolder $Student
+    $parent = Split-Path -Parent $target
 
     if (-not $seen.ContainsKey("dir:$parent")) {
         $seen["dir:$parent"] = $true
@@ -386,6 +391,98 @@ function Disable-Student($Student, $Steps) {
     if ($foldersEnabled) { Move-FolderToInactive $Student $Steps }
     if ($Steps.Count -eq 0 -or ($Steps.Count -eq 1 -and $Steps[0] -eq 'No AD account found')) { return 'none' }
     return 'disable'
+}
+
+# --- Check --------------------------------------------------------------------------
+
+function Get-SidName($Sid) {
+    try { return $Sid.Translate([System.Security.Principal.NTAccount]).Value } catch { return $Sid.Value }
+}
+
+# Compares a student's home folder with what Apply sets
+function Test-StudentFolder($Student) {
+    $problems = New-Object System.Collections.Generic.List[string]
+    $target = Get-TargetFolder $Student
+    $found = Find-StudentFolder $Student.firstName $Student.surname
+    $folder = [ordered]@{
+        expectedPath   = $target
+        path           = $found
+        exists         = [bool]$found
+        inRightPlace   = $found -and ($found -eq $target)
+        permissionsOk  = $false
+        problems       = $problems
+    }
+
+    if (-not $found) {
+        $problems.Add('The home folder does not exist')
+        return $folder
+    }
+    if (-not $folder.inRightPlace) { $problems.Add("The folder is not where it should be ($target)") }
+
+    $user = Find-ADStudent $Student.username
+    if (-not $user) { $problems.Add("No AD account named $($Student.username)") }
+
+    $modify = [System.Security.AccessControl.FileSystemRights]::Modify
+    $full = [System.Security.AccessControl.FileSystemRights]::FullControl
+    $expected = @(
+        @{ sid = [System.Security.Principal.SecurityIdentifier]'S-1-5-18'; rights = $full; label = 'SYSTEM Full Control' },
+        @{ sid = [System.Security.Principal.SecurityIdentifier]'S-1-5-32-544'; rights = $full; label = 'Administrators Full Control' },
+        @{ sid = (Get-GroupSid $config.staffGroupDN); rights = $full; label = "$(Get-GroupName $config.staffGroupDN) Full Control" }
+    )
+    if ($user) { $expected += @{ sid = $user.SID; rights = $modify; label = "$($Student.username) Modify" } }
+
+    $permissionIssues = 0
+    $acl = Get-Acl -LiteralPath $found
+    if (-not $acl.AreAccessRulesProtected) {
+        $problems.Add('The folder still inherits permissions from its parent')
+        $permissionIssues++
+    }
+
+    $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) |
+        Where-Object { $_.AccessControlType -eq 'Allow' })
+    $inherit = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit,ObjectInherit'
+
+    foreach ($want in $expected) {
+        $match = $rules | Where-Object {
+            $_.IdentityReference -eq $want.sid -and
+            ($_.FileSystemRights -band $want.rights) -eq $want.rights -and
+            ($_.InheritanceFlags -band $inherit) -eq $inherit
+        }
+        if (-not $match) {
+            $problems.Add("Missing $($want.label) for this folder and everything in it")
+            $permissionIssues++
+        }
+    }
+
+    $expectedSids = @($expected | ForEach-Object { $_.sid.Value })
+    $others = @($rules | Where-Object { $expectedSids -notcontains $_.IdentityReference.Value } |
+        ForEach-Object { $_.IdentityReference } | Sort-Object Value -Unique)
+    foreach ($sid in $others) {
+        $problems.Add("$(Get-SidName $sid) also has access")
+        $permissionIssues++
+    }
+
+    $folder.permissionsOk = [bool]$user -and $permissionIssues -eq 0
+    return $folder
+}
+
+if ($Mode -eq 'Check') {
+    if (-not $foldersEnabled) {
+        Write-Output-File -Ok $false -ErrorMessage 'Home folders are not set up in AD Sync settings'
+        exit 1
+    }
+    foreach ($student in @($data.students)) {
+        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; folder = $null }
+        try {
+            $result.folder = Test-StudentFolder $student
+        } catch {
+            $result.ok = $false
+            $result.error = $_.Exception.Message
+        }
+        $results.Add($result)
+    }
+    Write-Output-File -Ok $true -ErrorMessage $null
+    exit 0
 }
 
 # --- Run ----------------------------------------------------------------------------

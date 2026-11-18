@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
 import { startServer, TestServer } from './helpers';
-import { AdSyncRunner, runAdSync } from '../src/services/adSync';
+import { AdSyncRunner, checkHomeFolder, runAdSync } from '../src/services/adSync';
 
 let server: TestServer;
 let admin: string;
@@ -150,4 +150,46 @@ test('a script failure is reported and removes the input file', async () => {
   await assert.rejects(runAdSync(server.prisma, 'Apply', runner), /ActiveDirectory PowerShell module/);
   assert.equal(existsSync(inputFile), false);
   assert.deepEqual(await leavers(), []);
+});
+
+test('the home folder check is hidden until AD sync manages folders', async () => {
+  const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
+  const response = await server.call('GET', `/students/${cara.id}/home-folder`, admin);
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.json(), { enabled: false });
+});
+
+test('the home folder check sends one student without a password and returns the result', async () => {
+  await setConfig({ ...CONFIG, driveRootPath: 'D:\\Students', driveInactiveFolder: 'D:\\Students\\Inactive', staffGroupDN: 'CN=Staff,DC=test,DC=local' });
+  const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
+  await server.prisma.student.update({ where: { id: cara.id }, data: { password: 'Bear.1111' } });
+
+  let sentMode = '';
+  let sent: any;
+  const runner: AdSyncRunner = async (mode, input, output) => {
+    sentMode = mode;
+    sent = JSON.parse(readFileSync(input, 'utf8'));
+    const folder = {
+      expectedPath: 'D:\\Students\\9C\\Cara Tan',
+      path: 'D:\\Students\\9C\\Cara Tan',
+      exists: true,
+      inRightPlace: true,
+      permissionsOk: false,
+      problems: 'Missing ctan Modify for this folder and everything in it'
+    };
+    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: { username: 'ctan', name: 'Cara Tan', ok: true, error: null, folder } }));
+    return '';
+  };
+
+  const status = await checkHomeFolder(server.prisma, cara.id, runner);
+  assert.equal(sentMode, 'Check');
+  assert.equal(sent.students.length, 1);
+  assert.equal(sent.students[0].username, 'ctan');
+  assert.equal(sent.students[0].password, null);
+  assert.equal(status.enabled, true);
+  assert.equal(status.permissionsOk, false);
+  assert.deepEqual(status.problems, ['Missing ctan Modify for this folder and everything in it']);
+
+  const noUsername = await server.prisma.student.create({ data: { firstName: 'Eve', surname: 'Ko' } });
+  await assert.rejects(checkHomeFolder(server.prisma, noUsername.id, runner), /no username/);
 });

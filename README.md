@@ -209,6 +209,7 @@ Asset_System/
 - `POST /api/students/reconcile-assets` - Link assets to students by name matching
 - `POST /api/students/ad-sync/preview` - List the AD account and home folder changes without making them
 - `POST /api/students/ad-sync/apply` - Make the AD account and home folder changes
+- `GET /api/students/:id/home-folder` - Check a student's home folder location and permissions
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories
