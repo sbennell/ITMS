@@ -21,6 +21,9 @@ export interface AdSyncConfig {
   driveInactiveFolder: string;
   // Root\<year>\<Year Level>\<Home Group>\<Student>, blank when not used
   secondaryRootPath?: string;
+  // The account profile's home folder: drive letter and the share for driveRootPath
+  homeDrive?: string;
+  homeShareRoot?: string;
   organizeBy: 'Form' | 'YearLevel';
   folderNameFormat: 'FirstnameLastname' | 'LastnameFirstname';
 }
@@ -191,6 +194,9 @@ async function getCheckedConfig(prisma: PrismaClient): Promise<AdSyncConfig> {
   ];
   const missing = required.filter((field) => !config[field]);
   if (missing.length > 0) throw new AdSyncError(`AD sync settings are missing: ${missing.join(', ')}`);
+  if (config.homeShareRoot && (!config.driveRootPath || !config.homeDrive)) {
+    throw new AdSyncError('The home folder share needs the Student Folder Root and a Home Drive Letter');
+  }
   return config;
 }
 
@@ -243,6 +249,8 @@ export interface HomeFolderStatus {
   exists: boolean;
   inRightPlace: boolean;
   permissionsOk: boolean;
+  // Whether the account profile connects the home folder. Null when not managed.
+  profileOk?: boolean | null;
   problems: string[];
 }
 

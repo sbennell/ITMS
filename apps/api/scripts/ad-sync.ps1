@@ -12,7 +12,7 @@
     Check only reads. It reports each student's AD account and groups, and whether their
     home folder exists, is in the right place and has the permissions Apply would set.
     Fix puts each student's home folder in the right place, resets its permissions
-    (removing any other access), then checks it again. It does not change AD.
+    (removing any other access), connects it on the account profile, then checks it again.
 
     Requires the ActiveDirectory module (RSAT). The account running ITMS needs rights
     to manage the student OUs and Full Control of the student folder root.
@@ -74,7 +74,7 @@ function Get-GroupName([string]$DN) {
 
 function Find-ADStudent([string]$Username) {
     $safe = $Username -replace "'", "''"
-    return Get-ADUser -Filter "SamAccountName -eq '$safe'" -Properties MemberOf, DisplayName, EmailAddress, Description, Office, Title, Company, EmployeeID, ScriptPath
+    return Get-ADUser -Filter "SamAccountName -eq '$safe'" -Properties MemberOf, DisplayName, EmailAddress, Description, Office, Title, Company, EmployeeID, ScriptPath, HomeDirectory, HomeDrive
 }
 
 function Test-ADPath([string]$DN) {
@@ -228,6 +228,15 @@ function Get-TargetFolder($Student) {
     return Join-Path (Join-Path $config.driveRootPath $orgName) (Get-FolderName $Student.firstName $Student.surname)
 }
 
+# The account profile's home folder: the share path of the student's home folder.
+# Null when no share is set, so the profile is left alone.
+$homeDrive = if ($config.homeDrive) { $config.homeDrive.TrimEnd(':') + ':' } else { $null }
+function Get-HomeDirectory($Student) {
+    if (-not $foldersEnabled -or -not $config.homeShareRoot) { return $null }
+    $relative = (Get-TargetFolder $Student).Substring($config.driveRootPath.TrimEnd('\').Length)
+    return $config.homeShareRoot.TrimEnd('\') + $relative
+}
+
 function Sync-StudentFolder($Student, $User, $Steps) {
     $target = Get-TargetFolder $Student
     $parent = Split-Path -Parent $target
@@ -345,6 +354,11 @@ function Sync-Student($Student, $Steps) {
         Company      = Blank-To-Null $Student.studentNumber
         EmployeeID   = Blank-To-Null $Student.governmentNumber
         ScriptPath   = Blank-To-Null $config.logonScript
+    }
+    $homeDirectory = Get-HomeDirectory $Student
+    if ($homeDirectory) {
+        $attributes.HomeDirectory = $homeDirectory
+        $attributes.HomeDrive = $homeDrive
     }
 
     $user = Find-ADStudent $username
@@ -499,7 +513,18 @@ function Test-StudentFolder($Student) {
         exists         = [bool]$found
         inRightPlace   = $found -and ($found -eq $target)
         permissionsOk  = $false
+        # Null when the profile's home folder is not managed
+        profileOk      = $null
         problems       = $problems
+    }
+
+    $user = Find-ADStudent $Student.username
+    $homeDirectory = Get-HomeDirectory $Student
+    if ($homeDirectory) {
+        $folder.profileOk = [bool]$user -and $user.HomeDirectory -eq $homeDirectory -and $user.HomeDrive -eq $homeDrive
+        if ($user -and -not $folder.profileOk) {
+            $problems.Add("The account profile does not connect $homeDrive to $homeDirectory")
+        }
     }
 
     if (-not $found) {
@@ -508,7 +533,6 @@ function Test-StudentFolder($Student) {
     }
     if (-not $folder.inRightPlace) { $problems.Add("The folder is not where it should be ($target)") }
 
-    $user = Find-ADStudent $Student.username
     $folder.permissionsOk = Test-FolderPermissions $found $Student $user $problems
     return $folder
 }
@@ -595,6 +619,11 @@ if ($Mode -eq 'Check' -or $Mode -eq 'Fix') {
                 $user = Find-ADStudent $student.username
                 if (-not $user) { throw "No AD account named $($student.username). Run Apply in Settings, AD Sync first." }
                 if ($foldersEnabled) { Sync-StudentFolder $student $user $steps }
+                $homeDirectory = Get-HomeDirectory $student
+                if ($homeDirectory -and ($user.HomeDirectory -ne $homeDirectory -or $user.HomeDrive -ne $homeDrive)) {
+                    $steps.Add("Connect $homeDrive to $homeDirectory on the account profile")
+                    Set-ADUser -Identity $user.ObjectGUID -HomeDirectory $homeDirectory -HomeDrive $homeDrive
+                }
                 if ($secondaryEnabled) { Sync-SecondaryFolder $student $user $steps }
                 $steps.Add('Reset permissions')
             }

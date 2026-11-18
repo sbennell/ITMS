@@ -211,7 +211,7 @@ function StudentAdCards({ studentId }: { studentId: string }) {
   const busy = isFetching || fixMutation.isPending;
 
   const handleFix = (card: string) => {
-    if (window.confirm('Fix this student\'s folders? Missing folders are created, the home folder is moved to the right place, and permissions are reset, removing access for anyone else.')) {
+    if (window.confirm('Fix this student\'s folders? Missing folders are created, the home folder is moved to the right place and connected on the account profile, and permissions are reset, removing access for anyone else.')) {
       setFixedCard(card);
       fixMutation.mutate();
     }
@@ -332,6 +332,7 @@ function FolderCard({ title, folder, loading, canFix, busy, fixing, onFix, fixEr
           <StatusRow label="Folder exists" ok={folder.exists} />
           {folder.exists && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
           {folder.exists && <StatusRow label="Permissions correct" ok={folder.permissionsOk} />}
+          {folder.profileOk != null && <StatusRow label="Connected on the account profile" ok={folder.profileOk} />}
           {problems.length > 0 && (
             <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
               {problems.map((problem, i) => <li key={i}>{problem}</li>)}

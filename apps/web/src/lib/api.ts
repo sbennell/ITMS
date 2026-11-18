@@ -102,6 +102,7 @@ export interface HomeFolderStatus {
   exists: boolean;
   inRightPlace: boolean;
   permissionsOk: boolean;
+  profileOk?: boolean | null;
   problems: string[];
 }
 

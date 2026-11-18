@@ -14,6 +14,8 @@ interface AdSyncConfig {
   driveRootPath: string;
   driveInactiveFolder: string;
   secondaryRootPath: string;
+  homeDrive: string;
+  homeShareRoot: string;
   organizeBy: 'Form' | 'YearLevel';
   folderNameFormat: 'FirstnameLastname' | 'LastnameFirstname';
 }
@@ -29,6 +31,8 @@ const DEFAULT_CONFIG: AdSyncConfig = {
   driveRootPath: '',
   driveInactiveFolder: '',
   secondaryRootPath: '',
+  homeDrive: 'H:',
+  homeShareRoot: '',
   organizeBy: 'Form',
   folderNameFormat: 'FirstnameLastname'
 };
@@ -42,6 +46,8 @@ const TEXT_FIELDS: Array<{ key: keyof AdSyncConfig; label: string; placeholder: 
   { key: 'logonScript', label: 'Logon Script', placeholder: 'default.bat' },
   { key: 'driveRootPath', label: 'Student Folder Root (blank to skip folders)', placeholder: 'D:\\WORK\\Students' },
   { key: 'driveInactiveFolder', label: 'Inactive Folder', placeholder: 'D:\\WORK\\Students\\Inactive' },
+  { key: 'homeShareRoot', label: 'Home Folder Share, the share path of the Student Folder Root (blank to leave the account profile alone)', placeholder: '\\\\fileserver\\Students$' },
+  { key: 'homeDrive', label: 'Home Drive Letter', placeholder: 'H:' },
   { key: 'secondaryRootPath', label: 'Secondary Folder Root (blank to skip). Folders are made as Root\\Year\\Year Level\\Home Group\\Student and never moved', placeholder: 'D:\\WORK\\Submit' }
 ];
 

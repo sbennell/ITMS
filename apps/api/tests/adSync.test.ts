@@ -272,3 +272,10 @@ test('secondary folders need the Staff group and come back with the check', asyn
   const fixed = await fixHomeFolder(server.prisma, cara.id, runner);
   assert.equal(fixed.enabled, true);
 });
+
+test('a home folder share needs the folder root and a drive letter', async () => {
+  await setConfig({ ...CONFIG, homeShareRoot: '\\\\fileserver\\Students$', homeDrive: 'H:' });
+  const response = await server.call('POST', '/students/ad-sync/preview', admin);
+  assert.equal(response.status, 400);
+  assert.match(response.json().error, /Student Folder Root and a Home Drive Letter/);
+});
