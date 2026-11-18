@@ -283,6 +283,8 @@ function StudentAdCards({ studentId }: { studentId: string }) {
           key={key}
           title={title}
           folder={status}
+          // Only a home folder is looked for elsewhere, so only it can be in the wrong place
+          showPlacement={key === 'home'}
           loading={isFetching && !data}
           canFix={isAdmin}
           busy={busy}
@@ -296,9 +298,10 @@ function StudentAdCards({ studentId }: { studentId: string }) {
   );
 }
 
-function FolderCard({ title, folder, loading, canFix, busy, fixing, onFix, fixError, fixSteps }: {
+function FolderCard({ title, folder, showPlacement, loading, canFix, busy, fixing, onFix, fixError, fixSteps }: {
   title: string;
   folder: HomeFolderStatus | null | undefined;
+  showPlacement: boolean;
   loading: boolean;
   canFix: boolean;
   busy: boolean;
@@ -343,7 +346,7 @@ function FolderCard({ title, folder, loading, canFix, busy, fixing, onFix, fixEr
         <>
           <DetailRow label="Folder" value={folder.path || folder.expectedPath} />
           <StatusRow label="Folder exists" ok={folder.exists} />
-          {folder.exists && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
+          {folder.exists && showPlacement && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
           {folder.exists && <StatusRow label="Permissions correct" ok={folder.permissionsOk} />}
           {folder.profileOk != null && <StatusRow label="Connected on the account profile" ok={folder.profileOk} />}
           {problems.length > 0 && (
