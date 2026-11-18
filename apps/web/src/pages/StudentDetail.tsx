@@ -194,9 +194,7 @@ function AdAccountSection({ studentId }: { studentId: string }) {
   const account = data?.account;
 
   return (
-    <div className="border-t pt-4 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-900">AD Account</h3>
-
+    <div className="space-y-4">
       {isFetching && !data && <p className="text-sm text-gray-500">Checking Active Directory...</p>}
 
       {error && !isFetching && (
