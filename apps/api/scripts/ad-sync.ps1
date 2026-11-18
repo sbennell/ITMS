@@ -147,13 +147,14 @@ function New-Rule([System.Security.Principal.SecurityIdentifier]$Sid, [string]$R
     return New-Object System.Security.AccessControl.FileSystemAccessRule($Sid, $Rights, $Inherit, 'None', 'Allow')
 }
 
-function Set-FolderAcl([string]$Path, [object[]]$Rules, [bool]$RemoveOthers = $false) {
+function Set-FolderAcl([string]$Path, [object[]]$Rules, [bool]$RemoveOthers = $false, [object[]]$RemoveSids = @()) {
     $acl = Get-Acl -LiteralPath $Path
     # Remove inherited permissions, as the original script did
     $acl.SetAccessRuleProtection($true, $false)
-    # Apply keeps other explicit permissions, as the original script did. Fix removes them.
-    if ($RemoveOthers) {
-        foreach ($rule in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
+    # Apply keeps other explicit permissions, as the original script did. Fix removes them,
+    # and $RemoveSids removes the rules for those accounts only.
+    foreach ($rule in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
+        if ($RemoveOthers -or ($RemoveSids | Where-Object { $_.Value -eq $rule.IdentityReference.Value })) {
             $acl.RemoveAccessRuleSpecific($rule)
         }
     }
@@ -176,6 +177,16 @@ function Set-ContainerFolderAcl([string]$Path) {
         (New-Rule (Get-GroupSid $config.staffGroupDN) 'ReadAndExecute' $inheritAll),
         (New-Rule (Get-GroupSid $config.studentsGroupDN) 'ReadAndExecute' 'None')
     ))
+}
+
+# Secondary Year Level folder: Staff modify, so they can add work there, and the
+# Year Level group read, so only students in that year can open it
+function Set-YearLevelFolderAcl([string]$Path, [string]$YearGroupDN) {
+    # Earlier versions gave every student read on this folder, so that is removed
+    Set-FolderAcl $Path ((Get-BaseRules) + @(
+        (New-Rule (Get-GroupSid $config.staffGroupDN) 'Modify' $inheritAll),
+        (New-Rule (Get-GroupSid $YearGroupDN) 'ReadAndExecute' $inheritAll)
+    )) $false @(Get-GroupSid $config.studentsGroupDN)
 }
 
 # Student folder: Staff full control, the student modify
@@ -262,6 +273,8 @@ function Sync-SecondaryFolder($Student, $User, $Steps) {
         $parents = @($dir) + $parents
         $dir = Split-Path -Parent $dir
     }
+    # The Year Level folder is the Home Group folder's parent
+    $yearLevelDir = Split-Path -Parent (Split-Path -Parent $target)
     foreach ($parent in $parents) {
         if ($seen.ContainsKey("dir:$parent")) { continue }
         $seen["dir:$parent"] = $true
@@ -269,7 +282,13 @@ function Sync-SecondaryFolder($Student, $User, $Steps) {
             $Steps.Add("Create folder $parent")
             if ($apply) { $null = New-Item -ItemType Directory -Path $parent }
         }
-        if ($apply) { Set-ContainerFolderAcl $parent }
+        if ($apply) {
+            if ($parent -eq $yearLevelDir) {
+                Set-YearLevelFolderAcl $parent "CN=$($Student.yearLevel),$($config.yearGroupsOU)"
+            } else {
+                Set-ContainerFolderAcl $parent
+            }
+        }
     }
 
     if (-not (Test-Path -LiteralPath $target)) {
