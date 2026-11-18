@@ -180,7 +180,7 @@ export default function StudentsTab() {
                 disabled={schoolTypeMutation.isPending}
               />
               <span className="text-sm">
-                {type === 'DE' ? 'Department of Education' : 'Standard'}
+                {type === 'DE' ? 'Department of Education' : 'MACS'}
               </span>
             </label>
           ))}

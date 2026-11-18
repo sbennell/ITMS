@@ -59,7 +59,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **CSV Import**: Automated student data import with flexible column mapping
 - **Flexible Search**: Advanced search by name, email, username, and full-name matching
 - **Asset Assignment**: Link assets to students with automatic reconciliation by name
-- **School Customization**: Conditional fields based on school type (Standard or Department of Education)
+- **School Customization**: Conditional fields based on school type (MACS or Department of Education)
 - **Import Automation**: File watcher for automatic imports when student data changes
 - **AD Sync**: Create, update and disable student Active Directory accounts and manage their home folders, with a preview before any change is made
 - **Quick View**: Student detail pages with assigned assets and account information

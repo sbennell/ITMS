@@ -16,13 +16,14 @@ All notable changes to the Asset Management System are documented in this file.
 - Secondary folders, for example a share where students hand in work. When a Secondary Folder Root is set, Apply creates each student a folder at `Root\Year\Year Level\Home Group\Student` (for example `2026\Year 7\7A\Jane Smith`), with the same permissions as home folders. In each Year Level folder, staff have Modify so they can add work for that year, and the Year Level group (for example Year 7) can read it. Other students cannot open it. These folders are never moved or archived, so each year gets a new set and earlier years stay as they were. The student page has a Secondary Folder card that checks this year's folder, and Fix creates it or resets its permissions.
 - The account profile's home folder. When a Home Folder Share is set (the share path of the Student Folder Root, for example `\\fileserver\Students$`), Apply sets each account to connect the Home Drive Letter (default H:) to the student's home folder on that share, and the Home Folder card checks it.
 - Settings, Students: a Build Master List card that runs the student account matcher scripts from the scripts folder (default `C:\ITMS\Scripts`), then imports the master list. It uploads the exports the scripts need and shows each script's output.
-  - Catholic (Standard) schools: upload the admin system and Google Workspace exports, then it runs `AD_Student_Export.ps1` and `Student_Account_Matcher.ps1 -Unattended` and imports `data\Master_List.csv`. A student with more than one active Google account is skipped and listed in the output.
+  - MACS schools: upload the admin system and Google Workspace exports, then it runs `AD_Student_Export.ps1` and `Student_Account_Matcher.ps1 -Unattended` and imports `data\Master_List.csv`. A student with more than one active Google account is skipped and listed in the output.
   - DE schools: optionally upload the Cases21 export (otherwise the path in the script's `config.json` is used), then it runs the DE `Student_Account_Matcher.ps1` and imports `data\student_master_list.csv`.
   - The import only runs when every script succeeds and the student import file is the list the scripts made. A Use This File button sets it.
 - Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
 
 ### Changed
 
+- The Standard school type is now called MACS. The stored value is unchanged, so no settings need updating.
 - A leaver whose account is already disabled and in the Inactive OU is shown as unchanged, instead of having its Left date updated on every run.
 - Group membership is changed only where it differs, instead of removing every group and adding them back.
 - Folder permissions are given by AD security ID instead of by name, and every AD change in a run uses the same domain controller. This fixes "Some or all identity references could not be translated" when a group or account was created in the same run, or when the service account's domain name did not match (issue #1).

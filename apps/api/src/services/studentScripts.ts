@@ -6,7 +6,7 @@ import path from 'path';
 import { ImportResult, runStudentImport } from './studentImporter.js';
 
 // Runs the school's student account matcher scripts to build the master list, then imports it.
-// Catholic (Standard) schools use AD_Student_Export.ps1 and Student_Account_Matcher.ps1,
+// MACS schools (stored as STANDARD) use AD_Student_Export.ps1 and Student_Account_Matcher.ps1,
 // DE schools use the DE Student_Account_Matcher.ps1 (Cases21 and STMC).
 
 const DEFAULT_FOLDER = 'C:\\ITMS\\Scripts';
