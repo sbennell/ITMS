@@ -19,6 +19,8 @@ export interface AdSyncConfig {
   logonScript: string;
   driveRootPath: string;
   driveInactiveFolder: string;
+  // Root\<year>\<Year Level>\<Home Group>\<Student>, blank when not used
+  secondaryRootPath?: string;
   organizeBy: 'Form' | 'YearLevel';
   folderNameFormat: 'FirstnameLastname' | 'LastnameFirstname';
 }
@@ -62,7 +64,8 @@ export class AdSyncError extends Error {
 }
 
 const REQUIRED_FIELDS: Array<keyof AdSyncConfig> = ['studentsOU', 'inactiveOU', 'yearGroupsOU', 'studentsGroupDN'];
-const FOLDER_FIELDS: Array<keyof AdSyncConfig> = ['driveInactiveFolder', 'staffGroupDN'];
+const HOME_FOLDER_FIELDS: Array<keyof AdSyncConfig> = ['driveInactiveFolder', 'staffGroupDN'];
+const SECONDARY_FOLDER_FIELDS: Array<keyof AdSyncConfig> = ['staffGroupDN'];
 
 // Statuses the import gives students who should have an AD account (from Master_List.csv)
 const SYNCED_STATUSES = ['active', 'new'];
@@ -181,7 +184,11 @@ async function getCheckedConfig(prisma: PrismaClient): Promise<AdSyncConfig> {
   const config = await getAdSyncConfig(prisma);
   if (!config?.enabled) throw new AdSyncError('AD sync is not enabled');
 
-  const required = config.driveRootPath ? [...REQUIRED_FIELDS, ...FOLDER_FIELDS] : REQUIRED_FIELDS;
+  const required = [
+    ...REQUIRED_FIELDS,
+    ...(config.driveRootPath ? HOME_FOLDER_FIELDS : []),
+    ...(config.secondaryRootPath ? SECONDARY_FOLDER_FIELDS : [])
+  ];
   const missing = required.filter((field) => !config[field]);
   if (missing.length > 0) throw new AdSyncError(`AD sync settings are missing: ${missing.join(', ')}`);
   return config;
@@ -244,6 +251,8 @@ export interface StudentAdStatus {
   account?: AdAccountStatus | null;
   // Null when AD Sync does not manage home folders
   folder?: HomeFolderStatus | null;
+  // Null when AD Sync does not manage secondary folders
+  secondaryFolder?: HomeFolderStatus | null;
   // Only set by a fix: what it changed
   steps?: string[];
 }
@@ -262,7 +271,9 @@ async function runStudentCheck(
     if (mode === 'Check') return { enabled: false };
     throw new AdSyncError('AD sync is not enabled');
   }
-  if (mode === 'Fix' && !config.driveRootPath) throw new AdSyncError('Home folders are not set up in AD Sync settings');
+  if (mode === 'Fix' && !config.driveRootPath && !config.secondaryRootPath) {
+    throw new AdSyncError('Home folders are not set up in AD Sync settings');
+  }
   await getCheckedConfig(prisma);
 
   const student = await prisma.student.findUnique({ where: { id: studentId } });
@@ -276,6 +287,7 @@ async function runStudentCheck(
     error: string | null;
     account: AdAccountStatus | null;
     folder: HomeFolderStatus | null;
+    secondaryFolder: HomeFolderStatus | null;
     steps: string[] | string | null;
   }>(config, mode, [input], runner);
   if (!result) throw new AdSyncError('The AD sync script did not return a result', 500);
@@ -289,7 +301,8 @@ async function runStudentCheck(
       groups: asList(result.account.groups),
       missingGroups: asList(result.account.missingGroups)
     },
-    folder: result.folder && { ...result.folder, problems: asList(result.folder.problems) }
+    folder: result.folder && { ...result.folder, problems: asList(result.folder.problems) },
+    secondaryFolder: result.secondaryFolder && { ...result.secondaryFolder, problems: asList(result.secondaryFolder.problems) }
   };
   if (mode === 'Fix') {
     status.steps = asList(result.steps);

@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, CheckCircle, Download, RefreshCw, Wrench, XCircle } from 'lucide-react';
-import { api } from '../lib/api';
+import { api, HomeFolderStatus } from '../lib/api';
 import { useAuth } from '../App';
 
 export default function StudentDetail() {
@@ -189,6 +189,8 @@ function StudentAdCards({ studentId }: { studentId: string }) {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const { data, error, isFetching } = useStudentAdStatus(studentId);
+  // The card whose Fix was clicked shows the result
+  const [fixedCard, setFixedCard] = useState<string | null>(null);
 
   // The fix returns the student as checked afterwards, so it replaces the last check
   const fixMutation = useMutation({
@@ -206,11 +208,11 @@ function StudentAdCards({ studentId }: { studentId: string }) {
 
   const account = data?.account;
   const folder = data?.folder;
-  const problems = folder?.problems ?? [];
   const busy = isFetching || fixMutation.isPending;
 
-  const handleFix = () => {
-    if (window.confirm('Fix this home folder? It is created or moved to the right place, and its permissions are reset, removing access for anyone else.')) {
+  const handleFix = (card: string) => {
+    if (window.confirm('Fix this student\'s folders? Missing folders are created, the home folder is moved to the right place, and permissions are reset, removing access for anyone else.')) {
+      setFixedCard(card);
       fixMutation.mutate();
     }
   };
@@ -259,54 +261,86 @@ function StudentAdCards({ studentId }: { studentId: string }) {
         )}
       </div>
 
-      {/* Home Folder, when AD Sync manages folders */}
-      {(folder || (!data && !error)) && (
-        <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <div className="flex items-center justify-between border-b pb-3">
-            <h2 className="text-lg font-bold text-gray-900">Home Folder</h2>
-            {isAdmin && problems.length > 0 && (
-              <button onClick={handleFix} disabled={busy} className="btn btn-primary flex items-center gap-2">
-                <Wrench size={16} />
-                {fixMutation.isPending ? 'Fixing...' : 'Fix'}
-              </button>
-            )}
-          </div>
+      {/* Folders, when AD Sync manages them. One Fix fixes both. */}
+      {[
+        { key: 'home', title: 'Home Folder', status: folder },
+        { key: 'secondary', title: 'Secondary Folder', status: data?.secondaryFolder }
+      ].map(({ key, title, status }) => (status || (key === 'home' && !data && !error)) && (
+        <FolderCard
+          key={key}
+          title={title}
+          folder={status}
+          loading={isFetching && !data}
+          canFix={isAdmin}
+          busy={busy}
+          fixing={fixMutation.isPending && fixedCard === key}
+          onFix={() => handleFix(key)}
+          fixError={fixedCard === key ? (fixMutation.error as Error | null) : null}
+          fixSteps={fixedCard === key && fixMutation.isSuccess ? fixMutation.data.steps ?? [] : null}
+        />
+      ))}
+    </div>
+  );
+}
 
-          {isFetching && !data && <p className="text-sm text-gray-500">Checking the folder...</p>}
+function FolderCard({ title, folder, loading, canFix, busy, fixing, onFix, fixError, fixSteps }: {
+  title: string;
+  folder: HomeFolderStatus | null | undefined;
+  loading: boolean;
+  canFix: boolean;
+  busy: boolean;
+  fixing: boolean;
+  onFix: () => void;
+  fixError: Error | null;
+  fixSteps: string[] | null;
+}) {
+  const problems = folder?.problems ?? [];
 
-          {fixMutation.error && (
-            <p className="text-sm text-red-700 flex gap-2">
-              <AlertCircle size={18} className="shrink-0" />
-              {(fixMutation.error as Error).message}
-            </p>
-          )}
+  return (
+    <div className="bg-white rounded-lg shadow p-6 space-y-4">
+      <div className="flex items-center justify-between border-b pb-3">
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+        {canFix && problems.length > 0 && (
+          <button onClick={onFix} disabled={busy} className="btn btn-primary flex items-center gap-2">
+            <Wrench size={16} />
+            {fixing ? 'Fixing...' : 'Fix'}
+          </button>
+        )}
+      </div>
 
-          {fixMutation.isSuccess && (
-            <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="font-medium">Fixed</p>
-              <ul className="mt-1 space-y-0.5">
-                {(fixMutation.data.steps ?? []).map((step, i) => <li key={i}>{step}</li>)}
-              </ul>
-            </div>
-          )}
+      {loading && <p className="text-sm text-gray-500">Checking the folder...</p>}
 
-          {folder && (
-            <>
-              <DetailRow label="Folder" value={folder.path || folder.expectedPath} />
-              <StatusRow label="Folder exists" ok={folder.exists} />
-              {folder.exists && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
-              {folder.exists && <StatusRow label="Permissions correct" ok={folder.permissionsOk} />}
-              {problems.length > 0 && (
-                <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
-                  {problems.map((problem, i) => <li key={i}>{problem}</li>)}
-                </ul>
-              )}
-              {problems.length > 0 && !isAdmin && (
-                <p className="text-sm text-gray-500">An administrator can fix these from this page.</p>
-              )}
-            </>
-          )}
+      {fixError && (
+        <p className="text-sm text-red-700 flex gap-2">
+          <AlertCircle size={18} className="shrink-0" />
+          {fixError.message}
+        </p>
+      )}
+
+      {fixSteps && (
+        <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
+          <p className="font-medium">Fixed</p>
+          <ul className="mt-1 space-y-0.5">
+            {fixSteps.map((step, i) => <li key={i}>{step}</li>)}
+          </ul>
         </div>
+      )}
+
+      {folder && (
+        <>
+          <DetailRow label="Folder" value={folder.path || folder.expectedPath} />
+          <StatusRow label="Folder exists" ok={folder.exists} />
+          {folder.exists && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
+          {folder.exists && <StatusRow label="Permissions correct" ok={folder.permissionsOk} />}
+          {problems.length > 0 && (
+            <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+              {problems.map((problem, i) => <li key={i}>{problem}</li>)}
+            </ul>
+          )}
+          {problems.length > 0 && !canFix && (
+            <p className="text-sm text-gray-500">An administrator can fix these from this page.</p>
+          )}
+        </>
       )}
     </div>
   );

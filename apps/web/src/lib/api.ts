@@ -109,6 +109,7 @@ export interface StudentAdStatus {
   enabled: boolean;
   account?: AdAccountStatus | null;
   folder?: HomeFolderStatus | null;
+  secondaryFolder?: HomeFolderStatus | null;
   steps?: string[];
 }
 

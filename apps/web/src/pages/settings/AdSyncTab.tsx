@@ -13,6 +13,7 @@ interface AdSyncConfig {
   logonScript: string;
   driveRootPath: string;
   driveInactiveFolder: string;
+  secondaryRootPath: string;
   organizeBy: 'Form' | 'YearLevel';
   folderNameFormat: 'FirstnameLastname' | 'LastnameFirstname';
 }
@@ -27,6 +28,7 @@ const DEFAULT_CONFIG: AdSyncConfig = {
   logonScript: 'default.bat',
   driveRootPath: '',
   driveInactiveFolder: '',
+  secondaryRootPath: '',
   organizeBy: 'Form',
   folderNameFormat: 'FirstnameLastname'
 };
@@ -39,7 +41,8 @@ const TEXT_FIELDS: Array<{ key: keyof AdSyncConfig; label: string; placeholder: 
   { key: 'staffGroupDN', label: 'Staff Group (folder permissions)', placeholder: 'CN=Staff,OU=Staff Groups,OU=Groups,OU=School,DC=domain,DC=local' },
   { key: 'logonScript', label: 'Logon Script', placeholder: 'default.bat' },
   { key: 'driveRootPath', label: 'Student Folder Root (blank to skip folders)', placeholder: 'D:\\WORK\\Students' },
-  { key: 'driveInactiveFolder', label: 'Inactive Folder', placeholder: 'D:\\WORK\\Students\\Inactive' }
+  { key: 'driveInactiveFolder', label: 'Inactive Folder', placeholder: 'D:\\WORK\\Students\\Inactive' },
+  { key: 'secondaryRootPath', label: 'Secondary Folder Root (blank to skip). Folders are made as Root\\Year\\Year Level\\Home Group\\Student and never moved', placeholder: 'D:\\WORK\\Submit' }
 ];
 
 const GROUPS: Array<{ action: AdSyncResult['action']; label: string }> = [

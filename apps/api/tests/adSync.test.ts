@@ -236,3 +236,39 @@ test('a fix returns what it changed and the folder as checked afterwards', async
   };
   await assert.rejects(fixHomeFolder(server.prisma, cara.id, failing), /No AD account named ctan/);
 });
+
+test('secondary folders need the Staff group and come back with the check', async () => {
+  await setConfig({ ...CONFIG, secondaryRootPath: 'D:\\Submit' });
+  const missing = await server.call('POST', '/students/ad-sync/preview', admin);
+  assert.equal(missing.status, 400);
+  assert.match(missing.json().error, /staffGroupDN/);
+
+  await setConfig({ ...CONFIG, secondaryRootPath: 'D:\\Submit', staffGroupDN: 'CN=Staff,DC=test,DC=local' });
+  const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
+
+  let sent: any;
+  const runner: AdSyncRunner = async (_mode, input, output) => {
+    sent = JSON.parse(readFileSync(input, 'utf8'));
+    const secondaryFolder = {
+      expectedPath: 'D:\\Submit\\2026\\Year 9\\9C\\Cara Tan',
+      path: null,
+      exists: false,
+      inRightPlace: true,
+      permissionsOk: false,
+      problems: "This year's secondary folder does not exist"
+    };
+    const result = { username: 'ctan', name: 'Cara Tan', ok: true, error: null, account: null, folder: null, secondaryFolder, steps: [] };
+    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: [result] }));
+    return '';
+  };
+
+  const status = await checkStudentAd(server.prisma, cara.id, runner);
+  assert.equal(sent.config.secondaryRootPath, 'D:\\Submit');
+  assert.equal(status.folder, null);
+  assert.equal(status.secondaryFolder?.exists, false);
+  assert.deepEqual(status.secondaryFolder?.problems, ["This year's secondary folder does not exist"]);
+
+  // Fix works with only secondary folders set up
+  const fixed = await fixHomeFolder(server.prisma, cara.id, runner);
+  assert.equal(fixed.enabled, true);
+});

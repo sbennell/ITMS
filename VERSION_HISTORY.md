@@ -13,6 +13,7 @@ All notable changes to the Asset Management System are documented in this file.
 - Students who leave (marked Left in the import file, or no longer in it) are recorded when the import runs, so Apply can disable their account, move it to the Inactive OU and move their home folder to Inactive.
 - Student page: an AD Account card, shown when AD Sync is enabled. It shows whether the account is enabled, its OU, the groups it is a member of, and any of the Students, Year Level or Home Group groups it is missing.
 - Student page: a Home Folder card, shown when AD Sync manages home folders. It checks whether the folder exists, is in the right place, and has the permissions Apply sets, and lists any problems such as a missing permission or another account with access. Administrators can click Fix to create or move the folder and reset its permissions, which also removes access for any other account. Fix does not change the AD account.
+- Secondary folders, for example a share where students hand in work. When a Secondary Folder Root is set, Apply creates each student a folder at `Root\Year\Year Level\Home Group\Student` (for example `2026\Year 7\7A\Jane Smith`), with the same permissions as home folders. These folders are never moved or archived, so each year gets a new set and earlier years stay as they were. The student page has a Secondary Folder card that checks this year's folder, and Fix creates it or resets its permissions.
 - Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
 
 ### Changed
@@ -39,7 +40,7 @@ All notable changes to the Asset Management System are documented in this file.
 - `apps/api/src/routes/students.ts`: added `POST /api/students/ad-sync/preview` and `/apply` (administrators only), `GET /api/students/:id/ad-status`, which runs the script in its read only `Check` mode for one student, and `POST /api/students/:id/home-folder/fix` (administrators only), which runs its `Fix` mode.
 - `apps/web/src/pages/settings/AdSyncTab.tsx`, `apps/web/src/pages/Settings.tsx`, `apps/web/src/pages/settings/StudentsTab.tsx`, `apps/web/src/lib/api.ts`: added the tab and the mapping fields.
 - `apps/api/tests/adSync.test.ts`: covers the leaver queue, the route checks and the script input and output.
-- Settings keys: `adSyncConfig` (JSON) and `adSyncLastRun`.
+- Settings keys: `adSyncConfig` (JSON, including `secondaryRootPath`) and `adSyncLastRun`.
 
 ---
 

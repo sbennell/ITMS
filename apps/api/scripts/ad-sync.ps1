@@ -55,6 +55,8 @@ try {
     exit 1
 }
 $foldersEnabled = [bool]$config.driveRootPath
+$secondaryEnabled = [bool]$config.secondaryRootPath
+$secondaryYear = (Get-Date).Year
 
 # Things already created or checked during this run, so each is listed or done once
 $seen = @{}
@@ -241,6 +243,42 @@ function Sync-StudentFolder($Student, $User, $Steps) {
     if ($apply) { Set-StudentFolderAcl $target $User }
 }
 
+# Secondary folder: Root\<this year>\<Year Level>\<Home Group>\<Student>. Folders are only
+# created, never moved, so earlier years and leavers' folders stay where they are.
+function Get-SecondaryTarget($Student) {
+    if (-not $Student.yearLevel -or -not $Student.form) { throw 'No year level or home group for the secondary folder' }
+    $path = $config.secondaryRootPath
+    foreach ($part in @([string]$secondaryYear, $Student.yearLevel, $Student.form)) { $path = Join-Path $path $part }
+    return Join-Path $path (Get-FolderName $Student.firstName $Student.surname)
+}
+
+function Sync-SecondaryFolder($Student, $User, $Steps) {
+    $target = Get-SecondaryTarget $Student
+
+    # Year, Year Level and Home Group folders, top down
+    $parents = @()
+    $dir = Split-Path -Parent $target
+    while ($dir.TrimEnd('\') -ne $config.secondaryRootPath.TrimEnd('\')) {
+        $parents = @($dir) + $parents
+        $dir = Split-Path -Parent $dir
+    }
+    foreach ($parent in $parents) {
+        if ($seen.ContainsKey("dir:$parent")) { continue }
+        $seen["dir:$parent"] = $true
+        if (-not (Test-Path -LiteralPath $parent)) {
+            $Steps.Add("Create folder $parent")
+            if ($apply) { $null = New-Item -ItemType Directory -Path $parent }
+        }
+        if ($apply) { Set-ContainerFolderAcl $parent }
+    }
+
+    if (-not (Test-Path -LiteralPath $target)) {
+        $Steps.Add("Create secondary folder $target")
+        if ($apply) { $null = New-Item -ItemType Directory -Path $target }
+    }
+    if ($apply) { Set-StudentFolderAcl $target $User }
+}
+
 function Move-FolderToInactive($Student, $Steps) {
     $existing = Find-StudentFolder $Student.firstName $Student.surname
     if (-not $existing) { return }
@@ -377,6 +415,7 @@ function Sync-Student($Student, $Steps) {
     }
 
     if ($foldersEnabled) { Sync-StudentFolder $Student $user $Steps }
+    if ($secondaryEnabled) { Sync-SecondaryFolder $Student $user $Steps }
     return $action
 }
 
@@ -451,7 +490,35 @@ function Test-StudentFolder($Student) {
     if (-not $folder.inRightPlace) { $problems.Add("The folder is not where it should be ($target)") }
 
     $user = Find-ADStudent $Student.username
-    if (-not $user) { $problems.Add("No AD account named $($Student.username)") }
+    $folder.permissionsOk = Test-FolderPermissions $found $Student $user $problems
+    return $folder
+}
+
+# Secondary folders are never moved, so only this year's folder and its permissions are checked
+function Test-SecondaryFolder($Student) {
+    $problems = New-Object System.Collections.Generic.List[string]
+    $target = Get-SecondaryTarget $Student
+    $folder = [ordered]@{
+        expectedPath  = $target
+        path          = $null
+        exists        = (Test-Path -LiteralPath $target)
+        inRightPlace  = $true
+        permissionsOk = $false
+        problems      = $problems
+    }
+    if (-not $folder.exists) {
+        $problems.Add("This year's secondary folder does not exist")
+        return $folder
+    }
+    $folder.path = $target
+    $user = Find-ADStudent $Student.username
+    $folder.permissionsOk = Test-FolderPermissions $target $Student $user $problems
+    return $folder
+}
+
+# Compares a student folder's permissions with what Apply sets, adding any problems found
+function Test-FolderPermissions([string]$Path, $Student, $User, $Problems) {
+    if (-not $User) { $Problems.Add("No AD account named $($Student.username)") }
 
     $modify = [System.Security.AccessControl.FileSystemRights]::Modify
     $full = [System.Security.AccessControl.FileSystemRights]::FullControl
@@ -460,12 +527,12 @@ function Test-StudentFolder($Student) {
         @{ sid = [System.Security.Principal.SecurityIdentifier]'S-1-5-32-544'; rights = $full; label = 'Administrators Full Control' },
         @{ sid = (Get-GroupSid $config.staffGroupDN); rights = $full; label = "$(Get-GroupName $config.staffGroupDN) Full Control" }
     )
-    if ($user) { $expected += @{ sid = $user.SID; rights = $modify; label = "$($Student.username) Modify" } }
+    if ($User) { $expected += @{ sid = $User.SID; rights = $modify; label = "$($Student.username) Modify" } }
 
     $permissionIssues = 0
-    $acl = Get-Acl -LiteralPath $found
+    $acl = Get-Acl -LiteralPath $Path
     if (-not $acl.AreAccessRulesProtected) {
-        $problems.Add('The folder still inherits permissions from its parent')
+        $Problems.Add('The folder still inherits permissions from its parent')
         $permissionIssues++
     }
 
@@ -480,7 +547,7 @@ function Test-StudentFolder($Student) {
             ($_.InheritanceFlags -band $inherit) -eq $inherit
         }
         if (-not $match) {
-            $problems.Add("Missing $($want.label) for this folder and everything in it")
+            $Problems.Add("Missing $($want.label) for this folder and everything in it")
             $permissionIssues++
         }
     }
@@ -489,31 +556,32 @@ function Test-StudentFolder($Student) {
     $others = @($rules | Where-Object { $expectedSids -notcontains $_.IdentityReference.Value } |
         ForEach-Object { $_.IdentityReference } | Sort-Object Value -Unique)
     foreach ($sid in $others) {
-        $problems.Add("$(Get-SidName $sid) also has access")
+        $Problems.Add("$(Get-SidName $sid) also has access")
         $permissionIssues++
     }
 
-    $folder.permissionsOk = [bool]$user -and $permissionIssues -eq 0
-    return $folder
+    return ([bool]$User -and $permissionIssues -eq 0)
 }
 
 if ($Mode -eq 'Check' -or $Mode -eq 'Fix') {
-    if ($Mode -eq 'Fix' -and -not $foldersEnabled) {
+    if ($Mode -eq 'Fix' -and -not $foldersEnabled -and -not $secondaryEnabled) {
         Write-Output-File -Ok $false -ErrorMessage 'Home folders are not set up in AD Sync settings'
         exit 1
     }
     foreach ($student in @($data.students)) {
         $steps = New-Object System.Collections.Generic.List[string]
-        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; account = $null; folder = $null; steps = $steps }
+        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; account = $null; folder = $null; secondaryFolder = $null; steps = $steps }
         try {
             if ($Mode -eq 'Fix') {
                 $user = Find-ADStudent $student.username
                 if (-not $user) { throw "No AD account named $($student.username). Run Apply in Settings, AD Sync first." }
-                Sync-StudentFolder $student $user $steps
+                if ($foldersEnabled) { Sync-StudentFolder $student $user $steps }
+                if ($secondaryEnabled) { Sync-SecondaryFolder $student $user $steps }
                 $steps.Add('Reset permissions')
             }
             $result.account = Get-StudentAccount $student
             if ($foldersEnabled) { $result.folder = Test-StudentFolder $student }
+            if ($secondaryEnabled) { $result.secondaryFolder = Test-SecondaryFolder $student }
         } catch {
             $result.ok = $false
             $result.error = $_.Exception.Message
@@ -545,6 +613,12 @@ try {
             Set-ContainerFolderAcl $config.driveRootPath
             Set-ContainerFolderAcl $config.driveInactiveFolder
         }
+    }
+
+    if ($secondaryEnabled) {
+        if (-not (Test-Path -LiteralPath $config.secondaryRootPath)) { throw "Secondary folder root $($config.secondaryRootPath) was not found" }
+        $null = Get-GroupSid $config.staffGroupDN
+        if ($apply) { Set-ContainerFolderAcl $config.secondaryRootPath }
     }
 
     if ($setupSteps.Count -gt 0) {
