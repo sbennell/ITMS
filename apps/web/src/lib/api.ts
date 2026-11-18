@@ -88,14 +88,27 @@ export interface AdSyncRun {
   results: AdSyncResult[];
 }
 
-export interface HomeFolderStatus {
+export interface AdAccountStatus {
+  exists: boolean;
   enabled: boolean;
-  expectedPath?: string;
-  path?: string | null;
-  exists?: boolean;
-  inRightPlace?: boolean;
-  permissionsOk?: boolean;
-  problems?: string[];
+  ou: string | null;
+  groups: string[];
+  missingGroups: string[];
+}
+
+export interface HomeFolderStatus {
+  expectedPath: string;
+  path: string | null;
+  exists: boolean;
+  inRightPlace: boolean;
+  permissionsOk: boolean;
+  problems: string[];
+}
+
+export interface StudentAdStatus {
+  enabled: boolean;
+  account?: AdAccountStatus | null;
+  folder?: HomeFolderStatus | null;
   steps?: string[];
 }
 
@@ -726,8 +739,8 @@ export const api = {
   }),
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
-  getStudentHomeFolder: (id: string) => fetchJson<HomeFolderStatus>(`/students/${id}/home-folder`),
-  fixStudentHomeFolder: (id: string) => fetchJson<HomeFolderStatus>(`/students/${id}/home-folder/fix`, { method: 'POST' }),
+  getStudentAdStatus: (id: string) => fetchJson<StudentAdStatus>(`/students/${id}/ad-status`),
+  fixStudentHomeFolder: (id: string) => fetchJson<StudentAdStatus>(`/students/${id}/home-folder/fix`, { method: 'POST' }),
   runAdSync: (mode: 'preview' | 'apply') => fetchJson<AdSyncRun>(`/students/ad-sync/${mode}`, { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),

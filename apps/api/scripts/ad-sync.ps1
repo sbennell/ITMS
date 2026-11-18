@@ -9,8 +9,8 @@
 
     Preview only reads AD and the file system and lists the changes it would make.
     Apply makes them. Passwords are reset for every student on Apply.
-    Check only reads, and reports whether each student's home folder exists, is in the
-    right place and has the permissions Apply would set.
+    Check only reads. It reports each student's AD account and groups, and whether their
+    home folder exists, is in the right place and has the permissions Apply would set.
     Fix puts each student's home folder in the right place, resets its permissions
     (removing any other access), then checks it again. It does not change AD.
 
@@ -257,6 +257,14 @@ function Move-FolderToInactive($Student, $Steps) {
 
 # --- Students -----------------------------------------------------------------------
 
+# The Students, Year Level and Home Group groups a student should be in
+function Get-ExpectedGroups($Student) {
+    $groups = @($config.studentsGroupDN)
+    if ($Student.yearLevel) { $groups += "CN=$($Student.yearLevel),$($config.yearGroupsOU)" }
+    if ($Student.form) { $groups += "CN=$($Student.form),$($config.yearGroupsOU)" }
+    return $groups
+}
+
 function Sync-Student($Student, $Steps) {
     $username = $Student.username
     $first = $Student.firstName
@@ -266,9 +274,7 @@ function Sync-Student($Student, $Steps) {
     $formOU = "OU=$($Student.form),$($config.studentsOU)"
     $fullName = "$first $last ($username)"
     $displayName = "$first $last"
-    $groups = @($config.studentsGroupDN)
-    if ($Student.yearLevel) { $groups += "CN=$($Student.yearLevel),$($config.yearGroupsOU)" }
-    $groups += "CN=$($Student.form),$($config.yearGroupsOU)"
+    $groups = Get-ExpectedGroups $Student
 
     Confirm-OU $formOU $Steps
     foreach ($group in $groups) { Confirm-Group $group $Steps }
@@ -407,6 +413,23 @@ function Get-SidName($Sid) {
     try { return $Sid.Translate([System.Security.Principal.NTAccount]).Value } catch { return $Sid.Value }
 }
 
+# The student's AD account and the groups it is a member of
+function Get-StudentAccount($Student) {
+    $user = Find-ADStudent $Student.username
+    if (-not $user) {
+        return [ordered]@{ exists = $false; enabled = $false; ou = $null; groups = @(); missingGroups = @() }
+    }
+    $memberOf = @($user.MemberOf | Where-Object { $_ })
+    $missing = @(Get-ExpectedGroups $Student | Where-Object { $memberOf -notcontains $_ } | ForEach-Object { Get-GroupName $_ })
+    return [ordered]@{
+        exists        = $true
+        enabled       = [bool]$user.Enabled
+        ou            = Get-ParentDN $user.DistinguishedName
+        groups        = @($memberOf | ForEach-Object { Get-GroupName $_ } | Sort-Object)
+        missingGroups = $missing
+    }
+}
+
 # Compares a student's home folder with what Apply sets
 function Test-StudentFolder($Student) {
     $problems = New-Object System.Collections.Generic.List[string]
@@ -475,13 +498,13 @@ function Test-StudentFolder($Student) {
 }
 
 if ($Mode -eq 'Check' -or $Mode -eq 'Fix') {
-    if (-not $foldersEnabled) {
+    if ($Mode -eq 'Fix' -and -not $foldersEnabled) {
         Write-Output-File -Ok $false -ErrorMessage 'Home folders are not set up in AD Sync settings'
         exit 1
     }
     foreach ($student in @($data.students)) {
         $steps = New-Object System.Collections.Generic.List[string]
-        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; folder = $null; steps = $steps }
+        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; account = $null; folder = $null; steps = $steps }
         try {
             if ($Mode -eq 'Fix') {
                 $user = Find-ADStudent $student.username
@@ -489,7 +512,8 @@ if ($Mode -eq 'Check' -or $Mode -eq 'Fix') {
                 Sync-StudentFolder $student $user $steps
                 $steps.Add('Reset permissions')
             }
-            $result.folder = Test-StudentFolder $student
+            $result.account = Get-StudentAccount $student
+            if ($foldersEnabled) { $result.folder = Test-StudentFolder $student }
         } catch {
             $result.ok = $false
             $result.error = $_.Exception.Message

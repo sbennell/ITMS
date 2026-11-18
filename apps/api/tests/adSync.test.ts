@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
 import { startServer, TestServer } from './helpers';
-import { AdSyncRunner, checkHomeFolder, fixHomeFolder, runAdSync } from '../src/services/adSync';
+import { AdSyncRunner, checkStudentAd, fixHomeFolder, runAdSync } from '../src/services/adSync';
 
 let server: TestServer;
 let admin: string;
@@ -152,14 +152,15 @@ test('a script failure is reported and removes the input file', async () => {
   assert.deepEqual(await leavers(), []);
 });
 
-test('the home folder check is hidden until AD sync manages folders', async () => {
+test('the AD status is hidden while AD sync is off', async () => {
+  await setConfig({ ...CONFIG, enabled: false });
   const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
-  const response = await server.call('GET', `/students/${cara.id}/home-folder`, admin);
+  const response = await server.call('GET', `/students/${cara.id}/ad-status`, admin);
   assert.equal(response.status, 200);
   assert.deepEqual(response.json(), { enabled: false });
 });
 
-test('the home folder check sends one student without a password and returns the result', async () => {
+test('the AD check sends one student without a password and returns their groups and folder', async () => {
   await setConfig({ ...CONFIG, driveRootPath: 'D:\\Students', driveInactiveFolder: 'D:\\Students\\Inactive', staffGroupDN: 'CN=Staff,DC=test,DC=local' });
   const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
   await server.prisma.student.update({ where: { id: cara.id }, data: { password: 'Bear.1111' } });
@@ -177,21 +178,24 @@ test('the home folder check sends one student without a password and returns the
       permissionsOk: false,
       problems: 'Missing ctan Modify for this folder and everything in it'
     };
-    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: { username: 'ctan', name: 'Cara Tan', ok: true, error: null, folder } }));
+    const account = { exists: true, enabled: true, ou: 'OU=9C,OU=Students,DC=test,DC=local', groups: 'Students', missingGroups: ['9C'] };
+    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: { username: 'ctan', name: 'Cara Tan', ok: true, error: null, account, folder } }));
     return '';
   };
 
-  const status = await checkHomeFolder(server.prisma, cara.id, runner);
+  const status = await checkStudentAd(server.prisma, cara.id, runner);
   assert.equal(sentMode, 'Check');
   assert.equal(sent.students.length, 1);
   assert.equal(sent.students[0].username, 'ctan');
   assert.equal(sent.students[0].password, null);
   assert.equal(status.enabled, true);
-  assert.equal(status.permissionsOk, false);
-  assert.deepEqual(status.problems, ['Missing ctan Modify for this folder and everything in it']);
+  assert.deepEqual(status.account?.groups, ['Students']);
+  assert.deepEqual(status.account?.missingGroups, ['9C']);
+  assert.equal(status.folder?.permissionsOk, false);
+  assert.deepEqual(status.folder?.problems, ['Missing ctan Modify for this folder and everything in it']);
 
   const noUsername = await server.prisma.student.create({ data: { firstName: 'Eve', surname: 'Ko' } });
-  await assert.rejects(checkHomeFolder(server.prisma, noUsername.id, runner), /no username/);
+  await assert.rejects(checkStudentAd(server.prisma, noUsername.id, runner), /no username/);
 });
 
 test('fixing a home folder is admin only and needs home folders set up', async () => {
@@ -213,15 +217,16 @@ test('a fix returns what it changed and the folder as checked afterwards', async
   const runner: AdSyncRunner = async (mode, _input, output) => {
     sentMode = mode;
     const folder = { expectedPath: 'D:\\Students\\9C\\Cara Tan', path: 'D:\\Students\\9C\\Cara Tan', exists: true, inRightPlace: true, permissionsOk: true, problems: [] };
-    const result = { username: 'ctan', name: 'Cara Tan', ok: true, error: null, folder, steps: 'Reset permissions' };
+    const account = { exists: true, enabled: true, ou: null, groups: [], missingGroups: [] };
+    const result = { username: 'ctan', name: 'Cara Tan', ok: true, error: null, account, folder, steps: 'Reset permissions' };
     writeFileSync(output, JSON.stringify({ ok: true, error: null, results: [result] }));
     return '';
   };
 
   const status = await fixHomeFolder(server.prisma, cara.id, runner);
   assert.equal(sentMode, 'Fix');
-  assert.equal(status.permissionsOk, true);
-  assert.deepEqual(status.problems, []);
+  assert.equal(status.folder?.permissionsOk, true);
+  assert.deepEqual(status.folder?.problems, []);
   assert.deepEqual(status.steps, ['Reset permissions']);
 
   const failing: AdSyncRunner = async (_mode, _input, output) => {

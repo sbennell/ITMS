@@ -107,7 +107,7 @@ export default function StudentDetail() {
         </div>
       </div>
 
-      <HomeFolderCard studentId={student.id} />
+      <StudentAdCards studentId={student.id} />
 
       {/* Assigned Assets */}
       {student.assets && student.assets.length > 0 && (
@@ -162,19 +162,19 @@ export default function StudentDetail() {
   );
 }
 
-// Shown only when AD Sync manages home folders. The check runs PowerShell, so it takes a few seconds.
-function HomeFolderCard({ studentId }: { studentId: string }) {
+// Shown only when AD Sync is enabled. The check runs PowerShell, so it takes a few seconds.
+function StudentAdCards({ studentId }: { studentId: string }) {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  const queryKey = ['studentHomeFolder', studentId];
+  const queryKey = ['studentAdStatus', studentId];
   const { data, error, isFetching, refetch } = useQuery({
     queryKey,
-    queryFn: () => api.getStudentHomeFolder(studentId),
+    queryFn: () => api.getStudentAdStatus(studentId),
     staleTime: 1000 * 60 * 5,
     retry: false
   });
 
-  // The fix returns the folder as checked afterwards, so it replaces the last check
+  // The fix returns the student as checked afterwards, so it replaces the last check
   const fixMutation = useMutation({
     mutationFn: () => api.fixStudentHomeFolder(studentId),
     onSuccess: (result) => queryClient.setQueryData(queryKey, result)
@@ -182,7 +182,9 @@ function HomeFolderCard({ studentId }: { studentId: string }) {
 
   if (data && !data.enabled) return null;
 
-  const problems = data?.problems ?? [];
+  const account = data?.account;
+  const folder = data?.folder;
+  const problems = folder?.problems ?? [];
   const busy = isFetching || fixMutation.isPending;
 
   const handleFix = () => {
@@ -191,57 +193,108 @@ function HomeFolderCard({ studentId }: { studentId: string }) {
     }
   };
 
+  const checkAgain = (
+    <button onClick={() => { fixMutation.reset(); refetch(); }} disabled={busy} className="btn btn-secondary flex items-center gap-2">
+      <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+      {isFetching ? 'Checking...' : 'Check Again'}
+    </button>
+  );
+
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-4">
-      <div className="flex items-center justify-between border-b pb-3">
-        <h2 className="text-lg font-bold text-gray-900">Home Folder</h2>
-        <div className="flex gap-2">
-          {isAdmin && problems.length > 0 && (
-            <button onClick={handleFix} disabled={busy} className="btn btn-primary flex items-center gap-2">
-              <Wrench size={16} />
-              {fixMutation.isPending ? 'Fixing...' : 'Fix'}
-            </button>
-          )}
-          <button onClick={() => { fixMutation.reset(); refetch(); }} disabled={busy} className="btn btn-secondary flex items-center gap-2">
-            <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-            {isFetching ? 'Checking...' : 'Check Again'}
-          </button>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* AD Account */}
+      <div className="bg-white rounded-lg shadow p-6 space-y-4">
+        <div className="flex items-center justify-between border-b pb-3">
+          <h2 className="text-lg font-bold text-gray-900">AD Account</h2>
+          {checkAgain}
         </div>
+
+        {isFetching && !data && <p className="text-sm text-gray-500">Checking Active Directory...</p>}
+
+        {error && !isFetching && (
+          <p className="text-sm text-red-700 flex gap-2">
+            <AlertCircle size={18} className="shrink-0" />
+            {(error as Error).message}
+          </p>
+        )}
+
+        {account && !account.exists && (
+          <p className="text-sm text-red-700">No AD account was found for this username.</p>
+        )}
+
+        {account?.exists && (
+          <>
+            <StatusRow label="Enabled" ok={account.enabled} />
+            <DetailRow label="OU" value={account.ou} />
+            <div>
+              <dt className="text-sm font-medium text-gray-600 mb-2">Member of ({account.groups.length})</dt>
+              {account.groups.length === 0 ? (
+                <p className="text-sm text-gray-500">No groups apart from the primary group</p>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  {account.groups.map((group) => (
+                    <li key={group} className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">{group}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            {account.missingGroups.length > 0 && (
+              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                Not in: {account.missingGroups.join(', ')}. Apply in Settings, AD Sync adds these.
+              </p>
+            )}
+          </>
+        )}
       </div>
 
-      {isFetching && !data && <p className="text-sm text-gray-500">Checking the folder...</p>}
+      {/* Home Folder, when AD Sync manages folders */}
+      {(folder || (!data && !error)) && (
+        <div className="bg-white rounded-lg shadow p-6 space-y-4">
+          <div className="flex items-center justify-between border-b pb-3">
+            <h2 className="text-lg font-bold text-gray-900">Home Folder</h2>
+            {isAdmin && problems.length > 0 && (
+              <button onClick={handleFix} disabled={busy} className="btn btn-primary flex items-center gap-2">
+                <Wrench size={16} />
+                {fixMutation.isPending ? 'Fixing...' : 'Fix'}
+              </button>
+            )}
+          </div>
 
-      {(fixMutation.error || (error && !isFetching)) && (
-        <p className="text-sm text-red-700 flex gap-2">
-          <AlertCircle size={18} className="shrink-0" />
-          {((fixMutation.error || error) as Error).message}
-        </p>
-      )}
+          {isFetching && !data && <p className="text-sm text-gray-500">Checking the folder...</p>}
 
-      {fixMutation.isSuccess && (
-        <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
-          <p className="font-medium">Fixed</p>
-          <ul className="mt-1 space-y-0.5">
-            {(fixMutation.data.steps ?? []).map((step, i) => <li key={i}>{step}</li>)}
-          </ul>
+          {fixMutation.error && (
+            <p className="text-sm text-red-700 flex gap-2">
+              <AlertCircle size={18} className="shrink-0" />
+              {(fixMutation.error as Error).message}
+            </p>
+          )}
+
+          {fixMutation.isSuccess && (
+            <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="font-medium">Fixed</p>
+              <ul className="mt-1 space-y-0.5">
+                {(fixMutation.data.steps ?? []).map((step, i) => <li key={i}>{step}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {folder && (
+            <>
+              <DetailRow label="Folder" value={folder.path || folder.expectedPath} />
+              <StatusRow label="Folder exists" ok={folder.exists} />
+              {folder.exists && <StatusRow label="In the right place" ok={folder.inRightPlace} />}
+              {folder.exists && <StatusRow label="Permissions correct" ok={folder.permissionsOk} />}
+              {problems.length > 0 && (
+                <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
+                  {problems.map((problem, i) => <li key={i}>{problem}</li>)}
+                </ul>
+              )}
+              {problems.length > 0 && !isAdmin && (
+                <p className="text-sm text-gray-500">An administrator can fix these from this page.</p>
+              )}
+            </>
+          )}
         </div>
-      )}
-
-      {data?.enabled && (
-        <>
-          <DetailRow label="Folder" value={data.path || data.expectedPath} />
-          <StatusRow label="Folder exists" ok={!!data.exists} />
-          {data.exists && <StatusRow label="In the right place" ok={!!data.inRightPlace} />}
-          {data.exists && <StatusRow label="Permissions correct" ok={!!data.permissionsOk} />}
-          {problems.length > 0 && (
-            <ul className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1">
-              {problems.map((problem, i) => <li key={i}>{problem}</li>)}
-            </ul>
-          )}
-          {problems.length > 0 && !isAdmin && (
-            <p className="text-sm text-gray-500">An administrator can fix these from this page.</p>
-          )}
-        </>
       )}
     </div>
   );

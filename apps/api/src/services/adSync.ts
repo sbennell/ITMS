@@ -222,14 +222,28 @@ export async function runAdSync(
   }
 }
 
-export interface HomeFolderStatus {
+export interface AdAccountStatus {
+  exists: boolean;
   enabled: boolean;
-  expectedPath?: string;
-  path?: string | null;
-  exists?: boolean;
-  inRightPlace?: boolean;
-  permissionsOk?: boolean;
-  problems?: string[];
+  ou: string | null;
+  groups: string[];
+  missingGroups: string[];
+}
+
+export interface HomeFolderStatus {
+  expectedPath: string;
+  path: string | null;
+  exists: boolean;
+  inRightPlace: boolean;
+  permissionsOk: boolean;
+  problems: string[];
+}
+
+export interface StudentAdStatus {
+  enabled: boolean;
+  account?: AdAccountStatus | null;
+  // Null when AD Sync does not manage home folders
+  folder?: HomeFolderStatus | null;
   // Only set by a fix: what it changed
   steps?: string[];
 }
@@ -237,35 +251,46 @@ export interface HomeFolderStatus {
 const asList = (value: unknown): string[] => (Array.isArray(value) ? value : value ? [String(value)] : []);
 
 // Check only reads. Fix moves or creates the folder and resets its permissions, then checks again.
-async function runHomeFolder(
+async function runStudentCheck(
   prisma: PrismaClient,
   studentId: string,
   mode: 'Check' | 'Fix',
   runner: AdSyncRunner
-): Promise<HomeFolderStatus> {
+): Promise<StudentAdStatus> {
   const config = await getAdSyncConfig(prisma);
-  if (!config?.enabled || !config.driveRootPath) {
+  if (!config?.enabled) {
     if (mode === 'Check') return { enabled: false };
-    throw new AdSyncError('Home folders are not set up in AD Sync settings');
+    throw new AdSyncError('AD sync is not enabled');
   }
+  if (mode === 'Fix' && !config.driveRootPath) throw new AdSyncError('Home folders are not set up in AD Sync settings');
   await getCheckedConfig(prisma);
 
   const student = await prisma.student.findUnique({ where: { id: studentId } });
   if (!student) throw new AdSyncError('Student not found', 404);
-  if (!student.username) throw new AdSyncError('This student has no username, so their folder cannot be checked');
+  if (!student.username) throw new AdSyncError('This student has no username, so their AD account cannot be checked');
 
   // Neither mode needs the password, so it is not sent
   const input = { ...toAdSyncStudent(student), password: null };
   const [result] = await runScript<{
     ok: boolean;
     error: string | null;
-    folder: Omit<HomeFolderStatus, 'enabled'> | null;
+    account: AdAccountStatus | null;
+    folder: HomeFolderStatus | null;
     steps: string[] | string | null;
   }>(config, mode, [input], runner);
   if (!result) throw new AdSyncError('The AD sync script did not return a result', 500);
-  if (!result.ok || !result.folder) throw new AdSyncError(result.error || `The home folder ${mode.toLowerCase()} failed`, 500);
+  if (!result.ok) throw new AdSyncError(result.error || `The AD ${mode.toLowerCase()} failed`, 500);
 
-  const status: HomeFolderStatus = { enabled: true, ...result.folder, problems: asList(result.folder.problems) };
+  // PowerShell 5.1 can write a one item list as a single value
+  const status: StudentAdStatus = {
+    enabled: true,
+    account: result.account && {
+      ...result.account,
+      groups: asList(result.account.groups),
+      missingGroups: asList(result.account.missingGroups)
+    },
+    folder: result.folder && { ...result.folder, problems: asList(result.folder.problems) }
+  };
   if (mode === 'Fix') {
     status.steps = asList(result.steps);
     logResults([{ username: student.username, name: `${student.firstName} ${student.surname}`, action: 'update', ok: true, error: null, steps: status.steps }]);
@@ -273,8 +298,8 @@ async function runHomeFolder(
   return status;
 }
 
-export function checkHomeFolder(prisma: PrismaClient, studentId: string, runner: AdSyncRunner = runPowerShell) {
-  return runHomeFolder(prisma, studentId, 'Check', runner);
+export function checkStudentAd(prisma: PrismaClient, studentId: string, runner: AdSyncRunner = runPowerShell) {
+  return runStudentCheck(prisma, studentId, 'Check', runner);
 }
 
 // Shares the AD sync lock, so a fix cannot run while Apply is moving folders
@@ -282,7 +307,7 @@ export async function fixHomeFolder(prisma: PrismaClient, studentId: string, run
   if (running) throw new AdSyncError('An AD sync is already running', 409);
   running = true;
   try {
-    return await runHomeFolder(prisma, studentId, 'Fix', runner);
+    return await runStudentCheck(prisma, studentId, 'Fix', runner);
   } finally {
     running = false;
   }

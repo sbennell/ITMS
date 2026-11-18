@@ -5,7 +5,7 @@ import { requireAdmin, requireAuth, requirePermission } from './auth.js';
 import { parseLimit, parsePage } from '../lib/pagination.js';
 import { readImportHeaders, runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
-import { AdSyncError, checkHomeFolder, fixHomeFolder, runAdSync } from '../services/adSync.js';
+import { AdSyncError, checkStudentAd, fixHomeFolder, runAdSync } from '../services/adSync.js';
 import { canViewStudentPasswords, redactStudentPassword } from '../lib/redact.js';
 
 const router = Router();
@@ -716,18 +716,18 @@ router.post('/import/run', requireAdmin, async (req: Request, res: Response) => 
   }
 });
 
-// Whether the student's home folder exists, is in the right place and has the right permissions
-router.get('/:id/home-folder', async (req: Request, res: Response) => {
+// The student's AD account and groups, and whether their home folder is in the right place with the right permissions
+router.get('/:id/ad-status', async (req: Request, res: Response) => {
   const prisma = req.app.locals.prisma as PrismaClient;
 
   try {
-    res.json(await checkHomeFolder(prisma, req.params.id as string));
+    res.json(await checkStudentAd(prisma, req.params.id as string));
   } catch (error) {
     if (error instanceof AdSyncError) {
       return res.status(error.status).json({ error: error.message });
     }
-    console.error('Error checking home folder:', error);
-    res.status(500).json({ error: 'Failed to check the home folder' });
+    console.error('Error checking AD status:', error);
+    res.status(500).json({ error: 'Failed to check the AD account' });
   }
 });
 
