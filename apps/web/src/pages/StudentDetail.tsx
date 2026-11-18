@@ -115,6 +115,7 @@ export default function StudentDetail() {
           )}
           <DetailRow label="Email" value={student.email || '-'} />
           <DetailRow label="Password" value={hasPermission('canViewStudentPasswords') ? (student.password || '-') : 'Hidden'} />
+          <AdAccountSection studentId={student.id} />
         </div>
       </div>
 
@@ -184,7 +185,59 @@ function useStudentAdStatus(studentId: string | undefined) {
   });
 }
 
-// Shown only when AD Sync is enabled
+// The AD account section of Account Details. Shown only when AD Sync is enabled
+function AdAccountSection({ studentId }: { studentId: string }) {
+  const { data, error, isFetching } = useStudentAdStatus(studentId);
+
+  if (data && !data.enabled) return null;
+
+  const account = data?.account;
+
+  return (
+    <div className="border-t pt-4 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">AD Account</h3>
+
+      {isFetching && !data && <p className="text-sm text-gray-500">Checking Active Directory...</p>}
+
+      {error && !isFetching && (
+        <p className="text-sm text-red-700 flex gap-2">
+          <AlertCircle size={18} className="shrink-0" />
+          {(error as Error).message}
+        </p>
+      )}
+
+      {account && !account.exists && (
+        <p className="text-sm text-red-700">No AD account was found for this username.</p>
+      )}
+
+      {account?.exists && (
+        <>
+          <StatusRow label="Enabled" ok={account.enabled} />
+          <DetailRow label="OU" value={account.ou} />
+          <div>
+            <dt className="text-sm font-medium text-gray-600 mb-2">Member of ({account.groups.length})</dt>
+            {account.groups.length === 0 ? (
+              <p className="text-sm text-gray-500">No groups apart from the primary group</p>
+            ) : (
+              <ul className="flex flex-wrap gap-2">
+                {account.groups.map((group) => (
+                  <li key={group} className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">{group}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {account.missingGroups.length > 0 && (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              Not in: {account.missingGroups.join(', ')}. Apply in Settings, AD Sync adds these.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Folder cards. Shown only when AD Sync is enabled
 function StudentAdCards({ studentId }: { studentId: string }) {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
@@ -206,9 +259,16 @@ function StudentAdCards({ studentId }: { studentId: string }) {
 
   if (data && !data.enabled) return null;
 
-  const account = data?.account;
   const folder = data?.folder;
   const busy = isFetching || fixMutation.isPending;
+
+  // While the first check runs, a placeholder Home Folder card shows the progress
+  const cards = [
+    { key: 'home', title: 'Home Folder', status: folder },
+    { key: 'secondary', title: 'Secondary Folder', status: data?.secondaryFolder }
+  ].filter(({ key, status }) => status || (key === 'home' && !data && !error));
+
+  if (cards.length === 0) return null;
 
   const handleFix = (card: string) => {
     if (window.confirm('Fix this student\'s folders? Missing folders are created, the home folder is moved to the right place and connected on the account profile, and permissions are reset, removing access for anyone else.')) {
@@ -219,53 +279,8 @@ function StudentAdCards({ studentId }: { studentId: string }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* AD Account */}
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h2 className="text-lg font-bold text-gray-900 border-b pb-3">AD Account</h2>
-
-        {isFetching && !data && <p className="text-sm text-gray-500">Checking Active Directory...</p>}
-
-        {error && !isFetching && (
-          <p className="text-sm text-red-700 flex gap-2">
-            <AlertCircle size={18} className="shrink-0" />
-            {(error as Error).message}
-          </p>
-        )}
-
-        {account && !account.exists && (
-          <p className="text-sm text-red-700">No AD account was found for this username.</p>
-        )}
-
-        {account?.exists && (
-          <>
-            <StatusRow label="Enabled" ok={account.enabled} />
-            <DetailRow label="OU" value={account.ou} />
-            <div>
-              <dt className="text-sm font-medium text-gray-600 mb-2">Member of ({account.groups.length})</dt>
-              {account.groups.length === 0 ? (
-                <p className="text-sm text-gray-500">No groups apart from the primary group</p>
-              ) : (
-                <ul className="flex flex-wrap gap-2">
-                  {account.groups.map((group) => (
-                    <li key={group} className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">{group}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            {account.missingGroups.length > 0 && (
-              <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                Not in: {account.missingGroups.join(', ')}. Apply in Settings, AD Sync adds these.
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
       {/* Folders, when AD Sync manages them. One Fix fixes both. */}
-      {[
-        { key: 'home', title: 'Home Folder', status: folder },
-        { key: 'secondary', title: 'Secondary Folder', status: data?.secondaryFolder }
-      ].map(({ key, title, status }) => (status || (key === 'home' && !data && !error)) && (
+      {cards.map(({ key, title, status }) => (
         <FolderCard
           key={key}
           title={title}
