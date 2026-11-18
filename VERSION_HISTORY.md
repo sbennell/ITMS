@@ -15,6 +15,10 @@ All notable changes to the Asset Management System are documented in this file.
 - Student page: a Home Folder card, shown when AD Sync manages home folders. It checks whether the folder exists, is in the right place, and has the permissions Apply sets, and lists any problems such as a missing permission or another account with access. Administrators can click Fix to create or move the folder, reset its permissions (which also removes access for any other account) and connect it on the account profile. Fix changes nothing else on the AD account.
 - Secondary folders, for example a share where students hand in work. When a Secondary Folder Root is set, Apply creates each student a folder at `Root\Year\Year Level\Home Group\Student` (for example `2026\Year 7\7A\Jane Smith`), with the same permissions as home folders. In each Year Level folder, staff have Modify so they can add work for that year, and the Year Level group (for example Year 7) can read it. Other students cannot open it. These folders are never moved or archived, so each year gets a new set and earlier years stay as they were. The student page has a Secondary Folder card that checks this year's folder, and Fix creates it or resets its permissions.
 - The account profile's home folder. When a Home Folder Share is set (the share path of the Student Folder Root, for example `\\fileserver\Students$`), Apply sets each account to connect the Home Drive Letter (default H:) to the student's home folder on that share, and the Home Folder card checks it.
+- Settings, Students: a Build Master List card that runs the student account matcher scripts from the scripts folder (default `C:\ITMS\Scripts`), then imports the master list. It uploads the exports the scripts need and shows each script's output.
+  - Catholic (Standard) schools: upload the admin system and Google Workspace exports, then it runs `AD_Student_Export.ps1` and `Student_Account_Matcher.ps1 -Unattended` and imports `data\Master_List.csv`. A student with more than one active Google account is skipped and listed in the output.
+  - DE schools: optionally upload the Cases21 export (otherwise the path in the script's `config.json` is used), then it runs the DE `Student_Account_Matcher.ps1` and imports `data\student_master_list.csv`.
+  - The import only runs when every script succeeds and the student import file is the list the scripts made. A Use This File button sets it.
 - Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
 
 ### Changed
@@ -31,6 +35,7 @@ All notable changes to the Asset Management System are documented in this file.
 - Map the new Student ID, Government Student Number and Gender columns in Settings, Students, then run an import before the first AD sync.
 - Every Apply resets each student's AD password to the one in ITMS, as the old script did.
 - Test against a test OU and folder before pointing the settings at the live ones.
+- Build Master List needs the Catholic scripts at version 1.5.0 or later (`Student_Account_Matcher.ps1` with `-Unattended`). On DE servers, save STMC credentials for the account the ITMS service runs as with `Set-STMCCredential`, or the DE matcher cannot connect.
 
 ### Technical Details
 
@@ -41,7 +46,11 @@ All notable changes to the Asset Management System are documented in this file.
 - `apps/api/src/routes/students.ts`: added `POST /api/students/ad-sync/preview` and `/apply` (administrators only), `GET /api/students/:id/ad-status`, which runs the script in its read only `Check` mode for one student, and `POST /api/students/:id/home-folder/fix` (administrators only), which runs its `Fix` mode.
 - `apps/web/src/pages/settings/AdSyncTab.tsx`, `apps/web/src/pages/Settings.tsx`, `apps/web/src/pages/settings/StudentsTab.tsx`, `apps/web/src/lib/api.ts`: added the tab and the mapping fields.
 - `apps/api/tests/adSync.test.ts`: covers the leaver queue, the route checks and the script input and output.
-- Settings keys: `adSyncConfig` (JSON, including `secondaryRootPath`) and `adSyncLastRun`.
+- `apps/api/src/services/studentScripts.ts`: saves uploaded exports under the scripts folder's `source` folder, runs the scripts for the school type, then runs the import. Only one run can happen at a time.
+- `apps/api/src/services/studentImporter.ts`: imports now run one at a time, so a script run and the file watcher cannot import at once.
+- `apps/web/src/pages/settings/MasterListCard.tsx`: added the card.
+- `apps/api/tests/studentScripts.test.ts`: covers uploads, the scripts run for each school type, a failed script, and the import file check.
+- Settings keys: `adSyncConfig` (JSON, including `secondaryRootPath`), `adSyncLastRun`, `studentScriptsFolder` and `studentScriptsLastRun`.
 
 ---
 

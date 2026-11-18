@@ -17,13 +17,25 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+// Imports run one at a time, so the file watcher and a manual or script run cannot overlap
+let importQueue: Promise<unknown> = Promise.resolve();
+
 /**
  * Parses a CSV or Excel file from the configured import path and upserts students.
  * Uses column mapping from settings to transform raw headers to internal field names.
  */
-export async function runStudentImport(
+export function runStudentImport(
   prisma: PrismaClient,
   options: { limitRemovals?: boolean } = {}
+): Promise<ImportResult> {
+  const run = importQueue.then(() => importStudents(prisma, options));
+  importQueue = run.catch(() => undefined);
+  return run;
+}
+
+async function importStudents(
+  prisma: PrismaClient,
+  options: { limitRemovals?: boolean }
 ): Promise<ImportResult> {
   const result: ImportResult = {
     created: 0,

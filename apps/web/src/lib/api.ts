@@ -114,6 +114,23 @@ export interface StudentAdStatus {
   steps?: string[];
 }
 
+export interface StudentScriptsStatus {
+  folder: string;
+  folderExists: boolean;
+  schoolType: 'STANDARD' | 'DE';
+  outputFile: string;
+  importsOutput: boolean;
+  lastRun: string | null;
+  exports: { kind: string; label: string; fileName: string | null; modified: string | null }[];
+}
+
+export interface StudentScriptsRun {
+  ok: boolean;
+  steps: { script: string; ok: boolean; output: string }[];
+  import: StudentImportResult | null;
+  message: string | null;
+}
+
 export interface StudentImportResult {
   created: number;
   updated: number;
@@ -743,6 +760,22 @@ export const api = {
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
   getStudentAdStatus: (id: string) => fetchJson<StudentAdStatus>(`/students/${id}/ad-status`),
   fixStudentHomeFolder: (id: string) => fetchJson<StudentAdStatus>(`/students/${id}/home-folder/fix`, { method: 'POST' }),
+  getStudentScriptsStatus: () => fetchJson<StudentScriptsStatus>('/students/scripts/status'),
+  runStudentScripts: () => fetchJson<StudentScriptsRun>('/students/scripts/run', { method: 'POST' }),
+  uploadStudentExport: async (kind: string, file: File): Promise<{ path: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE}/students/scripts/upload/${kind}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+    return response.json();
+  },
   runAdSync: (mode: 'preview' | 'apply') => fetchJson<AdSyncRun>(`/students/ad-sync/${mode}`, { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),

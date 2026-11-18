@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
+import multer from 'multer';
 import { requireAdmin, requireAuth, requirePermission } from './auth.js';
 import { parseLimit, parsePage } from '../lib/pagination.js';
 import { readImportHeaders, runStudentImport, reconcileAssetsByStudentName } from '../services/studentImporter.js';
 import { generateStudentLoginCards } from '../services/studentLoginCardService.js';
 import { AdSyncError, checkStudentAd, fixHomeFolder, runAdSync } from '../services/adSync.js';
+import { getStudentScriptsStatus, runStudentScripts, saveStudentExport, StudentScriptsError } from '../services/studentScripts.js';
 import { canViewStudentPasswords, redactStudentPassword } from '../lib/redact.js';
 
 const router = Router();
@@ -762,6 +764,42 @@ for (const mode of ['Preview', 'Apply'] as const) {
     }
   });
 }
+
+// Student account matcher scripts: build the master list, then import it
+const scriptUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+
+const sendScriptsError = (res: Response, error: unknown, action: string) => {
+  if (error instanceof StudentScriptsError) {
+    return res.status(error.status).json({ error: error.message });
+  }
+  console.error(`Error ${action}:`, error);
+  res.status(500).json({ error: `Failed ${action}` });
+};
+
+router.get('/scripts/status', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    res.json(await getStudentScriptsStatus(req.app.locals.prisma as PrismaClient));
+  } catch (error) {
+    sendScriptsError(res, error, 'reading the scripts folder');
+  }
+});
+
+router.post('/scripts/upload/:kind', requireAdmin, scriptUpload.single('file'), async (req: Request, res: Response) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    res.json(await saveStudentExport(req.app.locals.prisma as PrismaClient, req.params.kind as string, req.file.buffer, req.file.originalname));
+  } catch (error) {
+    sendScriptsError(res, error, 'saving the export');
+  }
+});
+
+router.post('/scripts/run', requireAdmin, async (req: Request, res: Response) => {
+  try {
+    res.json(await runStudentScripts(req.app.locals.prisma as PrismaClient));
+  } catch (error) {
+    sendScriptsError(res, error, 'running the scripts');
+  }
+});
 
 // Reconcile assets by student name
 router.post('/reconcile-assets', requireAdmin, async (req: Request, res: Response) => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle, Loader } from 'lucide-react';
 import { api, StudentImportResult, ReconcileResult } from '../../lib/api';
+import MasterListCard from './MasterListCard';
 
 const STUDENT_FIELDS = [
   { key: 'firstName', label: 'First Name', required: true },
@@ -185,6 +186,8 @@ export default function StudentsTab() {
           ))}
         </div>
       </div>
+
+      <MasterListCard />
 
       {/* Import File */}
       <div className="bg-white rounded-lg shadow p-6">
