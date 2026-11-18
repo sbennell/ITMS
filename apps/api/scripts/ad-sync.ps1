@@ -11,18 +11,20 @@
     Apply makes them. Passwords are reset for every student on Apply.
     Check only reads, and reports whether each student's home folder exists, is in the
     right place and has the permissions Apply would set.
+    Fix puts each student's home folder in the right place, resets its permissions
+    (removing any other access), then checks it again. It does not change AD.
 
     Requires the ActiveDirectory module (RSAT). The account running ITMS needs rights
     to manage the student OUs and Full Control of the student folder root.
 #>
 param(
-    [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Apply', 'Check')][string]$Mode,
+    [Parameter(Mandatory = $true)][ValidateSet('Preview', 'Apply', 'Check', 'Fix')][string]$Mode,
     [Parameter(Mandatory = $true)][string]$InputFile,
     [Parameter(Mandatory = $true)][string]$OutputFile
 )
 
 $ErrorActionPreference = 'Stop'
-$apply = $Mode -eq 'Apply'
+$apply = $Mode -eq 'Apply' -or $Mode -eq 'Fix'
 $results = New-Object System.Collections.Generic.List[object]
 
 function Write-Output-File {
@@ -143,10 +145,16 @@ function New-Rule([System.Security.Principal.SecurityIdentifier]$Sid, [string]$R
     return New-Object System.Security.AccessControl.FileSystemAccessRule($Sid, $Rights, $Inherit, 'None', 'Allow')
 }
 
-function Set-FolderAcl([string]$Path, [object[]]$Rules) {
+function Set-FolderAcl([string]$Path, [object[]]$Rules, [bool]$RemoveOthers = $false) {
     $acl = Get-Acl -LiteralPath $Path
     # Remove inherited permissions, as the original script did
     $acl.SetAccessRuleProtection($true, $false)
+    # Apply keeps other explicit permissions, as the original script did. Fix removes them.
+    if ($RemoveOthers) {
+        foreach ($rule in @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))) {
+            $acl.RemoveAccessRuleSpecific($rule)
+        }
+    }
     foreach ($rule in $Rules) { $acl.AddAccessRule($rule) }
     Set-Acl -LiteralPath $Path -AclObject $acl
 }
@@ -173,7 +181,7 @@ function Set-StudentFolderAcl([string]$Path, $User) {
     Set-FolderAcl $Path ((Get-BaseRules) + @(
         (New-Rule (Get-GroupSid $config.staffGroupDN) 'FullControl' $inheritAll),
         (New-Rule $User.SID 'Modify' $inheritAll)
-    ))
+    )) ($Mode -eq 'Fix')
 }
 
 function Get-FolderName([string]$First, [string]$Last, [bool]$Alternate = $false) {
@@ -466,14 +474,21 @@ function Test-StudentFolder($Student) {
     return $folder
 }
 
-if ($Mode -eq 'Check') {
+if ($Mode -eq 'Check' -or $Mode -eq 'Fix') {
     if (-not $foldersEnabled) {
         Write-Output-File -Ok $false -ErrorMessage 'Home folders are not set up in AD Sync settings'
         exit 1
     }
     foreach ($student in @($data.students)) {
-        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; folder = $null }
+        $steps = New-Object System.Collections.Generic.List[string]
+        $result = [ordered]@{ username = $student.username; name = "$($student.firstName) $($student.surname)"; ok = $true; error = $null; folder = $null; steps = $steps }
         try {
+            if ($Mode -eq 'Fix') {
+                $user = Find-ADStudent $student.username
+                if (-not $user) { throw "No AD account named $($student.username). Run Apply in Settings, AD Sync first." }
+                Sync-StudentFolder $student $user $steps
+                $steps.Add('Reset permissions')
+            }
             $result.folder = Test-StudentFolder $student
         } catch {
             $result.ok = $false

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
 import { startServer, TestServer } from './helpers';
-import { AdSyncRunner, checkHomeFolder, runAdSync } from '../src/services/adSync';
+import { AdSyncRunner, checkHomeFolder, fixHomeFolder, runAdSync } from '../src/services/adSync';
 
 let server: TestServer;
 let admin: string;
@@ -192,4 +192,42 @@ test('the home folder check sends one student without a password and returns the
 
   const noUsername = await server.prisma.student.create({ data: { firstName: 'Eve', surname: 'Ko' } });
   await assert.rejects(checkHomeFolder(server.prisma, noUsername.id, runner), /no username/);
+});
+
+test('fixing a home folder is admin only and needs home folders set up', async () => {
+  const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
+  await server.createUser(admin, 'teacher');
+  const teacher = await server.login('teacher');
+  assert.equal((await server.call('POST', `/students/${cara.id}/home-folder/fix`, teacher)).status, 403);
+
+  const response = await server.call('POST', `/students/${cara.id}/home-folder/fix`, admin);
+  assert.equal(response.status, 400);
+  assert.match(response.json().error, /Home folders are not set up/);
+});
+
+test('a fix returns what it changed and the folder as checked afterwards', async () => {
+  await setConfig({ ...CONFIG, driveRootPath: 'D:\\Students', driveInactiveFolder: 'D:\\Students\\Inactive', staffGroupDN: 'CN=Staff,DC=test,DC=local' });
+  const cara = await server.prisma.student.findFirstOrThrow({ where: { firstName: 'Cara' } });
+
+  let sentMode = '';
+  const runner: AdSyncRunner = async (mode, _input, output) => {
+    sentMode = mode;
+    const folder = { expectedPath: 'D:\\Students\\9C\\Cara Tan', path: 'D:\\Students\\9C\\Cara Tan', exists: true, inRightPlace: true, permissionsOk: true, problems: [] };
+    const result = { username: 'ctan', name: 'Cara Tan', ok: true, error: null, folder, steps: 'Reset permissions' };
+    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: [result] }));
+    return '';
+  };
+
+  const status = await fixHomeFolder(server.prisma, cara.id, runner);
+  assert.equal(sentMode, 'Fix');
+  assert.equal(status.permissionsOk, true);
+  assert.deepEqual(status.problems, []);
+  assert.deepEqual(status.steps, ['Reset permissions']);
+
+  const failing: AdSyncRunner = async (_mode, _input, output) => {
+    const result = { username: 'ctan', name: 'Cara Tan', ok: false, error: 'No AD account named ctan. Run Apply in Settings, AD Sync first.', folder: null, steps: [] };
+    writeFileSync(output, JSON.stringify({ ok: true, error: null, results: [result] }));
+    return '';
+  };
+  await assert.rejects(fixHomeFolder(server.prisma, cara.id, failing), /No AD account named ctan/);
 });

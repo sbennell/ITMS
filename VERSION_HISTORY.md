@@ -11,7 +11,7 @@ All notable changes to the Asset Management System are documented in this file.
 - Settings: an AD Sync tab for administrators. It creates, updates and disables student Active Directory accounts and manages their home folders, replacing `Student_AD_Account_Management.ps1` and `Student_Drive_Management.ps1`. Preview lists every change first, and Apply makes them.
 - Accounts are placed in an OU named after the home group inside the Students OU, added to the Students, Year Level and Home Group groups, and given the same attributes as before. Missing OUs and groups are created.
 - Students who leave (marked Left in the import file, or no longer in it) are recorded when the import runs, so Apply can disable their account, move it to the Inactive OU and move their home folder to Inactive.
-- Student page: a Home Folder card, shown when AD Sync manages home folders. It checks whether the folder exists, is in the right place, and has the permissions Apply sets, and lists any problems such as a missing permission or another account with access.
+- Student page: a Home Folder card, shown when AD Sync manages home folders. It checks whether the folder exists, is in the right place, and has the permissions Apply sets, and lists any problems such as a missing permission or another account with access. Administrators can click Fix to create or move the folder and reset its permissions, which also removes access for any other account. Fix does not change the AD account.
 - Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
 
 ### Changed
@@ -35,7 +35,7 @@ All notable changes to the Asset Management System are documented in this file.
 - `apps/api/src/services/adSync.ts`: builds the input, runs the script and reads its result. Only one run can happen at a time. Applied changes are written to the service log.
 - `apps/api/src/services/studentImporter.ts`: imports the new fields and records leavers in the new `ad_leavers` table while AD sync is enabled.
 - `apps/api/prisma/schema.prisma`: added `Student.studentNumber`, `governmentNumber` and `gender`, and the `AdLeaver` model.
-- `apps/api/src/routes/students.ts`: added `POST /api/students/ad-sync/preview` and `/apply` (administrators only), and `GET /api/students/:id/home-folder`, which runs the script in its read only `Check` mode for one student.
+- `apps/api/src/routes/students.ts`: added `POST /api/students/ad-sync/preview` and `/apply` (administrators only), `GET /api/students/:id/home-folder`, which runs the script in its read only `Check` mode for one student, and `POST /api/students/:id/home-folder/fix` (administrators only), which runs its `Fix` mode.
 - `apps/web/src/pages/settings/AdSyncTab.tsx`, `apps/web/src/pages/Settings.tsx`, `apps/web/src/pages/settings/StudentsTab.tsx`, `apps/web/src/lib/api.ts`: added the tab and the mapping fields.
 - `apps/api/tests/adSync.test.ts`: covers the leaver queue, the route checks and the script input and output.
 - Settings keys: `adSyncConfig` (JSON) and `adSyncLastRun`.

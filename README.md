@@ -210,6 +210,7 @@ Asset_System/
 - `POST /api/students/ad-sync/preview` - List the AD account and home folder changes without making them
 - `POST /api/students/ad-sync/apply` - Make the AD account and home folder changes
 - `GET /api/students/:id/home-folder` - Check a student's home folder location and permissions
+- `POST /api/students/:id/home-folder/fix` - Create or move a student's home folder and reset its permissions
 
 ### Lookups
 - `GET /api/lookups/categories` - List categories

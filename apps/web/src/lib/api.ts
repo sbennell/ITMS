@@ -96,6 +96,7 @@ export interface HomeFolderStatus {
   inRightPlace?: boolean;
   permissionsOk?: boolean;
   problems?: string[];
+  steps?: string[];
 }
 
 export interface StudentImportResult {
@@ -726,6 +727,7 @@ export const api = {
   runStudentImport: () => fetchJson<StudentImportResult>('/students/import/run', { method: 'POST' }),
   reconcileStudentAssets: () => fetchJson<ReconcileResult>('/students/reconcile-assets', { method: 'POST' }),
   getStudentHomeFolder: (id: string) => fetchJson<HomeFolderStatus>(`/students/${id}/home-folder`),
+  fixStudentHomeFolder: (id: string) => fetchJson<HomeFolderStatus>(`/students/${id}/home-folder/fix`, { method: 'POST' }),
   runAdSync: (mode: 'preview' | 'apply') => fetchJson<AdSyncRun>(`/students/ad-sync/${mode}`, { method: 'POST' }),
   getStudentStatuses: () => fetchJson<string[]>('/students/statuses'),
   getStudentYearLevels: () => fetchJson<string[]>('/students/year-levels'),

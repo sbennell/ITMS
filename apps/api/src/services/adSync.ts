@@ -7,7 +7,7 @@ import path from 'path';
 const SCRIPT = path.join(__dirname, '../../scripts/ad-sync.ps1');
 const TIMEOUT_MS = 10 * 60 * 1000;
 
-export type AdSyncMode = 'Preview' | 'Apply' | 'Check';
+export type AdSyncMode = 'Preview' | 'Apply' | 'Check' | 'Fix';
 
 export interface AdSyncConfig {
   enabled: boolean;
@@ -230,36 +230,62 @@ export interface HomeFolderStatus {
   inRightPlace?: boolean;
   permissionsOk?: boolean;
   problems?: string[];
+  // Only set by a fix: what it changed
+  steps?: string[];
 }
 
-// Read only check of one student's home folder against what Apply sets
-export async function checkHomeFolder(
+const asList = (value: unknown): string[] => (Array.isArray(value) ? value : value ? [String(value)] : []);
+
+// Check only reads. Fix moves or creates the folder and resets its permissions, then checks again.
+async function runHomeFolder(
   prisma: PrismaClient,
   studentId: string,
-  runner: AdSyncRunner = runPowerShell
+  mode: 'Check' | 'Fix',
+  runner: AdSyncRunner
 ): Promise<HomeFolderStatus> {
   const config = await getAdSyncConfig(prisma);
-  if (!config?.enabled || !config.driveRootPath) return { enabled: false };
+  if (!config?.enabled || !config.driveRootPath) {
+    if (mode === 'Check') return { enabled: false };
+    throw new AdSyncError('Home folders are not set up in AD Sync settings');
+  }
   await getCheckedConfig(prisma);
 
   const student = await prisma.student.findUnique({ where: { id: studentId } });
   if (!student) throw new AdSyncError('Student not found', 404);
   if (!student.username) throw new AdSyncError('This student has no username, so their folder cannot be checked');
 
-  // The check does not need the password, so it is not sent
+  // Neither mode needs the password, so it is not sent
   const input = { ...toAdSyncStudent(student), password: null };
-  const [result] = await runScript<{ ok: boolean; error: string | null; folder: Omit<HomeFolderStatus, 'enabled'> }>(
-    config, 'Check', [input], runner
-  );
+  const [result] = await runScript<{
+    ok: boolean;
+    error: string | null;
+    folder: Omit<HomeFolderStatus, 'enabled'> | null;
+    steps: string[] | string | null;
+  }>(config, mode, [input], runner);
   if (!result) throw new AdSyncError('The AD sync script did not return a result', 500);
-  if (!result.ok) throw new AdSyncError(result.error || 'The home folder check failed', 500);
+  if (!result.ok || !result.folder) throw new AdSyncError(result.error || `The home folder ${mode.toLowerCase()} failed`, 500);
 
-  const problems = result.folder.problems;
-  return {
-    enabled: true,
-    ...result.folder,
-    problems: Array.isArray(problems) ? problems : problems ? [String(problems)] : []
-  };
+  const status: HomeFolderStatus = { enabled: true, ...result.folder, problems: asList(result.folder.problems) };
+  if (mode === 'Fix') {
+    status.steps = asList(result.steps);
+    logResults([{ username: student.username, name: `${student.firstName} ${student.surname}`, action: 'update', ok: true, error: null, steps: status.steps }]);
+  }
+  return status;
+}
+
+export function checkHomeFolder(prisma: PrismaClient, studentId: string, runner: AdSyncRunner = runPowerShell) {
+  return runHomeFolder(prisma, studentId, 'Check', runner);
+}
+
+// Shares the AD sync lock, so a fix cannot run while Apply is moving folders
+export async function fixHomeFolder(prisma: PrismaClient, studentId: string, runner: AdSyncRunner = runPowerShell) {
+  if (running) throw new AdSyncError('An AD sync is already running', 409);
+  running = true;
+  try {
+    return await runHomeFolder(prisma, studentId, 'Fix', runner);
+  } finally {
+    running = false;
+  }
 }
 
 // Goes to the service's stdout log. Results never contain passwords.

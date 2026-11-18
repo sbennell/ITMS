@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, ArrowLeft, CheckCircle, Download, RefreshCw, XCircle } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, ArrowLeft, CheckCircle, Download, RefreshCw, Wrench, XCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../App';
 
@@ -164,34 +164,67 @@ export default function StudentDetail() {
 
 // Shown only when AD Sync manages home folders. The check runs PowerShell, so it takes a few seconds.
 function HomeFolderCard({ studentId }: { studentId: string }) {
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const queryKey = ['studentHomeFolder', studentId];
   const { data, error, isFetching, refetch } = useQuery({
-    queryKey: ['studentHomeFolder', studentId],
+    queryKey,
     queryFn: () => api.getStudentHomeFolder(studentId),
     staleTime: 1000 * 60 * 5,
     retry: false
   });
 
+  // The fix returns the folder as checked afterwards, so it replaces the last check
+  const fixMutation = useMutation({
+    mutationFn: () => api.fixStudentHomeFolder(studentId),
+    onSuccess: (result) => queryClient.setQueryData(queryKey, result)
+  });
+
   if (data && !data.enabled) return null;
 
   const problems = data?.problems ?? [];
+  const busy = isFetching || fixMutation.isPending;
+
+  const handleFix = () => {
+    if (window.confirm('Fix this home folder? It is created or moved to the right place, and its permissions are reset, removing access for anyone else.')) {
+      fixMutation.mutate();
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow p-6 space-y-4">
       <div className="flex items-center justify-between border-b pb-3">
         <h2 className="text-lg font-bold text-gray-900">Home Folder</h2>
-        <button onClick={() => refetch()} disabled={isFetching} className="btn btn-secondary flex items-center gap-2">
-          <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-          {isFetching ? 'Checking...' : 'Check Again'}
-        </button>
+        <div className="flex gap-2">
+          {isAdmin && problems.length > 0 && (
+            <button onClick={handleFix} disabled={busy} className="btn btn-primary flex items-center gap-2">
+              <Wrench size={16} />
+              {fixMutation.isPending ? 'Fixing...' : 'Fix'}
+            </button>
+          )}
+          <button onClick={() => { fixMutation.reset(); refetch(); }} disabled={busy} className="btn btn-secondary flex items-center gap-2">
+            <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
+            {isFetching ? 'Checking...' : 'Check Again'}
+          </button>
+        </div>
       </div>
 
       {isFetching && !data && <p className="text-sm text-gray-500">Checking the folder...</p>}
 
-      {error && !isFetching && (
+      {(fixMutation.error || (error && !isFetching)) && (
         <p className="text-sm text-red-700 flex gap-2">
           <AlertCircle size={18} className="shrink-0" />
-          {(error as Error).message}
+          {((fixMutation.error || error) as Error).message}
         </p>
+      )}
+
+      {fixMutation.isSuccess && (
+        <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg p-3">
+          <p className="font-medium">Fixed</p>
+          <ul className="mt-1 space-y-0.5">
+            {(fixMutation.data.steps ?? []).map((step, i) => <li key={i}>{step}</li>)}
+          </ul>
+        </div>
       )}
 
       {data?.enabled && (
@@ -205,8 +238,8 @@ function HomeFolderCard({ studentId }: { studentId: string }) {
               {problems.map((problem, i) => <li key={i}>{problem}</li>)}
             </ul>
           )}
-          {problems.length > 0 && (
-            <p className="text-sm text-gray-500">An administrator can fix these with Apply in Settings, AD Sync.</p>
+          {problems.length > 0 && !isAdmin && (
+            <p className="text-sm text-gray-500">An administrator can fix these from this page.</p>
           )}
         </>
       )}
