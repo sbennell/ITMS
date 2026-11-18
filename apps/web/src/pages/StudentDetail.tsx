@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, CheckCircle, Download, RefreshCw, Wrench, XCircle } from 'lucide-react';
@@ -13,6 +14,8 @@ export default function StudentDetail() {
     queryFn: () => id ? api.getStudent(id) : Promise.reject('No ID'),
     enabled: !!id
   });
+
+  const { data: adStatus, isFetching: adChecking, refetch: recheckAd } = useStudentAdStatus(id);
 
   const { data: schoolType } = useQuery({
     queryKey: ['settings', 'schoolType'],
@@ -64,15 +67,23 @@ export default function StudentDetail() {
             </p>
           </div>
         </div>
-        {hasPermission('canViewStudentPasswords') && (
-          <button
-            onClick={handleDownloadLoginCard}
-            className="btn btn-secondary flex items-center gap-2"
-          >
-            <Download size={18} />
-            Login Card
-          </button>
-        )}
+        <div className="flex gap-2">
+          {adStatus?.enabled && (
+            <button onClick={() => recheckAd()} disabled={adChecking} className="btn btn-secondary flex items-center gap-2">
+              <RefreshCw size={18} className={adChecking ? 'animate-spin' : ''} />
+              {adChecking ? 'Checking...' : 'Check Again'}
+            </button>
+          )}
+          {hasPermission('canViewStudentPasswords') && (
+            <button
+              onClick={handleDownloadLoginCard}
+              className="btn btn-secondary flex items-center gap-2"
+            >
+              <Download size={18} />
+              Login Card
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Info Cards */}
@@ -162,23 +173,34 @@ export default function StudentDetail() {
   );
 }
 
-// Shown only when AD Sync is enabled. The check runs PowerShell, so it takes a few seconds.
-function StudentAdCards({ studentId }: { studentId: string }) {
-  const { isAdmin } = useAuth();
-  const queryClient = useQueryClient();
-  const queryKey = ['studentAdStatus', studentId];
-  const { data, error, isFetching, refetch } = useQuery({
-    queryKey,
-    queryFn: () => api.getStudentAdStatus(studentId),
+// The page header and the cards share this check. It runs PowerShell, so it takes a few seconds.
+function useStudentAdStatus(studentId: string | undefined) {
+  return useQuery({
+    queryKey: ['studentAdStatus', studentId],
+    queryFn: () => api.getStudentAdStatus(studentId!),
+    enabled: !!studentId,
     staleTime: 1000 * 60 * 5,
     retry: false
   });
+}
+
+// Shown only when AD Sync is enabled
+function StudentAdCards({ studentId }: { studentId: string }) {
+  const { isAdmin } = useAuth();
+  const queryClient = useQueryClient();
+  const { data, error, isFetching } = useStudentAdStatus(studentId);
 
   // The fix returns the student as checked afterwards, so it replaces the last check
   const fixMutation = useMutation({
     mutationFn: () => api.fixStudentHomeFolder(studentId),
-    onSuccess: (result) => queryClient.setQueryData(queryKey, result)
+    onSuccess: (result) => queryClient.setQueryData(['studentAdStatus', studentId], result)
   });
+
+  // A new check replaces the result of the last fix
+  const { reset: resetFix } = fixMutation;
+  useEffect(() => {
+    if (isFetching) resetFix();
+  }, [isFetching, resetFix]);
 
   if (data && !data.enabled) return null;
 
@@ -193,21 +215,11 @@ function StudentAdCards({ studentId }: { studentId: string }) {
     }
   };
 
-  const checkAgain = (
-    <button onClick={() => { fixMutation.reset(); refetch(); }} disabled={busy} className="btn btn-secondary flex items-center gap-2">
-      <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
-      {isFetching ? 'Checking...' : 'Check Again'}
-    </button>
-  );
-
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* AD Account */}
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <div className="flex items-center justify-between border-b pb-3">
-          <h2 className="text-lg font-bold text-gray-900">AD Account</h2>
-          {checkAgain}
-        </div>
+        <h2 className="text-lg font-bold text-gray-900 border-b pb-3">AD Account</h2>
 
         {isFetching && !data && <p className="text-sm text-gray-500">Checking Active Directory...</p>}
 
