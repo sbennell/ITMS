@@ -39,8 +39,17 @@ try {
 
 $data = Get-Content -LiteralPath $InputFile -Raw -Encoding UTF8 | ConvertFrom-Json
 $config = $data.config
-$domain = $env:USERDOMAIN
 $editDate = Get-Date -Format 'yyyyMMdd'
+
+# Use one domain controller for the whole run, so accounts and groups created here
+# can be found straight away without waiting for replication
+try {
+    $dc = @((Get-ADDomainController -Discover -Writable).HostName)[0]
+    $PSDefaultParameterValues['*-AD*:Server'] = $dc
+} catch {
+    Write-Output-File -Ok $false -ErrorMessage "No domain controller could be found: $($_.Exception.Message)"
+    exit 1
+}
 $foldersEnabled = [bool]$config.driveRootPath
 
 # Things already created or checked during this run, so each is listed or done once
@@ -96,8 +105,22 @@ function Confirm-Group([string]$GroupDN, $Steps) {
     Confirm-OU $parent $Steps
     $Steps.Add("Create group $GroupDN")
     if ($apply) {
-        New-ADGroup -Name (Get-GroupName $GroupDN) -Path $parent -GroupScope Global -GroupCategory Security
+        $group = New-ADGroup -Name (Get-GroupName $GroupDN) -Path $parent -GroupScope Global -GroupCategory Security -PassThru
+        $groupSids[$GroupDN] = $group.SID
     }
+}
+
+# Folder permissions use SIDs, so Windows never has to look a name up
+$groupSids = @{}
+function Get-GroupSid([string]$GroupDN) {
+    if (-not $groupSids.ContainsKey($GroupDN)) {
+        try {
+            $groupSids[$GroupDN] = (Get-ADGroup -Identity $GroupDN).SID
+        } catch {
+            throw "Group $GroupDN was not found in AD"
+        }
+    }
+    return $groupSids[$GroupDN]
 }
 
 function Remove-AllGroups($User, $Steps) {
@@ -114,8 +137,8 @@ function Blank-To-Null($Value) {
 
 # --- Folder helpers -----------------------------------------------------------------
 
-function New-Rule([string]$Identity, [string]$Rights, [string]$Inherit) {
-    return New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Rights, $Inherit, 'None', 'Allow')
+function New-Rule([System.Security.Principal.SecurityIdentifier]$Sid, [string]$Rights, [string]$Inherit) {
+    return New-Object System.Security.AccessControl.FileSystemAccessRule($Sid, $Rights, $Inherit, 'None', 'Allow')
 }
 
 function Set-FolderAcl([string]$Path, [object[]]$Rules) {
@@ -126,30 +149,28 @@ function Set-FolderAcl([string]$Path, [object[]]$Rules) {
     Set-Acl -LiteralPath $Path -AclObject $acl
 }
 
-$staffGroup = "$domain\$(Get-GroupName $config.staffGroupDN)"
-$studentsGroup = "$domain\$(Get-GroupName $config.studentsGroupDN)"
 $inheritAll = 'ContainerInherit,ObjectInherit'
 
 function Get-BaseRules {
     return @(
-        (New-Rule 'NT AUTHORITY\SYSTEM' 'FullControl' $inheritAll),
-        (New-Rule 'BUILTIN\Administrators' 'FullControl' $inheritAll)
+        (New-Rule ([System.Security.Principal.SecurityIdentifier]'S-1-5-18') 'FullControl' $inheritAll),     # SYSTEM
+        (New-Rule ([System.Security.Principal.SecurityIdentifier]'S-1-5-32-544') 'FullControl' $inheritAll)  # Administrators
     )
 }
 
 # Root, Inactive and Year/Form folders: Staff read only, Students read this folder only
 function Set-ContainerFolderAcl([string]$Path) {
     Set-FolderAcl $Path ((Get-BaseRules) + @(
-        (New-Rule $staffGroup 'ReadAndExecute' $inheritAll),
-        (New-Rule $studentsGroup 'ReadAndExecute' 'None')
+        (New-Rule (Get-GroupSid $config.staffGroupDN) 'ReadAndExecute' $inheritAll),
+        (New-Rule (Get-GroupSid $config.studentsGroupDN) 'ReadAndExecute' 'None')
     ))
 }
 
 # Student folder: Staff full control, the student modify
-function Set-StudentFolderAcl([string]$Path, [string]$Username) {
+function Set-StudentFolderAcl([string]$Path, $User) {
     Set-FolderAcl $Path ((Get-BaseRules) + @(
-        (New-Rule $staffGroup 'FullControl' $inheritAll),
-        (New-Rule "$domain\$Username" 'Modify' $inheritAll)
+        (New-Rule (Get-GroupSid $config.staffGroupDN) 'FullControl' $inheritAll),
+        (New-Rule $User.SID 'Modify' $inheritAll)
     ))
 }
 
@@ -178,7 +199,7 @@ function Find-StudentFolder([string]$First, [string]$Last) {
     return $null
 }
 
-function Sync-StudentFolder($Student, $Steps) {
+function Sync-StudentFolder($Student, $User, $Steps) {
     $orgName = if ($config.organizeBy -eq 'YearLevel') { $Student.yearLevel } else { $Student.form }
     if (-not $orgName) { throw "No $($config.organizeBy) to place the home folder in" }
 
@@ -204,7 +225,7 @@ function Sync-StudentFolder($Student, $Steps) {
     }
 
     # Permissions are reapplied on every run, as the original script did
-    if ($apply) { Set-StudentFolderAcl $target $Student.username }
+    if ($apply) { Set-StudentFolderAcl $target $User }
 }
 
 function Move-FolderToInactive($Student, $Steps) {
@@ -275,8 +296,7 @@ function Sync-Student($Student, $Steps) {
             foreach ($key in $attributes.Keys) {
                 if ($null -ne $attributes[$key]) { $params[$key] = $attributes[$key] }
             }
-            New-ADUser @params
-            $user = Find-ADStudent $username
+            $user = New-ADUser @params -PassThru
         }
     } else {
         if (-not $user.Enabled) {
@@ -322,7 +342,8 @@ function Sync-Student($Student, $Steps) {
     }
 
     # Group memberships end up as exactly the Students, Year and Form groups
-    $current = @(if ($user) { $user.MemberOf } else { @() })
+    # A new account (or one only in Preview) has no groups, and New-ADUser does not return MemberOf
+    $current = @($user.MemberOf | Where-Object { $_ })
     foreach ($groupDN in $current) {
         if ($groups -notcontains $groupDN) {
             $Steps.Add("Remove from group $(Get-GroupName $groupDN)")
@@ -336,7 +357,7 @@ function Sync-Student($Student, $Steps) {
         }
     }
 
-    if ($foldersEnabled) { Sync-StudentFolder $Student $Steps }
+    if ($foldersEnabled) { Sync-StudentFolder $Student $user $Steps }
     return $action
 }
 
@@ -378,6 +399,8 @@ try {
 
     if ($foldersEnabled) {
         if (-not (Test-Path -LiteralPath $config.driveRootPath)) { throw "Student folder root $($config.driveRootPath) was not found" }
+        # Checked in Preview too, as the Staff group is never created
+        $null = Get-GroupSid $config.staffGroupDN
         if (-not (Test-Path -LiteralPath $config.driveInactiveFolder)) {
             $setupSteps.Add("Create folder $($config.driveInactiveFolder)")
             if ($apply) { $null = New-Item -ItemType Directory -Path $config.driveInactiveFolder }

@@ -17,6 +17,8 @@ All notable changes to the Asset Management System are documented in this file.
 
 - A leaver whose account is already disabled and in the Inactive OU is shown as unchanged, instead of having its Left date updated on every run.
 - Group membership is changed only where it differs, instead of removing every group and adding them back.
+- Folder permissions are given by AD security ID instead of by name, and every AD change in a run uses the same domain controller. This fixes "Some or all identity references could not be translated" when a group or account was created in the same run, or when the service account's domain name did not match (issue #1).
+- Preview now reports a missing Staff group, instead of Apply failing on it.
 
 ### Upgrade Notes
 
