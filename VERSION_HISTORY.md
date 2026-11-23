@@ -17,7 +17,7 @@ All notable changes to the Asset Management System are documented in this file.
 - The account profile's home folder. When a Home Folder Share is set (the share path of the Student Folder Root, for example `\\fileserver\Students$`), Apply sets each account to connect the Home Drive Letter (default H:) to the student's home folder on that share, and the Home Folder card checks it.
 - Settings, Students: a Build Master List card that runs the student account matcher scripts from the scripts folder (default `C:\ITMS\Scripts`), then imports the master list. It uploads the exports the scripts need and shows each script's output.
   - MACS schools: upload the admin system and Google Workspace exports, then it runs `AD_Student_Export.ps1` and `Student_Account_Matcher.ps1 -Unattended` and imports `data\Master_List.csv`. A student with more than one active Google account is skipped and listed in the output.
-  - DE schools: optionally upload the Cases21 export (otherwise the path in the script's `config.json` is used), then it runs the DE `Student_Account_Matcher.ps1` and imports `data\student_master_list.csv`.
+  - DE schools: it runs the DE `Student_Account_Matcher.ps1`, which gets Cases21 itself, and imports `data\student_master_list.csv`. No export is uploaded.
   - The import only runs when every script succeeds and the student import file is the list the scripts made. A Use This File button sets it.
 - Student import: Student ID, Government Student Number and Gender can now be mapped. They are written to the AD Company, EmployeeID and Title attributes.
 

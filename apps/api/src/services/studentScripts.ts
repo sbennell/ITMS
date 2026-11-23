@@ -7,12 +7,12 @@ import { ImportResult, runStudentImport } from './studentImporter.js';
 
 // Runs the school's student account matcher scripts to build the master list, then imports it.
 // MACS schools (stored as STANDARD) use AD_Student_Export.ps1 and Student_Account_Matcher.ps1,
-// DE schools use the DE Student_Account_Matcher.ps1 (Cases21 and STMC).
+// DE schools use the DE Student_Account_Matcher.ps1, which gets Cases21 and STMC itself.
 
 const DEFAULT_FOLDER = 'C:\\ITMS\\Scripts';
 const TIMEOUT_MS = 15 * 60 * 1000;
 
-export type ExportKind = 'admin' | 'google' | 'cases21';
+export type ExportKind = 'admin' | 'google';
 
 export class StudentScriptsError extends Error {
   constructor(message: string, public status = 400) {
@@ -40,12 +40,6 @@ const EXPORTS: Record<ExportKind, ExportFile> = {
     dir: ['source', 'google'],
     fileName: () => `User_Download_${new Date().toISOString().replace(/\D/g, '').slice(0, 14)}.csv`,
     matches: (name) => /^User_Download_.*\.csv$/i.test(name)
-  },
-  cases21: {
-    label: 'Cases21 export',
-    dir: ['source', 'cases21'],
-    fileName: () => 'cases21_students.csv',
-    matches: (name) => name.toLowerCase() === 'cases21_students.csv'
   }
 };
 
@@ -70,13 +64,9 @@ const SCHOOL_SCRIPTS: Record<'STANDARD' | 'DE', SchoolScripts> = {
     ]
   },
   DE: {
-    exports: ['cases21'],
+    exports: [],
     output: ['data', 'student_master_list.csv'],
-    // An uploaded Cases21 export is used. Without one, the path in config.json is used.
-    steps: (folder) => {
-      const cases21 = path.join(folder, ...EXPORTS.cases21.dir, EXPORTS.cases21.fileName());
-      return [{ file: 'Student_Account_Matcher.ps1', args: existsSync(cases21) ? ['-Cases21CsvPath', cases21] : [] }];
-    }
+    steps: () => [{ file: 'Student_Account_Matcher.ps1', args: [] }]
   }
 };
 

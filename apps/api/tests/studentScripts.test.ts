@@ -95,21 +95,18 @@ test('the import is skipped when it is set to another file', async () => {
   assert.match(result.message!, /import was not run/);
 });
 
-test('a DE run uses the uploaded Cases21 export and imports the DE master list', async () => {
+test('a DE run runs the matcher, which gets Cases21 itself, and imports the DE master list', async () => {
   await setSetting('schoolType', 'DE');
   await setSetting('studentImportFile', path.join(folder, 'data', 'student_master_list.csv'));
 
-  // Without an upload the matcher uses the Cases21 path in its config.json
-  const first = fakeRunner('student_master_list.csv');
-  await runStudentScripts(server.prisma, first.runner);
-  assert.deepEqual(first.calls, ['Student_Account_Matcher.ps1']);
+  assert.equal((await upload('cases21')).status, 400);
+  const status = (await server.call('GET', '/students/scripts/status', admin)).json();
+  assert.deepEqual(status.exports, []);
 
-  assert.equal((await upload('cases21')).status, 200);
-  const second = fakeRunner('student_master_list.csv');
-  const result = await runStudentScripts(server.prisma, second.runner);
-  assert.deepEqual(second.calls, [`Student_Account_Matcher.ps1 -Cases21CsvPath ${path.join('source', 'cases21', 'cases21_students.csv')}`]);
-  // The first run already imported the student, so this run updates them
-  assert.equal(result.import?.updated, 1);
+  const { runner, calls } = fakeRunner('student_master_list.csv');
+  const result = await runStudentScripts(server.prisma, runner);
+  assert.deepEqual(calls, ['Student_Account_Matcher.ps1']);
+  assert.equal(result.import?.created, 1);
 });
 
 test('a missing script or folder is reported before anything runs', async () => {

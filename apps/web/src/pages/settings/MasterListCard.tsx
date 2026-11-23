@@ -113,11 +113,7 @@ export default function MasterListCard() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{exp.label}</p>
                 <p className="text-xs text-gray-500">
-                  {exp.fileName
-                    ? `${exp.fileName}, uploaded ${new Date(exp.modified!).toLocaleString()}`
-                    : isDE
-                      ? 'None uploaded. The Cases21 path in config.json is used.'
-                      : 'None uploaded'}
+                  {exp.fileName ? `${exp.fileName}, uploaded ${new Date(exp.modified!).toLocaleString()}` : 'None uploaded'}
                 </p>
               </div>
               <label className="btn btn-secondary cursor-pointer whitespace-nowrap">

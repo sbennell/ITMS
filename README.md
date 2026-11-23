@@ -208,7 +208,7 @@ Asset_System/
 - `POST /api/students/import/run` - Trigger manual student import
 - `POST /api/students/reconcile-assets` - Link assets to students by name matching
 - `GET /api/students/scripts/status` - Show the scripts folder, uploaded exports and the last run
-- `POST /api/students/scripts/upload/:kind` - Upload an export for the scripts (`admin`, `google` or `cases21`)
+- `POST /api/students/scripts/upload/:kind` - Upload an export for the scripts (`admin` or `google`, for MACS schools)
 - `POST /api/students/scripts/run` - Run the student account matcher scripts, then import the master list
 - `POST /api/students/ad-sync/preview` - List the AD account and home folder changes without making them
 - `POST /api/students/ad-sync/apply` - Make the AD account and home folder changes
