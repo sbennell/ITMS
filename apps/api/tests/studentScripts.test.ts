@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
 import { startServer, TestServer } from './helpers';
@@ -72,6 +72,22 @@ test('a Catholic run exports AD, runs the matcher unattended, then imports the m
   assert.equal(result.ok, true);
   assert.equal(result.import?.created, 1);
   assert.equal((await server.prisma.student.findFirstOrThrow()).username, 'alee');
+});
+
+test('a run saves a login card PDF for each home group to the login cards folder', async () => {
+  const cards = path.join(server.dir, `cards-${folderCount}`);
+  const { runner } = fakeRunner('Master_List.csv');
+  assert.equal((await runStudentScripts(server.prisma, runner)).loginCards, null);
+  assert.equal(existsSync(cards), false);
+
+  await setSetting('loginCardsFolder', cards);
+  const status = (await server.call('GET', '/students/scripts/status', admin)).json();
+  assert.equal(status.loginCardsFolder, cards);
+
+  const result = await runStudentScripts(server.prisma, fakeRunner('Master_List.csv').runner);
+  assert.deepEqual(result.loginCards, { folder: cards, files: ['login-cards-7A.pdf'] });
+  assert.ok(readFileSync(path.join(cards, 'login-cards-7A.pdf')).subarray(0, 4).equals(Buffer.from('%PDF')));
+  await setSetting('loginCardsFolder', '');
 });
 
 test('a failed script stops the run before the import', async () => {

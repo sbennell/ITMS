@@ -3,6 +3,7 @@ import { execFile } from 'child_process';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
+import { saveLoginCardsByHomeGroup } from './studentLoginCardService.js';
 import { ImportResult, runStudentImport } from './studentImporter.js';
 
 // Runs the school's student account matcher scripts to build the master list, then imports it.
@@ -117,6 +118,7 @@ export async function getStudentScriptsStatus(prisma: PrismaClient) {
   const outputFile = path.join(folder, ...scripts.output);
   const importFile = (await prisma.settings.findUnique({ where: { key: 'studentImportFile' } }))?.value || '';
   const lastRun = (await prisma.settings.findUnique({ where: { key: 'studentScriptsLastRun' } }))?.value || null;
+  const loginCardsFolder = (await prisma.settings.findUnique({ where: { key: 'loginCardsFolder' } }))?.value || '';
 
   return {
     folder,
@@ -125,6 +127,7 @@ export async function getStudentScriptsStatus(prisma: PrismaClient) {
     outputFile,
     importsOutput: samePath(importFile, outputFile),
     lastRun,
+    loginCardsFolder,
     exports: scripts.exports.map((kind) => {
       const latest = folderExists ? latestExport(folder, kind) : null;
       return { kind, label: EXPORTS[kind].label, fileName: latest?.name ?? null, modified: latest?.modified.toISOString() ?? null };
@@ -152,6 +155,7 @@ export interface ScriptRunResult {
   ok: boolean;
   steps: { script: string; ok: boolean; output: string }[];
   import: ImportResult | null;
+  loginCards: { folder: string; files: string[] } | null;
   message: string | null;
 }
 
@@ -169,7 +173,7 @@ export async function runStudentScripts(prisma: PrismaClient, runner: ScriptRunn
   running = true;
 
   try {
-    const result: ScriptRunResult = { ok: true, steps: [], import: null, message: null };
+    const result: ScriptRunResult = { ok: true, steps: [], import: null, loginCards: null, message: null };
     for (const step of steps) {
       const { code, output } = await runner(path.join(folder, step.file), step.args, folder);
       result.steps.push({ script: step.file, ok: code === 0, output });
@@ -196,6 +200,16 @@ export async function runStudentScripts(prisma: PrismaClient, runner: ScriptRunn
 
     // Started by an administrator, so the automatic removal limit does not apply
     result.import = await runStudentImport(prisma);
+
+    // Login cards are saved for each home group when a folder is set. The import has already run, so a failure here is only reported.
+    const cardsFolder = (await prisma.settings.findUnique({ where: { key: 'loginCardsFolder' } }))?.value || '';
+    if (cardsFolder) {
+      try {
+        result.loginCards = await saveLoginCardsByHomeGroup(prisma, cardsFolder);
+      } catch (error) {
+        result.message = `The login cards were not saved to ${cardsFolder}: ${(error as Error).message}`;
+      }
+    }
     return result;
   } finally {
     running = false;

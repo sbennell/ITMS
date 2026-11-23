@@ -7,6 +7,7 @@ import { api, StudentScriptsRun } from '../../lib/api';
 export default function MasterListCard() {
   const queryClient = useQueryClient();
   const [folder, setFolder] = useState('');
+  const [cardsFolder, setCardsFolder] = useState('');
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [run, setRun] = useState<StudentScriptsRun | null>(null);
   const [runError, setRunError] = useState<string | null>(null);
@@ -20,10 +21,19 @@ export default function MasterListCard() {
     if (status) setFolder(status.folder);
   }, [status?.folder]);
 
+  useEffect(() => {
+    if (status) setCardsFolder(status.loginCardsFolder);
+  }, [status?.loginCardsFolder]);
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['studentScriptsStatus'] });
 
   const folderMutation = useMutation({
     mutationFn: (value: string) => api.updateSetting('studentScriptsFolder', value),
+    onSuccess: refresh
+  });
+
+  const cardsFolderMutation = useMutation({
+    mutationFn: (value: string) => api.updateSetting('loginCardsFolder', value.trim()),
     onSuccess: refresh
   });
 
@@ -84,6 +94,25 @@ export default function MasterListCard() {
             {folderMutation.isPending ? 'Saving...' : 'Save'}
           </button>
         </div>
+      </label>
+
+      <label className="block mb-4">
+        <span className="text-sm font-medium text-gray-700">Login Cards Folder</span>
+        <div className="flex gap-2 mt-1">
+          <input
+            type="text"
+            value={cardsFolder}
+            onChange={(e) => setCardsFolder(e.target.value)}
+            placeholder="C:\ITMS\Login Cards"
+            className="input flex-1"
+          />
+          <button onClick={() => cardsFolderMutation.mutate(cardsFolder)} disabled={cardsFolderMutation.isPending} className="btn btn-primary">
+            {cardsFolderMutation.isPending ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+        <span className="text-xs text-gray-500">
+          After each import, a login card PDF for each home group is saved here, replacing the last ones. Leave empty to not save them.
+        </span>
       </label>
 
       {!status.folderExists && (
@@ -194,6 +223,12 @@ export default function MasterListCard() {
                   {run.import.errors.length > 10 && <li>... and {run.import.errors.length - 10} more</li>}
                 </ul>
               )}
+            </div>
+          )}
+
+          {run.loginCards && (
+            <div className="p-3 rounded-lg text-sm bg-green-50 border border-green-200 text-green-700">
+              Saved {run.loginCards.files.length} login card {run.loginCards.files.length === 1 ? 'PDF' : 'PDFs'} to {run.loginCards.folder}
             </div>
           )}
         </div>

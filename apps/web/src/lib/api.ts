@@ -121,6 +121,7 @@ export interface StudentScriptsStatus {
   outputFile: string;
   importsOutput: boolean;
   lastRun: string | null;
+  loginCardsFolder: string;
   exports: { kind: string; label: string; fileName: string | null; modified: string | null }[];
 }
 
@@ -128,6 +129,7 @@ export interface StudentScriptsRun {
   ok: boolean;
   steps: { script: string; ok: boolean; output: string }[];
   import: StudentImportResult | null;
+  loginCards: { folder: string; files: string[] } | null;
   message: string | null;
 }
 

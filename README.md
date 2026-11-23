@@ -62,6 +62,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **School Customization**: Conditional fields based on school type (MACS or Department of Education)
 - **Import Automation**: File watcher for automatic imports when student data changes
 - **AD Sync**: Create, update and disable student Active Directory accounts and manage their home folders, with a preview before any change is made
+- **Login Cards by Home Group**: When the master list is built, a login card PDF for each home group is saved to a set folder
 - **Quick View**: Student detail pages with assigned assets and account information
 
 ### Data Management
@@ -209,7 +210,7 @@ Asset_System/
 - `POST /api/students/reconcile-assets` - Link assets to students by name matching
 - `GET /api/students/scripts/status` - Show the scripts folder, uploaded exports and the last run
 - `POST /api/students/scripts/upload/:kind` - Upload an export for the scripts (`admin` or `google`, for MACS schools)
-- `POST /api/students/scripts/run` - Run the student account matcher scripts, then import the master list
+- `POST /api/students/scripts/run` - Run the student account matcher scripts, import the master list, then save login cards for each home group when a folder is set
 - `POST /api/students/ad-sync/preview` - List the AD account and home folder changes without making them
 - `POST /api/students/ad-sync/apply` - Make the AD account and home folder changes
 - `GET /api/students/:id/ad-status` - Show a student's AD account and groups, and check their home folder location and permissions

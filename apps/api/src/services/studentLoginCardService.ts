@@ -1,3 +1,6 @@
+import { PrismaClient } from '@prisma/client';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 import { PDFDocument, rgb, StandardFonts, LineCapStyle } from 'pdf-lib';
 import { embedTextFont } from '../lib/pdfText.js';
 
@@ -168,4 +171,30 @@ export async function generateStudentLoginCards(students: LoginCardStudent[]): P
   });
 
   return doc.save();
+}
+
+/**
+ * Save a login card PDF for each home group (students who have not left) to a folder,
+ * replacing the files from the last time
+ */
+export async function saveLoginCardsByHomeGroup(prisma: PrismaClient, folder: string) {
+  const students = await prisma.student.findMany({
+    where: { status: { not: 'Left' } },
+    select: { firstName: true, surname: true, homeGroup: true, schoolYear: true, username: true, email: true, password: true }
+  });
+
+  const groups = new Map<string, LoginCardStudent[]>();
+  for (const student of students) {
+    const group = student.homeGroup?.trim() || 'No Home Group';
+    groups.set(group, [...(groups.get(group) ?? []), student]);
+  }
+
+  await mkdir(folder, { recursive: true });
+  const files: string[] = [];
+  for (const [group, list] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
+    const name = `login-cards-${group.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}.pdf`;
+    await writeFile(path.join(folder, name), await generateStudentLoginCards(list));
+    files.push(name);
+  }
+  return { folder, files };
 }
