@@ -4,6 +4,14 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.37.2] - 2026-11-24
+
+### Changed
+
+- When the login cards folder cannot be found or made, the run now says so and names the account ITMS runs as, which needs write access to it. Before, it showed `EINVAL: invalid argument, mkdir`.
+
+---
+
 ## [1.37.1] - 2026-11-24
 
 ### Fixed

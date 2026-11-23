@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { userInfo } from 'os';
 import path from 'path';
 import { after, before, beforeEach, test } from 'node:test';
 import { startServer, TestServer } from './helpers';
@@ -87,6 +88,19 @@ test('a run saves a login card PDF for each home group to the login cards folder
   const result = await runStudentScripts(server.prisma, fakeRunner('Master_List.csv').runner);
   assert.deepEqual(result.loginCards, { folder: cards, files: ['login-cards-7A.pdf'] });
   assert.ok(readFileSync(path.join(cards, 'login-cards-7A.pdf')).subarray(0, 4).equals(Buffer.from('%PDF')));
+  await setSetting('loginCardsFolder', '');
+});
+
+test('a login cards folder that cannot be made says which account needs access', async () => {
+  const blocker = path.join(server.dir, `not-a-folder-${folderCount}`);
+  writeFileSync(blocker, '');
+  await setSetting('loginCardsFolder', path.join(blocker, 'cards'));
+
+  const result = await runStudentScripts(server.prisma, fakeRunner('Master_List.csv').runner);
+  assert.equal(result.ok, true);
+  assert.equal(result.import?.created, 1);
+  assert.equal(result.loginCards, null);
+  assert.ok(result.message!.includes(`(${userInfo().username}) cannot open it`), result.message!);
   await setSetting('loginCardsFolder', '');
 });
 

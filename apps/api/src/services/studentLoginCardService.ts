@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { existsSync } from 'fs';
+import { userInfo } from 'os';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts, LineCapStyle } from 'pdf-lib';
@@ -190,8 +191,15 @@ export async function saveLoginCardsByHomeGroup(prisma: PrismaClient, folder: st
     groups.set(group, [...(groups.get(group) ?? []), student]);
   }
 
-  // mkdir fails with EINVAL on the root of a network share (\\server\share), so only make a folder that is missing
-  if (!existsSync(folder)) await mkdir(folder, { recursive: true });
+  // mkdir fails with EINVAL on the root of a network share (\\server\share), so only make a folder that is missing.
+  // A share the service account cannot open also looks missing, so say which account needs access.
+  if (!existsSync(folder)) {
+    try {
+      await mkdir(folder, { recursive: true });
+    } catch {
+      throw new Error(`the folder was not found, or the account ITMS runs as (${userInfo().username}) cannot open it. Check that it exists and that this account can write to it.`);
+    }
+  }
   const files: string[] = [];
   for (const [group, list] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     const name = `login-cards-${group.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}.pdf`;
