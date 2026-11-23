@@ -4,15 +4,19 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.37.1] - 2026-11-24
+
+### Fixed
+
+- Login cards can be saved to the root of a network share (for example `\\server\share$`). Before, the run showed `EINVAL: invalid argument, mkdir`.
+
+---
+
 ## [1.37.0] - 2026-11-24
 
 ### Added
 
 - Settings, Students: a Login Cards Folder on the Build Master List card. When it is set, each run that imports the master list saves a login card PDF for each home group to that folder (for example `login-cards-7A.pdf`), replacing the files from the last run. Students marked Left are not included, and students with no home group go in `login-cards-No-Home-Group.pdf`. If the cards cannot be saved, the import still counts and the run shows why.
-
-### Fixed
-
-- Login cards can be saved to the root of a network share (for example `\\server\share$`). Before, the run showed `EINVAL: invalid argument, mkdir`.
 
 ---
 
