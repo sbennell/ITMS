@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { existsSync } from 'fs';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { PDFDocument, rgb, StandardFonts, LineCapStyle } from 'pdf-lib';
@@ -189,7 +190,8 @@ export async function saveLoginCardsByHomeGroup(prisma: PrismaClient, folder: st
     groups.set(group, [...(groups.get(group) ?? []), student]);
   }
 
-  await mkdir(folder, { recursive: true });
+  // mkdir fails with EINVAL on the root of a network share (\\server\share), so only make a folder that is missing
+  if (!existsSync(folder)) await mkdir(folder, { recursive: true });
   const files: string[] = [];
   for (const [group, list] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     const name = `login-cards-${group.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}.pdf`;
