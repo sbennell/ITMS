@@ -4,7 +4,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import session from 'express-session';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './lib/prisma.js';
+import { loadKey } from './lib/secretBox.js';
 import authRoutes, { refreshSessionUser } from './routes/auth.js';
 import assetRoutes from './routes/assets.js';
 import softwareRoutes from './routes/software.js';
@@ -19,9 +20,10 @@ import studentRoutes from './routes/students.js';
 import publicRoutes from './routes/public.js';
 import { startStudentImportWatcher, closeStudentImportWatcher, importIfChangedWhileStopped } from './services/studentImportWatcher.js';
 import { migrateDataClassifications } from './services/dataClassificationMigration.js';
+import { encryptExistingPasswords } from './services/passwordEncryptionMigration.js';
 
 const app = express();
-const prisma = new PrismaClient();
+const prisma = createPrismaClient(loadKey());
 
 // SQLite's default rollback-journal mode blocks all readers while any write is in
 // flight, which surfaces as intermittent "database is locked" failures when requests
@@ -30,7 +32,7 @@ const prisma = new PrismaClient();
 // busy_timeout makes a write wait briefly for a lock instead of failing immediately.
 // Both PRAGMAs return the new setting as a result row, which SQLite only allows
 // through a query (not $executeRaw, which rejects statements that return rows).
-prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;')
+const sqliteReady = prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL;')
   .then(() => prisma.$queryRawUnsafe('PRAGMA busy_timeout = 5000;'))
   .catch((err) => console.error('Failed to configure SQLite pragmas:', err));
 
@@ -128,14 +130,21 @@ process.on('unhandledRejection', (reason) => {
 
 let studentImportWatcher: any = null;
 
-app.listen(PORT, async () => {
-  console.log(`IT Management System (ITMS) API running on http://localhost:${PORT}`);
+// A key that cannot read the stored passwords must stop the server before it serves anything
+sqliteReady
+  .then(() => encryptExistingPasswords(prisma))
+  .then(() => app.listen(PORT, async () => {
+    console.log(`IT Management System (ITMS) API running on http://localhost:${PORT}`);
 
-  await migrateDataClassifications(prisma).catch((err) => console.error('Failed to update data classifications:', err));
+    await migrateDataClassifications(prisma).catch((err) => console.error('Failed to update data classifications:', err));
 
-  // Initialize student import watcher
-  studentImportWatcher = await startStudentImportWatcher(prisma);
-  await importIfChangedWhileStopped(prisma);
-});
+    // Initialize student import watcher
+    studentImportWatcher = await startStudentImportWatcher(prisma);
+    await importIfChangedWhileStopped(prisma);
+  }))
+  .catch((err) => {
+    console.error('Failed to start:', err);
+    process.exit(1);
+  });
 
 export { prisma };

@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from 'fs';
 import { createServer } from 'net';
 import { tmpdir } from 'os';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/prisma';
+import { loadKey } from '../src/lib/secretBox';
 
 const API_DIR = path.join(__dirname, '..');
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -66,7 +67,6 @@ export async function startServer(options: { production?: boolean } = {}) {
     exited = true;
   });
 
-  const prisma = new PrismaClient({ datasources: { db: { url } } });
   const origin = `http://127.0.0.1:${port}`;
   const base = `${origin}/api`;
 
@@ -111,6 +111,9 @@ export async function startServer(options: { production?: boolean } = {}) {
   if (!(await waitFor(isAlive, 30000))) {
     throw new Error('Test server did not start');
   }
+
+  // Reads passwords as the app does, with the key the server made on startup
+  const prisma = createPrismaClient(loadKey(path.join(dir, 'ITMS.key')), { datasources: { db: { url } } });
 
   // The login route allows 10 attempts per 15 minutes, so each test file must stay under that
   const login = async (username: string) => {

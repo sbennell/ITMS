@@ -278,6 +278,14 @@ Get-ChildItem "C:\ITMS\backups\uploads_*.zip" | Sort-Object CreationTime -Descen
 New-Item -ItemType Directory -Path "C:\ITMS\backups" -Force
 ```
 
+### Encryption Key
+
+Device passwords and student passwords are stored encrypted. The key is `C:\ITMS\data\ITMS.key`, created the first time ITMS starts. Only the account ITMS runs as and Administrators can read it.
+
+The backup script does not copy the key, so a database backup on its own does not reveal the passwords. Copy `ITMS.key` once to somewhere safe and separate from the backups (for example a password manager). Without it the stored passwords cannot be read, and restoring a database backup needs the same key. If the key does not match the database, ITMS will not start and says so in `logs\stderr.log`.
+
+Upgrading to 1.38.0 encrypts the existing passwords on first start. Backups made before the upgrade still hold them in plain text, so delete those once the upgrade is working.
+
 ### Schedule Daily Backups
 
 ```powershell
@@ -442,6 +450,7 @@ C:\ITMS\
 │   └── package.json
 ├── data\
 │   ├── ITMS.db                   # SQLite database
+│   ├── ITMS.key                  # Password encryption key (back up separately)
 │   └── uploads\                  # Software attachment files
 ├── logs\
 │   ├── stdout.log                # Application output

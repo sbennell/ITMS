@@ -87,6 +87,7 @@ A web-based IT Management System for tracking hardware and equipment inventory, 
 - **Per-User Feature Permissions**: Scope a User account to just the areas it needs - Assets (incl. label printing), Software, Students, Stocktake, Reports & Network/IPAM - plus independent toggles for viewing stored device passwords and student passwords
 - **User Administration**: Create, edit, and disable user accounts
 - **Password Management**: Secure password hashing with bcrypt
+- **Encrypted Stored Passwords**: Device and student passwords are encrypted with AES-256-GCM. The key is `data\ITMS.key`, which must be backed up separately (see the Backup Strategy in `doc/MANUAL_INSTALL.md`)
 
 ## Technology Stack
 

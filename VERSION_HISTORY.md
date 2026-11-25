@@ -4,6 +4,16 @@ All notable changes to the Asset Management System are documented in this file.
 
 ---
 
+## [1.38.0] - 2026-11-26
+
+### Security
+
+- Device passwords and student passwords are now stored encrypted (AES-256-GCM) instead of in plain text. The key is `data\ITMS.key`, made on first start, and only the account ITMS runs as and Administrators can read it. Existing passwords are encrypted on the first start after the upgrade. Nothing changes for users: the passwords show, print and sync to AD as before.
+- The backup script copies only the database, so backups no longer reveal these passwords. Back up `ITMS.key` once, separately: without it they cannot be read. Backups made before this version still hold the passwords in plain text and should be deleted once the upgrade is working.
+- If `ITMS.key` does not match the database, ITMS will not start and says why, instead of showing wrong passwords.
+
+---
+
 ## [1.37.2] - 2026-11-24
 
 ### Changed
